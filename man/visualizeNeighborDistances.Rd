@@ -5,13 +5,7 @@
 \title{Prepare data for the PoisECM method: Choose a distance threshold for
 adjacency matrices.}
 \usage{
-visualizeNeighborDistances(
-  meta_data,
-  sample_col,
-  coord_cols,
-  coord_data,
-  k_search = 20
-)
+visualizeNeighborDistances(meta_data, sample_col, coord_data, k_search = 20)
 }
 \arguments{
 \item{meta_data}{Dataframe with metadata/covariates.
@@ -19,8 +13,6 @@ Ensure that rownames(meta_data) == rownames(coord_data).}
 
 \item{sample_col}{String: Column name in meta_data identifying which rows correspond
 to which sample (how to break up the data into multiple samples).}
-
-\item{coord_cols}{vector of strings: Columns in meta_data corresponding to coordinates.}
 
 \item{coord_data}{Dataframe or matrix with coordinates for observations.
 Rows are samples.

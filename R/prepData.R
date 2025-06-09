@@ -352,7 +352,6 @@ prepData <- function(count_matrix,
 #'  Ensure that rownames(meta_data) == rownames(coord_data).
 #' @param sample_col String: Column name in meta_data identifying which rows correspond
 #'  to which sample (how to break up the data into multiple samples).
-#' @param coord_cols vector of strings: Columns in meta_data corresponding to coordinates.
 #' @param coord_data Dataframe or matrix with coordinates for observations.
 #'  Rows are samples.
 #'  Ensure that rownames(coord_data) == rownames(meta_data).
@@ -379,12 +378,11 @@ prepData <- function(count_matrix,
 #' @export
 visualizeNeighborDistances <- function(meta_data,
                                        sample_col,
-                                       coord_cols,
                                        coord_data,
                                        k_search = 20) {
   ## List of spatial coordinates for each sample
   coords_list <- lapply(unique(meta_data[, sample_col]), function (x) {
-    meta_data[meta_data[, sample_col] == x, coord_cols]
+    coord_data[meta_data[, sample_col] == x, ]
   })
   names(coords_list) <- unique(meta_data[, sample_col])
 
