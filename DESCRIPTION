@@ -1,0 +1,22 @@
+Package: poisECM
+Title: Poisson generalized spatial linear model for analyzing multi-sample count data
+Version: 0.1
+Authors@R: 
+    person("Florica", "Constantine", email = "florica@berkeley.edu", role = c("aut", "cre"))
+Maintainer: Florica Constantine <florica@berkeley.edu>
+Description:  Fit a Poisson generalized spatial linear model for analyzing 
+  multi-sample count data. This model allows for disconnected samples with 
+  different coordinate systems that do not necessarily align, all while 
+  estimating of a common set of fixed effects across samples. 
+  E.g., consider a dataset with tissue samples from multiple patients from 
+  different conditions---this model will enable estimating fixed effects for 
+  conditions while accounting for the heterogeneity in spatial correlation 
+  structures across tissue samples. 
+License: Apache License (>= 2)
+Imports: Matrix, gstat, sp, pracma, MASS, 
+  BRISC, CARBayes, brms, mgcv, 
+  spatstat.geom, dplyr, ggplot2, reshape2
+Remotes: github::mcooper/moranfast
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2

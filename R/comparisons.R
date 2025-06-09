@@ -1,0 +1,603 @@
+## Functions to run other methods: for comparisons.
+# Dependencies in file: Matrix, mgcv, brms, CARBayes, MASS.
+
+#' Wrapper to fit a spatial spline model.
+#'
+#' This function theoretically works for multiple areas.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param z_list List of vectors of observed counts---one vector per area.
+#' @param X_list List of design or covariate matrices---one matrix per area.
+#'    Same length and ordering as z_list.
+#'    Matrices with number of rows equal to length of corresponding vector in
+#'    z_list.
+#' @param x_coords_list List of x-coordinates for observations---one vector per area.
+#'    Same length and ordering as z_list.
+#'    Vectors lengths equal to length of corresponding vector in z_list, i.e.,
+#'    a 1:1 correspondence.
+#' @param y_coords_list List of y-coordinates for observations---one vector per area.
+#'    Same length and ordering as z_list.
+#'    Vectors lengths equal to length of corresponding vector in z_list, i.e.,
+#'    a 1:1 correspondence.
+#' @param model_family "poisson" or "gaussian".
+#'    Which model family to fit. Note that Poisson models don't scale well in the
+#'    multi-area setting---the spline is fit on a per-area basis.
+#' @param z_offset In the "gaussian" case, the counts z are transformed as
+#'    log(z + z_offset).
+#' @param spline_k Dimension of spline basis.
+#' @param spline_basis Type of basis---must be valid for mgcv::s.
+#'
+#' @returns The output list from mgcv::gam, plus a time field for how long the
+#'    function ran for.
+#'
+#' @note Requires the mgcv library.
+#'
+#' @importFrom mgcv gam
+#' @importFrom mgcv s
+#' @importFrom stats as.formula
+#' @importFrom stats gaussian
+#' @importFrom stats poisson
+#' @export
+mgcv_gam_wrapper <- function(z_list,
+                             X_list,
+                             x_coords_list,
+                             y_coords_list,
+                             model_family = "poisson",
+                             z_offset = 0.5,
+                             spline_k = -1,
+                             spline_basis = "tp") {
+  # Start clock
+  t0_mgcv <- Sys.time()
+
+  # Create a single set of vectors/covariate matrix
+  z_vec <- Reduce(c, z_list)
+  X_mat <- Reduce(rbind, X_list)
+  xc <- Reduce(c, x_coords_list)
+  yc <- Reduce(c, y_coords_list)
+
+  # Create an indicator for each area
+  area_id <- rep(NA, length(z_vec))
+  start_idx <- 1
+  for (area_idx in 1:length(z_list)) {
+    area_id[start_idx:(start_idx + length(z_list[[area_idx]]) - 1)] <- area_idx
+    start_idx <- start_idx + length(z_list[[area_idx]])
+  }
+
+  # Create data frame
+  beta_dim <- ncol(X_mat)
+  X_df <- cbind(data.frame(X_mat), z_vec, xc, yc, area_id)
+  # Memory
+  rm(z_vec, X_mat, xc, yc, area_id)
+
+  # Name columns
+  for (idx in 1:beta_dim) {
+    colnames(X_df)[idx] <- paste0("X", idx)
+  }
+  colnames(X_df)[1 + beta_dim] <- "z"
+  colnames(X_df)[2 + beta_dim] <- "x"
+  colnames(X_df)[3 + beta_dim] <- "y"
+  colnames(X_df)[4 + beta_dim] <- "area"
+  # Ensure area is a factor so we can group by it
+  X_df$area <- as.factor(X_df$area)
+
+
+  # Create formula
+  spline_str <- paste0(" + s(x, y, by=area, k=", spline_k, ", bs='", spline_basis, "')")
+  mgcv_formula <- stats::as.formula(paste0("z ~ 0 + ", paste(colnames(X_df)[1:beta_dim], collapse = " + "), spline_str))
+
+  # Fit model
+  if ("poisson" == model_family) {
+    mgcv_out <- mgcv::gam(mgcv_formula, family = stats::poisson(), data = X_df)
+  } else if ("gaussian" == model_family) {
+    X_df$z <- log(X_df$z + z_offset)
+    mgcv_out <- mgcv::gam(mgcv_formula, family = stats::gaussian(), data = X_df)
+  } else {
+    stop("Invalid model family.")
+  }
+
+  # Stop clock and return
+  t1_mgcv <- Sys.time()
+  mgcv_out[["time"]] <- difftime(t1_mgcv, t0_mgcv)
+  return(mgcv_out)
+}
+
+#' Wrapper to fit a CAR or SAR model with MCMC (stan).
+#'
+#' This function theoretically works for multiple areas by creating a
+#'  block diagonal adjacency matrix.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param z_list List of vectors of observed counts---one vector per area.
+#' @param X_list List of design or covariate matrices---one matrix per area.
+#'    Same length and ordering as z_list.
+#'    Matrices with number of rows equal to length of corresponding vector in
+#'    z_list.
+#' @param W_list List of spatial adjacency matrices---one matrix per area.
+#' @param model_type "CAR" or "SAR"
+#' @param model_family "poisson" or "gaussian".
+#'    Which model family to fit. Note that Poisson models don't scale well in the
+#'    multi-area setting---the spline is fit on a per-area basis.
+#'    Note: at the time of writing, "SAR" + "poisson" does not work--
+#'    this is not implemented.
+#' @param z_offset In the "gaussian" case, the counts z are transformed as
+#'    log(z + z_offset).
+#' @param chains Number of MCMC chains to run.
+#' @param iter Number of total iterations per MCMC chain.
+#' @param warmup Burn-in for MCMC.
+#' @param thin Thinning rate for MCMC.
+#' @param cores Number of cores to use for MCMC.
+#'
+#' @returns The output list from brms::brm, plus a time field for how long the
+#'    function ran for.
+#'
+#' @note Requires the Matrix library.
+#' @note Requires the brms library.
+#'
+#' @import Matrix
+#' @importFrom Matrix bdiag
+#' @importFrom brms brm
+#' @importFrom stats as.formula
+#' @importFrom stats gaussian
+#' @importFrom stats poisson
+#'
+#' @export
+BRMS_CAR_SAR_wrapper <- function(z_list,
+                                 X_list,
+                                 W_list,
+                                 model_type = "CAR",
+                                 model_family = "poisson",
+                                 z_offset = 0.5,
+                                 chains = 4,
+                                 iter = 2000,
+                                 warmup = 200,
+                                 thin = 2,
+                                 cores = 1)  {
+  # Start clock
+  t0_brm <- Sys.time()
+
+  # Create a single set of vectors/covariate matrix
+  z_vec <- Reduce(c, z_list)
+  X_mat <- Reduce(rbind, X_list)
+  beta_dim <- ncol(X_mat)
+  # Create a single adjacency matrix
+  W <- Matrix::bdiag(W_list)
+
+  if ("CAR" == model_type) {
+    form_str <- " + car(W, type='escar')"
+  } else if ("SAR" == model_type) {
+    form_str <- " + sar(W, type='lag')"
+  } else {
+    stop("Invalid model_type.")
+  }
+
+  # Create dataframe
+  X_df <- cbind(data.frame(X_mat), z_vec)
+  # Memory
+  rm(z_vec, X_mat)
+  for (idx in 1:beta_dim) {
+    colnames(X_df)[idx] <- paste0("X", idx)
+  }
+  colnames(X_df)[1 + beta_dim] <- "z"
+
+  # Create formula
+  BRM_formula <- stats::as.formula(paste0("z ~ 0 + ", paste(colnames(X_df)[1:beta_dim], collapse = " + "), form_str))
+
+  # Fit model
+  if ("poisson" == model_family) {
+    brms_out <- brms::brm(
+      BRM_formula,
+      family = stats::poisson(),
+      data = X_df,
+      data2 = list(W = W)
+    )
+  } else if ("gaussian" == model_family) {
+    X_df$z <- log(X_df$z + z_offset)
+    brms_out <- brms::brm(
+      BRM_formula,
+      family = stats::gaussian(),
+      data = X_df,
+      data2 = list(W = W)
+    )
+  } else {
+    stop("Invalid model family.")
+  }
+
+  # Stop clock
+  t1_brm <- Sys.time()
+  brms_out[["time"]] <- difftime(t1_brm, t0_brm)
+
+  return(brms_out)
+}
+
+#' Wrapper to fit a Leroux model with MCMC (CARBayes).
+#'
+#' This function theoretically works for multiple areas by creating a
+#'  block diagonal adjacency matrix. However, the CARBayes package
+#'  needs a dense, matrix-type object, so this WILL NOT SCALE!
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param z_list List of vectors of observed counts---one vector per area.
+#' @param X_list List of design or covariate matrices---one matrix per area.
+#'    Same length and ordering as z_list.
+#'    Matrices with number of rows equal to length of corresponding vector in
+#'    z_list.
+#' @param W_list List of spatial adjacency matrices---one matrix per area.
+#' @param model_family "poisson" or "gaussian".
+#'    Which model family to fit. Note that Poisson models don't scale well in the
+#'    multi-area setting---the spline is fit on a per-area basis.
+#' @param z_offset In the "gaussian" case, the counts z are transformed as
+#'    log(z + z_offset).
+#' @param chains Number of MCMC chains to run.
+#' @param iter Number of total iterations per MCMC chain.
+#' @param warmup Burn-in for MCMC.
+#' @param thin Thinning rate for MCMC.
+#' @param cores Number of cores to use for MCMC.
+#'
+#' @returns The output list from CARBayes::S.CARleroux, plus a time field
+#'  for how long the function ran for.
+#'
+#' @note Requires the Matrix library.
+#' @note Requires the CARBayes library.
+#'
+#' @import Matrix
+#' @importFrom Matrix bdiag
+#' @importFrom CARBayes S.CARleroux
+#'
+#' @export
+CARBayes_Leroux_wrapper <- function(z_list,
+                                    X_list,
+                                    W_list,
+                                    model_family = "poisson",
+                                    z_offset = 0.5,
+                                    chains = 4,
+                                    iter = 2000,
+                                    warmup = 200,
+                                    thin = 2,
+                                    cores = 1)  {
+  # Start clock
+  t0_cb <- Sys.time()
+
+  # Create a single set of vectors/covariate matrix
+  z_vec <- Reduce(c, z_list)
+  X_mat <- Reduce(rbind, X_list)
+  # Create a single adjacency matrix
+  # WARNING: THIS HAS TO BE A MATRIX IN R
+  # SO, THIS IS TOTALLY DENSE!!
+  W <- as.matrix(Matrix::bdiag(W_list))
+
+  # Fit model
+  if ("poisson" == model_family) {
+    # Content here as a placeholder
+  } else if ("gaussian" == model_family) {
+    z_vec <- log(z_vec + z_offset)
+  } else {
+    stop("Invalid model family.")
+  }
+  cb_out <- CARBayes::S.CARleroux(
+    z_vec ~ 0 + X_mat,
+    family = model_family,
+    burnin = warmup,
+    n.sample = iter,
+    W = W,
+    thin = thin,
+    n.chains = chains,
+    n.cores = cores,
+    verbose = TRUE
+  )
+
+  # Stop clock
+  t1_cb <- Sys.time()
+  cb_out[["time"]] <- difftime(t1_cb, t0_cb)
+
+  return(cb_out)
+}
+
+# Wrapper to fit an HSAR model with MCMC.
+#
+# This function theoretically works for multiple areas by creating a
+#  block diagonal adjacency matrix.
+#
+# @author Florica J Constantine, florica AT berkeley.edu
+#
+# @param z_list List of vectors of observed counts---one vector per area.
+# @param X_list List of design or covariate matrices---one matrix per area.
+#    Same length and ordering as z_list.
+#    Matrices with number of rows equal to length of corresponding vector in
+#    z_list.
+# @param transform_z Boolean: log-transform z or not.
+# @param z_offset If transform_z, the counts z are transformed as
+#    log(z + z_offset).
+# @param iter Number of total iterations per MCMC chain.
+# @param warmup Burn-in for MCMC.
+# @param thin Thinning rate for MCMC.
+#
+# @returns The output list from brms::brm, plus a time field for how long the
+#    function ran for.
+#
+# @note Requires the Matrix library.
+# @note Requires the HSAR library.
+# @note HSAR is no longer on CRAN...
+#
+# @import Matrix
+# @importFrom Matrix bdiag
+# @importFrom Matrix Matrix
+# @importFrom HSAR hsar
+# HSAR_wrapper <- function(z_list, X_list, W_list,
+#                          transform_z=TRUE,
+#                          z_offset=0.5,
+#                          iter=2000, warmup=200, thin=2
+# )  {
+#   # Start clock
+#   t0_HSAR <- Sys.time()
+#
+#   # Create a single set of vectors/covariate matrix
+#   z_vec <- Reduce(c, z_list)
+#   X_mat <- Reduce(rbind, X_list)
+#   # Create a single adjacency matrix
+#   W <- Matrix::bdiag(W_list)
+#
+#   # Create an indicator for each area
+#   area_id <- rep(NA, length(z_vec))
+#   start_idx <- 1
+#   for (area_idx in 1:length(z_list)) {
+#     area_id[start_idx:(start_idx + length(z_list[[area_idx]]) - 1)] <- area_idx
+#     start_idx <- start_idx + length(z_list[[area_idx]])
+#   }
+#   # Not used, but needed to make HSAR code work
+#   if (1 == length(z_list)) {
+#     area_id[round(length(area_id) / 2):length(area_id)] <- 2
+#   }
+#
+#   # Transform z
+#   if (transform_z) {
+#     z_vec <- log(z_vec + z_offset)
+#   }
+#
+#
+#   # Create dataframe
+#   X_df <- cbind(data.frame(X_mat), z_vec)
+#   for (idx in 1:(ncol(X_df) - 1)) {
+#     colnames(X_df)[idx] <- paste0("X", idx)
+#   }
+#   colnames(X_df)[ncol(X_df)] <- "z"
+#   # Store area
+#   X_df$area <- area_id
+#
+#   # Memory
+#   rm(X_mat, z_vec)
+#
+#   # HSAR is hierarchical, so it needs a real set of areas/factors
+#   HSAR_Delta <-
+#     Matrix::Matrix(model.matrix( ~ 0 + as.factor(area_id)), sparse = TRUE)
+#
+#   HSAR_formula <- stats::as.formula(paste0("z ~ 0 + ", paste(
+#     colnames(X_df)[1:(ncol(X_df) - 2)], collapse = " + "
+#   )))
+#
+#   # Run HSAR
+#   hsar_out <- HSAR::hsar(
+#     HSAR_formula,
+#     data = X_df,
+#     W = Matrix::Matrix(W, sparse=TRUE),
+#     M = NULL,
+#     HSAR_Delta,
+#     burnin = warmup,
+#     thinning = thin,
+#     Nsim = iter
+#   )
+#
+#   # Fitted values
+#   hsar_out$fit <- ((hsar_out$Mrho * W) %*% X_df$z
+#                    + as.matrix(X_df[, 1:(ncol(X_df) - 2)]) %*% t(as.matrix(hsar_out$Mbetas))
+#                    + HSAR_Delta %*% t(hsar_out$Mus))
+#   hsar_out$residuals <- X_df$z - hsar_out$fit
+#
+#   # Stop clock
+#   t1_HSAR <- Sys.time()
+#   hsar_out[["time"]] <- difftime(t1_HSAR, t0_HSAR)
+#
+#   return(hsar_out)
+# }
+
+#' Wrapper to fit basic Poisson GLM.
+#'
+#' This function theoretically works for multiple areas by stacking everything
+#' together and ignoring spatial correlation.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param z_list List of vectors of observed counts---one vector per area.
+#' @param X_list List of design or covariate matrices---one matrix per area.
+#'    Same length and ordering as z_list.
+#'    Matrices with number of rows equal to length of corresponding vector in
+#'    z_list.
+#'
+#' @returns The output list from glm, plus a time field for how long the
+#'    function ran for.
+#'
+#' @importFrom stats glm
+#' @importFrom stats poisson
+#' @export
+glm_wrapper <- function(z_list, X_list) {
+  # Start clock
+  t0_glm <- Sys.time()
+
+  # Stack into a single vector/matrix
+  z_vec <- Reduce(c, z_list)
+  X_mat <- Reduce(rbind, X_list)
+  # Fit GLM
+  glm_out <- stats::glm(z_vec ~ 0 + X_mat, family = stats::poisson())
+
+  # Stop clock
+  t1_glm <- Sys.time()
+  glm_out[["time"]] <- difftime(t1_glm, t0_glm)
+
+  return(glm_out)
+}
+
+#' Wrapper to fit basic linear model.
+#'
+#' This function theoretically works for multiple areas by stacking everything
+#' together and ignoring spatial correlation.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param z_list List of vectors of observed counts---one vector per area.
+#' @param X_list List of design or covariate matrices---one matrix per area.
+#'    Same length and ordering as z_list.
+#'    Matrices with number of rows equal to length of corresponding vector in
+#'    z_list.
+#' @param transform_z Boolean: log-transform z or not.
+#' @param z_offset If transform_z, the counts z are transformed as
+#'    log(z + z_offset).
+#'
+#' @returns The output list from lm, plus a time field for how long the
+#'    function ran for.
+#'
+#' @importFrom stats lm
+#' @export
+lm_wrapper <- function(z_list,
+                       X_list,
+                       transform_z = TRUE,
+                       z_offset = 0.5) {
+  # Start clock
+  t0_glm <- Sys.time()
+
+  # Stack into a single vector/matrix
+  z_vec <- Reduce(c, z_list)
+  X_mat <- Reduce(rbind, X_list)
+
+  # Transform z
+  if (transform_z) {
+    z_vec <- log(z_vec + z_offset)
+  }
+
+  # Fit LM
+  lm_out <- stats::lm(z_vec ~ 0 + X_mat)
+
+  # Stop clock
+  t1_glm <- Sys.time()
+  lm_out[["time"]] <- difftime(t1_glm, t0_glm)
+
+  return(lm_out)
+}
+
+
+#'  Wrapper to fit basic Negative Binomial GLM.
+#'
+#'  This function theoretically works for multiple areas by stacking everything
+#'  together and ignoring spatial correlation.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param z_list List of vectors of observed counts---one vector per area.
+#' @param X_list List of design or covariate matrices---one matrix per area.
+#'    Same length and ordering as z_list.
+#'    Matrices with number of rows equal to length of corresponding vector in
+#'    z_list.
+#'
+#' @returns The output list from glm.nb, plus a time field for how long the
+#'    function ran for.
+#'
+#' @note Depends on MASS.
+#'
+#' @importFrom MASS glm.nb
+#' @export
+glm_nb_wrapper <- function(z_list, X_list) {
+  # Start clock
+  t0_glm <- Sys.time()
+
+  # Stack into a single vector/matrix
+  z_vec <- Reduce(c, z_list)
+  X_mat <- Reduce(rbind, X_list)
+  # Fit GLM
+  glm_out <- MASS::glm.nb(z_vec ~ 0 + X_mat)
+
+  # Stop clock
+  t1_glm <- Sys.time()
+  glm_out[["time"]] <- difftime(t1_glm, t0_glm)
+
+  return(glm_out)
+}
+
+
+#'  Wrapper to fit sparse NN GP model via BRISC.
+#'
+#'  This function theoretically works for multiple areas by stacking everything
+#'  together and ignoring differences in coordinates.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param z_list List of vectors of observed counts---one vector per area.
+#' @param X_list List of design or covariate matrices---one matrix per area.
+#'    Same length and ordering as z_list.
+#'    Matrices with number of rows equal to length of corresponding vector in
+#'    z_list.
+#' @param coords_list List of coordinate matrices (x, y)---one matrix per area.
+#'    Same length and ordering as z_list.
+#'    Matrices with number of rows equal to length of corresponding vector in
+#'    z_list.
+#' @param k Number of neighbors.
+#' @param cov_type String for covariance model type.
+#'    "Exp", "Sph", "Gau", and "Mat" are supported.
+#' @param transform_z Boolean: log-transform z or not.
+#' @param z_offset If transform_z, the counts z are transformed as
+#'    log(z + z_offset).
+#' @param verbose Whether to print output as BRISC runs.
+#'
+#' @returns The output list from BRISC, plus a time field for how long the
+#'    function ran for.
+#'
+#' @note Requires the BRISC library.
+#'
+#' @importFrom BRISC BRISC_estimation
+#' @export
+BRISC_wrapper <- function(z_list,
+                          X_list,
+                          coords_list,
+                          k = 15,
+                          cov_type = "Exp",
+                          transform_z = TRUE,
+                          z_offset = 0.5,
+                          verbose = FALSE) {
+  # Start clock
+  t0_glm <- Sys.time()
+
+  # Stack into a single vector/matrix
+  z_vec <- Reduce(c, z_list)
+  X_mat <- Reduce(rbind, X_list)
+  coords <- Reduce(rbind, coords_list)
+
+  # Transform z
+  if (transform_z) {
+    z_vec <- log(z_vec + z_offset)
+  }
+
+  if ("Exp" == cov_type) {
+    brisc_cov = "exponential"
+  } else if ("Sph" == cov_type) {
+    brisc_cov = "spherical"
+  } else if ("Mat" == cov_type) {
+    brisc_cov = "matern"
+  } else if ("Gau" == cov_type) {
+    brisc_cov = "gaussian"
+  }
+  # Fit LM
+  b_out <- BRISC::BRISC_estimation(
+    coords,
+    z_vec,
+    X_mat,
+    n.neighbors = k,
+    cov.model = brisc_cov,
+    verbose = verbose
+  )
+
+  # Stop clock
+  t1_glm <- Sys.time()
+  b_out[["time"]] <- difftime(t1_glm, t0_glm)
+
+  return(b_out)
+}
