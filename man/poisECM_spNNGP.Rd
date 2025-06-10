@@ -127,15 +127,6 @@ resid_moran: Moran's I for each area computed using coordinates.
 areas x EM Iterations x {value, expectation, sd} array.
 NULL unless coordinates are supplied.
 
-Vhat_list: List of Covariance matrices of eta_hat.
-One per area.
-
-Q_hat_list: List of precision matrices of eta.
-
-A_hat_list: List of sparse lower triangular factors associated to Q.
-
-Dinv_list: List of vectors for the diagonal factors associated to Q.
-
 start_idx_list: Indices where each area's values start in predictions, etc.
 E.g., if area 1 has 100 points and area 2 has 50, we would have
 c(1, 101, 151, ...).

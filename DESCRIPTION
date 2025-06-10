@@ -15,7 +15,7 @@ Description:  Fit a Poisson generalized spatial linear model for analyzing
 License: Apache License (>= 2)
 Imports: Matrix, gstat, sp, pracma, MASS, 
   BRISC, CARBayes, brms, mgcv, 
-  spatstat.geom, dplyr, ggplot2, reshape2
+  spatstat.geom, dplyr, ggplot2, reshape2, Rfast
 Remotes: github::mcooper/moranfast
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

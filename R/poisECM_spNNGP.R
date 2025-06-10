@@ -84,11 +84,6 @@
 #' @returns resid_moran: Moran's I for each area computed using coordinates.
 #'   areas x EM Iterations x {value, expectation, sd} array.
 #'   NULL unless coordinates are supplied.
-#' @returns Vhat_list: List of Covariance matrices of eta_hat.
-#'    One per area.
-#' @returns Q_hat_list: List of precision matrices of eta.
-#' @returns A_hat_list: List of sparse lower triangular factors associated to Q.
-#' @returns Dinv_list: List of vectors for the diagonal factors associated to Q.
 #' @returns start_idx_list: Indices where each area's values start in predictions, etc.
 #'    E.g., if area 1 has 100 points and area 2 has 50, we would have
 #'    c(1, 101, 151, ...).
@@ -514,10 +509,6 @@ poisECM_spNNGP <- function(poisECMData_obj,
     c("Moran_I", "ExpectedMoran_I", "PValue")
   )
 
-  names(Vhat_list) <- names(poisECMData_obj$X_list)
-  names(Q_hat_list) <- names(poisECMData_obj$X_list)
-  names(A_hat_list) <- names(poisECMData_obj$X_list)
-  names(Dinv_list) <- names(poisECMData_obj$X_list)
   names(start_idx_list) <- names(poisECMData_obj$X_list)
 
   rownames(beta_neghessian) <- colnames(poisECMData_obj$X_list[[1]])
@@ -551,12 +542,6 @@ poisECM_spNNGP <- function(poisECMData_obj,
       expected_log_like_tracker = expected_log_like_tracker[, 1:em_idx],
       resid_moran = resid_moran[, 1:em_idx, ],
 
-      # Utilities, just in case we want to reconstruct stuff
-      Vhat_list = Vhat_list,
-      Q_hat_list = Q_hat_list,
-      A_hat_list = A_hat_list,
-      Dinv_list = Dinv_list,
-
       # Other utilities
       start_idx_list = start_idx_list,
       time = difftime(t1_EM, t0_EM),
@@ -565,9 +550,9 @@ poisECM_spNNGP <- function(poisECMData_obj,
       beta_neghessian = beta_neghessian,
 
       run_settings = list(
-        gene_name = gene_name,
+        gene_name = as.character(gene_name),
         gene_idx = gene_idx,
-        cov_type = cov_type,
+        cov_type = as.character(cov_type),
         nngp_k = nngp_k,
         em_iters = em_iters,
         opt_iters = opt_iters,

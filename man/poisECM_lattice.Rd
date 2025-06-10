@@ -129,15 +129,12 @@ resid_moran: Moran's I for each area computed using coordinates.
 areas x EM Iterations x {value, expectation, sd} array.
 NULL unless coordinates are supplied.
 
-Vhat_list: List of Covariance matrices of eta_hat.
-One per area.
-
 start_idx_list: Indices where each area's values start in predictions, etc.
 E.g., if area 1 has 100 points and area 2 has 50, we would have
 c(1, 101, 151, ...).
 
 eig_val_list: List of eigenvalues, depending on model type.
-In case not passed in.
+ONLY IF NOT PASSED IN.
 
 time: Total time taken by function.
 

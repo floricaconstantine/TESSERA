@@ -374,6 +374,7 @@ prepData <- function(count_matrix,
 #' @importFrom dplyr bind_rows
 #' @importFrom spatstat.geom nndist
 #' @importFrom reshape2 melt
+#' @importFrom Rfast colVars
 #'
 #' @export
 visualizeNeighborDistances <- function(meta_data,

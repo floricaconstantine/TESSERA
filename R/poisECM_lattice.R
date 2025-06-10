@@ -86,13 +86,11 @@
 #' @returns resid_moran: Moran's I for each area computed using coordinates.
 #'   areas x EM Iterations x {value, expectation, sd} array.
 #'   NULL unless coordinates are supplied.
-#' @returns Vhat_list: List of Covariance matrices of eta_hat.
-#'    One per area.
 #' @returns start_idx_list: Indices where each area's values start in predictions, etc.
 #'    E.g., if area 1 has 100 points and area 2 has 50, we would have
 #'    c(1, 101, 151, ...).
 #' @returns eig_val_list: List of eigenvalues, depending on model type.
-#'    In case not passed in.
+#'    ONLY IF NOT PASSED IN.
 #' @returns time: Total time taken by function.
 #' @returns beta_neghessian: Negative Hessian of final value of beta.
 #'    Matrix.
@@ -712,7 +710,6 @@ poisECM_lattice <- function(poisECMData_obj,
     c("Moran_I", "ExpectedMoran_I", "PValue")
   )
 
-  names(Vhat_list) <- names(poisECMData_obj$W_list)
   names(start_idx_list) <- names(poisECMData_obj$W_list)
   names(eig_val_list) <- names(poisECMData_obj$W_list)
 
@@ -724,6 +721,15 @@ poisECM_lattice <- function(poisECMData_obj,
   rownames(fit_tracker) <- Reduce(c, lapply(poisECMData_obj$counts_list, colnames))
   rownames(eta_tracker) <- rownames(fit_tracker)
   rownames(theta_tracker) <- rownames(fit_tracker)
+
+  # If eigenvalues supplied, don't bother returning them to save space
+  eigs_supplied <- (
+    !is.null(poisECMData_obj$eig_CS_list) ||
+      !is.null(poisECMData_obj$eig_L_list)
+  )
+  if (eigs_supplied) {
+    eig_val_list <- list()
+  }
 
   return(structure(
     list(
@@ -753,7 +759,6 @@ poisECM_lattice <- function(poisECMData_obj,
       resid_moran_nb = resid_moran_nb[, 1:em_idx],
 
       # Utilities, just in case we want to reconstruct stuff
-      Vhat_list = Vhat_list,
       start_idx_list = start_idx_list,
       eig_val_list = eig_val_list,
 
@@ -766,9 +771,9 @@ poisECM_lattice <- function(poisECMData_obj,
       gamma_neghessian = gamma_neghessian,
 
       run_settings = list(
-        gene_name = gene_name,
+        gene_name = as.character(gene_name),
         gene_idx = gene_idx,
-        model_type = model_type,
+        model_type = as.character(model_type),
         em_iters = em_iters,
         opt_iters = opt_iters,
         em_min_iters = em_min_iters,
@@ -779,10 +784,7 @@ poisECM_lattice <- function(poisECMData_obj,
         tau2_init = tau2_init,
         verbose = verbose,
         em_iters_actual = em_idx,
-        eigs_supplied = (
-          !is.null(poisECMData_obj$eig_CS_list) ||
-            !is.null(poisECMData_obj$eig_L_list)
-        )
+        eigs_supplied = eigs_supplied
       )
     ),
     class = "poisECMOutput"
