@@ -353,3 +353,74 @@ generate_data_one_area_spNNGP <- function(n_points,
     )
   )
 }
+
+#' Generate data from a Poisson lattice model with known parameters and adjacency matrix
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param model_type "CAR", "SAR", or "Leroux"---model for random effects.
+#' @param X: Binary covariates.
+#' @param W: Adjacency matrix.
+#' @param D: Diagonal degree matrix (row-sums of W).
+#' @param library_size: Scaling for theta.
+#' @param tau2_true True scale parameter.
+#' @param gamma_true True correlation parameter.
+#' @param beta_true True fixed effects.
+#'
+#' @return A list with the following fields:
+#' @returns z: Sampled counts Pois(theta x lib size).
+#' @returns phi_true: True sampled random effects.
+#'  (multivariate normal with mean zero and covariance tau^2 Q^{-1}).
+#' @returns eta_true: phi + X beta.
+#' @returns theta_true: exp(eta).
+#'
+#' @note Requires the Matrix library.
+#' @note Calls the various Q_matrix creation functions.
+#'
+#' @import Matrix
+#' @importFrom Matrix chol
+#' @importFrom Matrix solve
+#' @importFrom stats rnorm
+#' @importFrom stats rpois
+#'
+#' @export
+sample_Poisson_lattice <- function(model_type,
+                                   X,
+                                   W,
+                                   D,
+                                   library_size,
+                                   tau2_true,
+                                   gamma_true,
+                                   beta_true) {
+  # Model covariance function
+  if ("CAR" == model_type) {
+    Q_fcn = Q_matrix_CAR
+  } else if ("SAR" == model_type) {
+    Q_fcn = Q_matrix_SAR
+  } else if ("Leroux" == model_type) {
+    Q_fcn = Q_matrix_Leroux
+  } else {
+    stop("Invalid model_type")
+  }
+
+  # Generate inverse precision (unscaled) of random effects
+  Q <- Q_fcn(W, D, gamma_true)
+
+  # Spatial random effects
+  phi_true <- sqrt(tau2_true) * as.numeric(Matrix::solve(Matrix::chol(Q), stats::rnorm(dim(Q)[1])))
+
+  # Log Poisson Parameter
+  # Add in covariate effect
+  eta_true <- as.numeric(X %*% beta_true) + phi_true
+  # Get Poisson parameter
+  theta_true <- exp(eta_true)
+  # Generate data
+  z <- stats::rpois(dim(W)[1], theta_true * library_size)
+
+  return(list(
+    z = z,
+    phi_true = phi_true,
+    eta_true = eta_true,
+    theta_true = theta_true
+  ))
+}
