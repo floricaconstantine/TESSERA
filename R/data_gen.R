@@ -354,15 +354,15 @@ generate_data_one_area_spNNGP <- function(n_points,
   )
 }
 
-#' Generate data from a Poisson lattice model with known parameters and adjacency matrix
+#' Generate data from a Poisson lattice model with known parameters and adjacency matrix.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
 #' @param model_type "CAR", "SAR", or "Leroux"---model for random effects.
-#' @param X: Binary covariates.
-#' @param W: Adjacency matrix.
-#' @param D: Diagonal degree matrix (row-sums of W).
-#' @param library_size: Scaling for theta.
+#' @param X Binary covariates.
+#' @param W Adjacency matrix.
+#' @param D Diagonal degree matrix (row-sums of W).
+#' @param library_size Scaling for theta.
 #' @param tau2_true True scale parameter.
 #' @param gamma_true True correlation parameter.
 #' @param beta_true True fixed effects.
