@@ -359,7 +359,7 @@ generate_data_one_area_spNNGP <- function(n_points,
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
 #' @param model_type "CAR", "SAR", or "Leroux"---model for random effects.
-#' @param X Binary covariates.
+#' @param X Covariates.
 #' @param W Adjacency matrix.
 #' @param D Diagonal degree matrix (row-sums of W).
 #' @param library_size Scaling for theta.
@@ -425,6 +425,87 @@ sample_Poisson_lattice <- function(model_type,
   ))
 }
 
+#' Generate data from a Poisson spNNGP model with known parameters.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param cov_type Which model to fit for the Gaussian process covariance.
+#'  "Exp", "Mat", "Gau", and "Sph" are the valid options, for
+#'  Exponential, Matern, Gaussian, and Spherical, respectively.
+#' @param X Covariates, rows are samples.
+#' @param library_size Scaling for theta.
+#' @param coords Matrix of coordinates.
+#'  Rows are samples, nrow(coords) == nrow(X).
+#' @param cov_params Covariance parameters
+#'  {nugget, sill, range, smoothness (optional)}.
+#' @param nngp_k How many neighbors to use for the spNNGP kernel.
+#' @param beta_true True fixed effects.
+#'
+#' @return A list with the following fields:
+#' @returns z: Sampled counts Pois(theta x lib size).
+#' @returns phi_true: True sampled random effects.
+#'  (multivariate normal with mean zero and covariance tau^2 Q^{-1}).
+#' @returns eta_true: phi + X beta.
+#' @returns theta_true: exp(eta).
+#'
+#' @note Requires the Matrix library.
+#' @note Calls nngp_prec_mat.
+#'
+#' @import Matrix
+#' @importFrom Matrix chol
+#' @importFrom Matrix solve
+#' @importFrom Matrix Diagonal
+#' @importFrom stats rnorm
+#' @importFrom stats rpois
+#'
+#' @export
+sample_Poisson_spNNGP <- function(cov_type,
+                                  X,
+                                  library_size,
+                                  coords,
+                                  cov_params,
+                                  nngp_k,
+                                  beta_true) {
+  # Generate inverse precision (unscaled) of random effects
+  sp_dist <- sparseDist_LT(coords, nngp_k)
+  close_to_zero_const <- 2.0 * .Machine$double.eps
+  if ((close_to_zero_const >= cov_params[1]) &&
+      (close_to_zero_const >= cov_params[2])) {
+    print("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO.")
+    print("FAILSAFE: Q IS ZERO AND NOT USED")
+
+    Q <- Matrix::Diagonal(nrow(coords), 0)
+  } else {
+    param_est <- nngp_prec_mat(sp_dist, coords, cov_type, cov_params)
+    Q <- param_est$Q
+  }
+
+  # Spatial random effects
+  close_to_zero_const <- 2.0 * .Machine$double.eps
+  if ((close_to_zero_const >= cov_params[1]) &&
+      (close_to_zero_const >= cov_params[2])) {
+    print("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO.")
+    print("FAILSAFE: PHI IS ZERO.")
+    eta_true <- as.numeric(X %*% beta_true)
+    phi_true <- 0 * eta_true
+  } else{
+    phi_true <- as.numeric(Matrix::solve(Matrix::chol(Q), stats::rnorm(nrow(coords))))
+    # Add in covariate effect
+    eta_true <- as.numeric(X %*% beta_true) + phi_true
+  }
+
+  # Get Poisson parameter
+  theta_true <- exp(eta_true)
+  # Generate data
+  z <- stats::rpois(nrow(coords), theta_true * library_size)
+
+  return(list(
+    z = z,
+    phi_true = phi_true,
+    eta_true = eta_true,
+    theta_true = theta_true
+  ))
+}
 
 #' Prepare synthetic data for the PoisECM method.
 #'
@@ -437,11 +518,23 @@ sample_Poisson_lattice <- function(model_type,
 #'   Rownames of `poisECMData_obj$counts_list[[idx]]`.
 #'  A string (single gene) or a vector of strings (multiple genes).
 #' @param data_gen_model Which model to fit for the random effects.
-#'    "CAR", "SAR", and "Leroux" are the valid options.
+#'    "CAR", "SAR", and "Leroux" are the valid Lattice model options,
+#'    "spNNGP" is the only non-Lattice option.
 #' @param tau2_true Spatial scale parameters.
 #'  A vector (single gene) or a matrix (genes x samples, rows are genes).
+#'  Only needed for lattice models.
 #' @param gamma_true Spatial correlation parameters.
 #'  A vector (single gene) or a matrix (genes x samples, rows are genes).
+#'  Only needed for lattice models.
+#' @param cov_params Spatial correlation parameters.
+#'  A matrix (samples x 3/4 parameters) or array (genes x samples x 3/4 parameters).
+#'  Only needed for spNNGP.
+#'  Parameters are {nugget, sill, range, and an optional smoothness (Matern)}.
+#' @param cov_type Spatial correlation kernel.
+#'  Only needed for spNNGP.
+#'  "Exp", "Mat", "Gau", and "Sph" are the valid options, for
+#'  Exponential, Matern, Gaussian, and Spherical, respectively.
+#' @param nngp_k How many neighbors to use for the spNNGP kernel.
 #' @param beta_true Coefficients.
 #'  A vector (single gene) or a matrix (genes x covariates, rows are genes).
 #'
@@ -459,11 +552,23 @@ sample_Poisson_lattice <- function(model_type,
 prepSynthData <- function(poisECMData_obj,
                           gene_list,
                           data_gen_model,
-                          tau2_true,
-                          gamma_true,
-                          beta_true) {
+                          tau2_true = NULL,
+                          gamma_true = NULL,
+                          cov_params = NULL,
+                          cov_type = NULL,
+                          nngp_k = NULL,
+                          beta_true = NULL) {
   # Make sure object is correct/usable
-  checkInputsPoisECM(poisECMData_obj)
+  if ("spNNGP" == data_gen_model) {
+    checkInputsPoisECMspNNGP(poisECMData_obj)
+  } else if (("CAR" == data_gen_model) ||
+             ("SAR" == data_gen_model) ||
+             ("Leroux" == data_gen_model)) {
+    checkInputsPoisECM(poisECMData_obj)
+  } else {
+    stop("Invalid data_gen_model.")
+  }
+
 
   # Handle case of only one gene
   if (!is.vector(gene_list) && !is.list(gene_list)) {
@@ -472,30 +577,67 @@ prepSynthData <- function(poisECMData_obj,
   if (is.list(gene_list)) {
     gene_list <- c(unlist(gene_list))
   }
-  # Convert inputs to one-row matrices
-  if (!is.matrix(tau2_true)) {
-    tau2_true <- matrix(data = tau2_true,
-                        nrow = 1,
-                        ncol = length(tau2_true))
-  }
-  if (!is.matrix(gamma_true)) {
-    gamma_true <- matrix(data = gamma_true,
-                         nrow = 1,
-                         ncol = length(gamma_true))
-  }
+
+  # Convert inputs to one-row matrices (Lattice models) or arrays
+  # Also check dimensions
+
+  # Check beta
   if (!is.matrix(beta_true)) {
     beta_true <- matrix(data = beta_true,
                         nrow = 1,
                         ncol = length(beta_true))
   }
-
-  # Check dimensions of inputs
-  stopifnot(length(gene_list) == nrow(tau2_true))
-  stopifnot(length(gene_list) == nrow(gamma_true))
   stopifnot(length(gene_list) == nrow(beta_true))
-  stopifnot(length(poisECMData_obj$counts_list) == ncol(tau2_true))
-  stopifnot(length(poisECMData_obj$counts_list) == ncol(gamma_true))
   stopifnot(ncol(poisECMData_obj$X_list[[1]]) == ncol(beta_true))
+
+  # Check gamma, tau^2 for Lattice models
+  if (("CAR" == data_gen_model) ||
+      ("SAR" == data_gen_model) || ("Leroux" == data_gen_model)) {
+    if (!is.matrix(tau2_true)) {
+      tau2_true <- matrix(data = tau2_true,
+                          nrow = 1,
+                          ncol = length(tau2_true))
+    }
+    if (!is.matrix(gamma_true)) {
+      gamma_true <- matrix(data = gamma_true,
+                           nrow = 1,
+                           ncol = length(gamma_true))
+    }
+
+    # Check dimensions of inputs
+    stopifnot(length(gene_list) == nrow(tau2_true))
+    stopifnot(length(gene_list) == nrow(gamma_true))
+    stopifnot(length(poisECMData_obj$counts_list) == ncol(tau2_true))
+    stopifnot(length(poisECMData_obj$counts_list) == ncol(gamma_true))
+  } else if ("spNNGP" == data_gen_model) {
+    # genes X samples X parameters
+    if ((1 == length(dim(cov_params))) ||
+        (0 == length(dim(cov_params)))) {
+      # Only one gene, one sample passed in
+      tmp <- array(data = 0,
+                   dim = c(
+                     length(gene_list),
+                     length(poisECMData_obj$X_list),
+                     length(cov_params)
+                   ))
+      tmp[1, 1, ] <- cov_params
+      cov_params <- tmp
+    } else if (2 == length(dim(cov_params))) {
+      # Only one gene, but multiple samples passed in
+      tmp <- array(data = 0,
+                   dim = c(
+                     length(gene_list),
+                     length(poisECMData_obj$X_list),
+                     length(cov_params)
+                   ))
+      tmp[1, , ] <- cov_params
+      cov_params <- tmp
+    }
+    # Check dimensions of inputs
+    stopifnot(length(gene_list) == dim(cov_params)[1])
+    stopifnot(length(poisECMData_obj$counts_list) == dim(cov_params)[2])
+    stopifnot(3 == length(dim(cov_params)))
+  }
 
   # Synthetic counts list
   synth_counts_list <- list()
@@ -515,16 +657,30 @@ prepSynthData <- function(poisECMData_obj,
     gene <- gene_list[g_idx]
 
     for (s_idx in 1:length(poisECMData_obj$counts_list)) {
-      synth_counts_list[[s_idx]][g_idx, ] <- sample_Poisson_lattice(
-        model_type = data_gen_model,
-        X = poisECMData_obj$X_list[[s_idx]],
-        W = poisECMData_obj$W_list[[s_idx]],
-        D = poisECMData_obj$D_list[[s_idx]],
-        library_size = poisECMData_obj$library_size_list[[s_idx]],
-        tau2_true = tau2_true[g_idx, s_idx],
-        gamma_true = gamma_true[g_idx, s_idx],
-        beta_true = beta_true[g_idx, ]
-      )$z
+      if (("CAR" == data_gen_model) ||
+          ("SAR" == data_gen_model) ||
+          ("Leroux" == data_gen_model)) {
+        synth_counts_list[[s_idx]][g_idx, ] <- sample_Poisson_lattice(
+          model_type = data_gen_model,
+          X = poisECMData_obj$X_list[[s_idx]],
+          W = poisECMData_obj$W_list[[s_idx]],
+          D = poisECMData_obj$D_list[[s_idx]],
+          library_size = poisECMData_obj$library_size_list[[s_idx]],
+          tau2_true = tau2_true[g_idx, s_idx],
+          gamma_true = gamma_true[g_idx, s_idx],
+          beta_true = beta_true[g_idx, ]
+        )$z
+      } else if ("spNNGP" == data_gen_model) {
+        synth_counts_list[[s_idx]][g_idx, ] <- sample_Poisson_spNNGP(
+          cov_type = cov_type,
+          X = poisECMData_obj$X_list[[s_idx]],
+          library_size = poisECMData_obj$library_size_list[[s_idx]],
+          coords = poisECMData_obj$coords_list[[s_idx]],
+          cov_params = cov_params[g_idx, s_idx, ],
+          nngp_k = nngp_k,
+          beta_true = beta_true[g_idx, ]
+        )$z
+      }
     }
 
     # Store summary about the generated counts/comparison with real data
@@ -580,5 +736,10 @@ prepSynthData <- function(poisECMData_obj,
   new_poisECMData_obj <- poisECMData_obj
   new_poisECMData_obj$counts_list <- synth_counts_list
 
-  return(list(new_poisECMData_obj=new_poisECMData_obj, synthetic_count_summary=summary_df))
+  return(
+    list(
+      new_poisECMData_obj = new_poisECMData_obj,
+      synthetic_count_summary = summary_df
+    )
+  )
 }

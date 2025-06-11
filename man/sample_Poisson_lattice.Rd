@@ -18,7 +18,7 @@ sample_Poisson_lattice(
 \arguments{
 \item{model_type}{"CAR", "SAR", or "Leroux"---model for random effects.}
 
-\item{X}{Binary covariates.}
+\item{X}{Covariates.}
 
 \item{W}{Adjacency matrix.}
 

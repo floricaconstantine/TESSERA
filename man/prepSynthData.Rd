@@ -8,9 +8,12 @@ prepSynthData(
   poisECMData_obj,
   gene_list,
   data_gen_model,
-  tau2_true,
-  gamma_true,
-  beta_true
+  tau2_true = NULL,
+  gamma_true = NULL,
+  cov_params = NULL,
+  cov_type = NULL,
+  nngp_k = NULL,
+  beta_true = NULL
 )
 }
 \arguments{
@@ -23,13 +26,28 @@ Rownames of \code{poisECMData_obj$counts_list[[idx]]}.
 A string (single gene) or a vector of strings (multiple genes).}
 
 \item{data_gen_model}{Which model to fit for the random effects.
-"CAR", "SAR", and "Leroux" are the valid options.}
+"CAR", "SAR", and "Leroux" are the valid Lattice model options,
+"spNNGP" is the only non-Lattice option.}
 
 \item{tau2_true}{Spatial scale parameters.
-A vector (single gene) or a matrix (genes x samples, rows are genes).}
+A vector (single gene) or a matrix (genes x samples, rows are genes).
+Only needed for lattice models.}
 
 \item{gamma_true}{Spatial correlation parameters.
-A vector (single gene) or a matrix (genes x samples, rows are genes).}
+A vector (single gene) or a matrix (genes x samples, rows are genes).
+Only needed for lattice models.}
+
+\item{cov_params}{Spatial correlation parameters.
+A matrix (samples x 3/4 parameters) or array (genes x samples x 3/4 parameters).
+Only needed for spNNGP.
+Parameters are {nugget, sill, range, and an optional smoothness (Matern)}.}
+
+\item{cov_type}{Spatial correlation kernel.
+Only needed for spNNGP.
+"Exp", "Mat", "Gau", and "Sph" are the valid options, for
+Exponential, Matern, Gaussian, and Spherical, respectively.}
+
+\item{nngp_k}{How many neighbors to use for the spNNGP kernel.}
 
 \item{beta_true}{Coefficients.
 A vector (single gene) or a matrix (genes x covariates, rows are genes).}
