@@ -523,9 +523,13 @@ sample_Poisson_spNNGP <- function(cov_type,
 #' @param tau2_true Spatial scale parameters.
 #'  A vector (single gene) or a matrix (genes x samples, rows are genes).
 #'  Only needed for lattice models.
+#'  Warning: 0 <= tau^2 is necessary.
 #' @param gamma_true Spatial correlation parameters.
 #'  A vector (single gene) or a matrix (genes x samples, rows are genes).
 #'  Only needed for lattice models.
+#'  Warning: For CAR/SAR models, -1 < gamma < 1 is necessary.
+#'  Warning: For Leroux models, 0 <= gamma < 1 is necessary.
+#'    If these ranges are exceeded, errors are likely.
 #' @param cov_params Spatial correlation parameters.
 #'  A matrix (samples x 3/4 parameters) or array (genes x samples x 3/4 parameters).
 #'  Only needed for spNNGP.
@@ -685,8 +689,8 @@ prepSynthData <- function(poisECMData_obj,
 
     # Store summary about the generated counts/comparison with real data
     synth_summary <- sapply(1:length(poisECMData_obj$counts_list), function (x) {
-      x_tmp <- as.vector(synth_counts_list[[x]][gene, ])
-      y_tmp <- as.vector(poisECMData_obj$counts_list[[x]][gene, ])
+      x_tmp <- as.vector(synth_counts_list[[x]][g_idx, ])
+      y_tmp <- as.vector(poisECMData_obj$counts_list[[x]][g_idx, ])
 
       # Create PMFs for both real/synthetic data
       tX = as.data.frame(table(x_tmp))
@@ -699,9 +703,9 @@ prepSynthData <- function(poisECMData_obj,
       tXY$Y <- tXY$Y / sum(tXY$Y)
 
       # Summary information
-      s_X <- summary(as.vector(synth_counts_list[[x]][gene, ]))
+      s_X <- summary(as.vector(synth_counts_list[[x]][g_idx, ]))
       names(s_X) <- paste0("synth_", names(s_X))
-      s_Y <- summary(as.vector(poisECMData_obj$counts_list[[x]][gene, ]))
+      s_Y <- summary(as.vector(poisECMData_obj$counts_list[[x]][g_idx, ]))
       names(s_Y) <- paste0("orig_", names(s_Y))
       return(Reduce(cbind, list(
         data.frame(
