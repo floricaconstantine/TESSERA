@@ -628,7 +628,7 @@ prepSynthData <- function(poisECMData_obj,
                    dim = c(
                      length(gene_list),
                      length(poisECMData_obj$X_list),
-                     length(cov_params)
+                     ncol(cov_params)
                    ))
       tmp[1, , ] <- cov_params
       cov_params <- tmp
@@ -707,8 +707,6 @@ prepSynthData <- function(poisECMData_obj,
         data.frame(
           gene = gene,
           sample = names(poisECMData_obj$counts_list)[x],
-          gamma = as.numeric(gamma_true[g_idx, x]),
-          tau2 = as.numeric(tau2_true[g_idx, x]),
           "TV" = sum(abs(tXY$X - tXY$Y)) / 2,
           # Total variation distance [0, 1]
           "KS" = max(abs(tXY$X - tXY$Y)),
