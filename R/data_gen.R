@@ -725,7 +725,7 @@ prepSynthData <- function(poisECMData_obj,
       )))
     })
     synth_summary <- t(synth_summary)
-    summary_df[[1 + length(summary_df)]] <- synth_summary
+    summary_df[[1 + length(summary_df)]] <- data.frame(synth_summary)
   }
   if (1 < length(gene_list)) {
     summary_df <- dplyr::bind_rows(summary_df)

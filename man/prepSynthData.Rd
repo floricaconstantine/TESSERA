@@ -31,11 +31,15 @@ A string (single gene) or a vector of strings (multiple genes).}
 
 \item{tau2_true}{Spatial scale parameters.
 A vector (single gene) or a matrix (genes x samples, rows are genes).
-Only needed for lattice models.}
+Only needed for lattice models.
+Warning: 0 <= tau^2 is necessary.}
 
 \item{gamma_true}{Spatial correlation parameters.
 A vector (single gene) or a matrix (genes x samples, rows are genes).
-Only needed for lattice models.}
+Only needed for lattice models.
+Warning: For CAR/SAR models, -1 < gamma < 1 is necessary.
+Warning: For Leroux models, 0 <= gamma < 1 is necessary.
+If these ranges are exceeded, errors are likely.}
 
 \item{cov_params}{Spatial correlation parameters.
 A matrix (samples x 3/4 parameters) or array (genes x samples x 3/4 parameters).
