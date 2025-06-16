@@ -4,14 +4,14 @@
 \alias{summarizePoisECMPerformance}
 \title{Summarizes the results of the poisECM algorithms for a single gene.}
 \usage{
-summarizePoisECMPerformance(poisECMData_obj, poisECMDOutput_obj)
+summarizePoisECMPerformance(poisECMData_obj, poisECMOutput_obj)
 }
 \arguments{
 \item{poisECMData_obj}{Object containing data.
 Created by the prepData method.
 Input to the poisECM algorithms.}
 
-\item{poisECMDOutput_obj}{Output of the poisECM algorithms.}
+\item{poisECMOutput_obj}{Output of the poisECM algorithms.}
 }
 \value{
 A dataframe with MSE, spatial parameters, and Moran's I values.

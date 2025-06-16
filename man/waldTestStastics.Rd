@@ -5,10 +5,10 @@
 \title{Given the output of the poisECM algorithms and a contrast matrix, compute
 Wald T-statistics.}
 \usage{
-waldTestStastics(poisECMDOutput_obj, contrast_mat)
+waldTestStastics(poisECMOutput_obj, contrast_mat)
 }
 \arguments{
-\item{poisECMDOutput_obj}{Output of the poisECM algorithms.}
+\item{poisECMOutput_obj}{Output of the poisECM algorithms.}
 
 \item{contrast_mat}{Matrix with contrasts of the estimated coeficients.
 Rows are contrasts, columns correspond to columns in beta_hat (covariates).}
