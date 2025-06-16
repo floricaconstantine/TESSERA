@@ -154,6 +154,7 @@ summarizePoisECMPerformance <- function(poisECMData_obj, poisECMOutput_obj) {
       tau2_hat = tau2_hat,
       kernel_type = kernel_type,
       nugget_hat = nugget_hat,
+      sill_hat = sill_hat,
       range_hat = range_hat,
       smoothness_hat = smoothness_hat,
       # MSE of counts

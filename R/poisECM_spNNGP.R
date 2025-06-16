@@ -554,6 +554,7 @@ poisECM_spNNGP <- function(poisECMData_obj,
       run_settings = list(
         gene_name = as.character(gene_name),
         gene_idx = gene_idx,
+        model_type = "spNNGP",
         cov_type = as.character(cov_type),
         nngp_k = nngp_k,
         em_iters = em_iters,
