@@ -9,7 +9,7 @@
 #' @param poisECMData_obj Object containing data.
 #'  Created by the prepData method.
 #'  Input to the poisECM algorithms.
-#' @param poisECMDOutput_obj Output of the poisECM algorithms.
+#' @param poisECMOutput_obj Output of the poisECM algorithms.
 #'
 #' @returns A dataframe with MSE, spatial parameters, and Moran's I values.
 #'  Moran's I values are only returned if the package moranfast is installed.
@@ -40,7 +40,7 @@
 #' @importFrom dplyr bind_rows
 #'
 #' @export
-summarizePoisECMPerformance <- function(poisECMData_obj, poisECMDOutput_obj) {
+summarizePoisECMPerformance <- function(poisECMData_obj, poisECMOutput_obj) {
   if (!requireNamespace("moranfast", quietly = TRUE)) {
     warning(
       "moranfast is not installed: This package requires the moranfast package to compute Moran's I values. Install it with devtools::install_github('mcooper/moranfast')"
@@ -51,30 +51,30 @@ summarizePoisECMPerformance <- function(poisECMData_obj, poisECMDOutput_obj) {
   inner_MSE_df <- list()
   for (s_idx in 1:length(poisECMData_obj$coords_list)) {
     # How to index the various vectors
-    start_idx <- poisECMDOutput_obj$start_idx_list[s_idx]
+    start_idx <- poisECMOutput_obj$start_idx_list[s_idx]
     if (s_idx < length(poisECMData_obj$coords_list)) {
-      end_idx <- poisECMDOutput_obj$start_idx_list[1 + s_idx] - 1
+      end_idx <- poisECMOutput_obj$start_idx_list[1 + s_idx] - 1
     } else {
-      end_idx <- length(poisECMDOutput_obj$phi_hat)
+      end_idx <- length(poisECMOutput_obj$phi_hat)
     }
     start_idx <- as.numeric(start_idx)
     end_idx <- as.numeric(end_idx)
 
     # Extract the relevant vectors
     # Predictions, residuals, random effects, X beta + phi (eta), X beta, theta
-    counts <- poisECMData_obj$counts_list[[s_idx]][poisECMDOutput_obj$run_settings$gene_idx, ]
-    preds <- poisECMDOutput_obj$predictions[start_idx:end_idx]
-    resids <- poisECMDOutput_obj$residuals[start_idx:end_idx]
-    phis <- poisECMDOutput_obj$phi_hat[start_idx:end_idx]
-    etas <- poisECMDOutput_obj$eta_hat[start_idx:end_idx]
+    counts <- poisECMData_obj$counts_list[[s_idx]][poisECMOutput_obj$run_settings$gene_idx, ]
+    preds <- poisECMOutput_obj$predictions[start_idx:end_idx]
+    resids <- poisECMOutput_obj$residuals[start_idx:end_idx]
+    phis <- poisECMOutput_obj$phi_hat[start_idx:end_idx]
+    etas <- poisECMOutput_obj$eta_hat[start_idx:end_idx]
     Xbs <- etas - phis
-    thetas <- poisECMDOutput_obj$theta_hat[start_idx:end_idx]
+    thetas <- poisECMOutput_obj$theta_hat[start_idx:end_idx]
     library_sizes <- poisECMData_obj$library_size_list[[s_idx]]
 
-    fit_model <- poisECMDOutput_obj$run_settings$model_type
+    fit_model <- poisECMOutput_obj$run_settings$model_type
     if ("spNNGP" != fit_model) {
-      gamma_hat <- poisECMDOutput_obj$gamma_hat[s_idx]
-      tau2_hat <- poisECMDOutput_obj$tau2_hat[s_idx]
+      gamma_hat <- poisECMOutput_obj$gamma_hat[s_idx]
+      tau2_hat <- poisECMOutput_obj$tau2_hat[s_idx]
       kernel_type <- NA
       nugget_hat <- NA
       sill_hat <- NA
@@ -84,11 +84,11 @@ summarizePoisECMPerformance <- function(poisECMData_obj, poisECMDOutput_obj) {
       if ("spNNGP" == fit_model) {
         gamma_hat <- NA
         tau2_hat <- NA
-        kernel_type <- poisECMDOutput_obj$run_settings$cov_type
-        nugget_hat <- poisECMDOutput_obj$cov_param_hat[s_idx, 1]
-        sill_hat <- poisECMDOutput_obj$cov_param_hat[s_idx, 2]
-        range_hat <- poisECMDOutput_obj$cov_param_hat[s_idx, 3]
-        smoothness_hat <- poisECMDOutput_obj$cov_param_hat[s_idx, 4]
+        kernel_type <- poisECMOutput_obj$run_settings$cov_type
+        nugget_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 1]
+        sill_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 2]
+        range_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 3]
+        smoothness_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 4]
       }
     }
     # Initialize the Moran's I vector
@@ -145,7 +145,7 @@ summarizePoisECMPerformance <- function(poisECMData_obj, poisECMDOutput_obj) {
     }
     inner_MSE_df[[s_idx]] <- data.frame(
       # Basic parameters
-      gene = poisECMDOutput_obj$run_settings$gene_name,
+      gene = poisECMOutput_obj$run_settings$gene_name,
       fit_model = fit_model,
       sample = names(poisECMData_obj$coords_list)[s_idx],
       n_cells = (end_idx - start_idx + 1),
@@ -191,7 +191,7 @@ summarizePoisECMPerformance <- function(poisECMData_obj, poisECMDOutput_obj) {
 #' Given the output of the poisECM algorithms and a contrast matrix, compute
 #'  Wald T-statistics.
 #'
-#' @param poisECMDOutput_obj Output of the poisECM algorithms.
+#' @param poisECMOutput_obj Output of the poisECM algorithms.
 #' @param contrast_mat Matrix with contrasts of the estimated coeficients.
 #'  Rows are contrasts, columns correspond to columns in beta_hat (covariates).
 #'
@@ -201,20 +201,20 @@ summarizePoisECMPerformance <- function(poisECMData_obj, poisECMDOutput_obj) {
 #' @importFrom Matrix solve
 #'
 #' @export
-waldTestStastics <- function (poisECMDOutput_obj, contrast_mat) {
+waldTestStastics <- function (poisECMOutput_obj, contrast_mat) {
   # Extract coefficients and negative hessian and check dimensions
-  beta_hat <- poisECMDOutput_obj$beta_hat
+  beta_hat <- poisECMOutput_obj$beta_hat
   beta_names <- names(beta_hat)
-  beta_hat_prec <- poisECMDOutput_obj$beta_neghessian
+  beta_hat_prec <- poisECMOutput_obj$beta_neghessian
   stopifnot(ncol(contrast_mat) == length(beta_hat))
 
   # Some overarching metadata
-  fit_model <- poisECMDOutput_obj$run_settings$model_type
+  fit_model <- poisECMOutput_obj$run_settings$model_type
   if ("spNNGP" != fit_model) {
     kernel_type <- NA
   } else {
     if ("spNNGP" == fit_model) {
-      kernel_type <- poisECMDOutput_obj$run_settings$cov_type
+      kernel_type <- poisECMOutput_obj$run_settings$cov_type
       if (is.null(kernel_type)) {
         kernel_type <- NA
       }
@@ -225,7 +225,7 @@ waldTestStastics <- function (poisECMDOutput_obj, contrast_mat) {
       }
     }
   }
-  gene <- poisECMDOutput_obj$run_settings$gene_name
+  gene <- poisECMOutput_obj$run_settings$gene_name
   if (is.null(gene)) {
     gene <- NA
   }
@@ -238,7 +238,7 @@ waldTestStastics <- function (poisECMDOutput_obj, contrast_mat) {
     # Compute contrast value
     Rbeta <- sum(R * beta_hat[subset_idx])
     # Contrast SE
-    RVR_inv <- sqrt(as.numeric(R %*% Matrix::solve(poisECMDOutput_obj$beta_neghessian[subset_idx, subset_idx]) %*% R))
+    RVR_inv <- sqrt(as.numeric(R %*% Matrix::solve(poisECMOutput_obj$beta_neghessian[subset_idx, subset_idx]) %*% R))
 
     wald_contrast_df[[1 + length(wald_contrast_df)]] <-
       data.frame(
