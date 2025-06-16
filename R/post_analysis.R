@@ -199,7 +199,6 @@ summarizePoisECMPerformance <- function(poisECMData_obj, poisECMOutput_obj) {
 #' @returns A dataframe of Wald t-statistics.
 #'
 #' @importFrom dplyr bind_rows
-#' @importFrom Matrix solve
 #'
 #' @export
 waldTestStastics <- function (poisECMOutput_obj, contrast_mat) {
@@ -238,8 +237,10 @@ waldTestStastics <- function (poisECMOutput_obj, contrast_mat) {
     R <- contrast_mat[c_idx, subset_idx]
     # Compute contrast value
     Rbeta <- sum(R * beta_hat[subset_idx])
+
     # Contrast SE
-    RVR_inv <- sqrt(as.numeric(R %*% Matrix::solve(poisECMOutput_obj$beta_neghessian[subset_idx, subset_idx]) %*% R))
+    V_hat <- inversePrecisionMatrixWald(poisECMOutput_obj$beta_neghessian[subset_idx, subset_idx])
+    RVR_inv <- sqrt(as.numeric(R %*% V_hat %*% R))
 
     wald_contrast_df[[1 + length(wald_contrast_df)]] <-
       data.frame(
@@ -259,3 +260,40 @@ waldTestStastics <- function (poisECMOutput_obj, contrast_mat) {
   return(wald_contrast_df)
 }
 
+
+#' Helper function for Wald stat covariances.
+#'  Invert a precision matrix, handling failure cases.
+#'
+#' @param A Estimated precision matrix.
+#'
+#' @returns Inverse of A.
+#'
+#' @import Matrix
+#' @importFrom Matrix solve
+#' @importFrom pracma pinv
+inversePrecisionMatrixWald <- function(A) {
+  # Try basic inversion first
+  err_flag <- tryCatch({
+    Ainv <- Matrix::solve(A)
+    return(Ainv)
+  }, error = function(cond) {
+    print("INVERSION OF Inv(V_hat) FAILED")
+    print(A)
+    err_flag <- TRUE
+  })
+  # Then try pseudoinverse
+  if (err_flag) {
+    err_flag <- tryCatch({
+      Ainv <- pracma::pinv(as.matrix(A))
+      return(Ainv)
+    }, error = function(cond) {
+      print("PSEUDOINVERSE OF Inv(V_hat) FAILED")
+      err_flag <- TRUE
+    })
+  }
+  if (err_flag) {
+    cat("Setting covariance to zero.")
+    Ainv <- 0 * A
+    return(Ainv)
+  }
+}
