@@ -91,6 +91,8 @@
 #' @returns beta_neghessian: Negative Hessian of final value of beta.
 #'    Matrix.
 #' @returns run_settings: A list with the parameter settings used to run the algorithm.
+#' @returns performanceSummary: A dataframe with summary statistics for each sample.
+#'  See [summarizePoisECMPerformance()] for more details.
 #'
 #' @references Meng, Xiao-Li, and Donald B. Rubin.
 #'                "Maximum likelihood estimation via the ECM algorithm: A general framework."
@@ -518,7 +520,7 @@ poisECM_spNNGP <- function(poisECMData_obj,
   rownames(eta_tracker) <- rownames(fit_tracker)
   rownames(theta_tracker) <- rownames(fit_tracker)
 
-  return(structure(
+  out <- (structure(
     list(
       # Coefficients, spatial parameters
       beta_hat = beta_tracker[, (em_idx + 1)],
@@ -568,6 +570,9 @@ poisECM_spNNGP <- function(poisECMData_obj,
     ),
     class = "poisECMOutput"
   ))
+
+  out$performanceSummary <- summarizePoisECMPerformance(poisECMData_obj, out)
+  return(out)
 }
 
 #' Check inputs for the poisECM_spNNGP method.

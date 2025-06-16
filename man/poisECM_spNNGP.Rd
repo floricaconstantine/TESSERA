@@ -137,6 +137,9 @@ beta_neghessian: Negative Hessian of final value of beta.
 Matrix.
 
 run_settings: A list with the parameter settings used to run the algorithm.
+
+performanceSummary: A dataframe with summary statistics for each sample.
+See \code{\link[=summarizePoisECMPerformance]{summarizePoisECMPerformance()}} for more details.
 }
 \description{
 Fit multi-area Poisson spatial generalized linear model.
