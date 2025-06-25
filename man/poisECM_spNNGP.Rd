@@ -150,9 +150,6 @@ Fits a common set of fixed effects across areas.
 }
 \note{
 Requires the Matrix library.
-
-Requires the moranfast library if we want to return Moran's I of residuals.
-Install with \code{devtools::install_github('mcooper/moranfast')}.
 }
 \references{
 Meng, Xiao-Li, and Donald B. Rubin.

@@ -15,7 +15,6 @@ Input to the poisECM algorithms.}
 }
 \value{
 A dataframe with MSE, spatial parameters, and Moran's I values.
-Moran's I values are only returned if the package moranfast is installed.
 Key (General):
 Each row corresponds to one sample.
 n_cells is the number of measurements in the sample.
@@ -38,10 +37,6 @@ librarysize: Often, the total counts per each cell.
 }
 \description{
 Summarizes the results of the poisECM algorithms for a single gene.
-}
-\note{
-Requires the moranfast library if we want to return Moran's I of residuals.
-Install with \code{devtools::install_github('mcooper/moranfast')}.
 }
 \author{
 Florica J Constantine, florica AT berkeley.edu

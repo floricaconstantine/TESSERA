@@ -1,7 +1,8 @@
 ## Wrapper functions to fit model.
-# Dependencies in file: Matrix, moranfast.
+# Dependencies in file: Matrix.
 # Dependencies: Functions from utils.R, models.R, E_step.R, M_step.R.
 # Dependences from functions in other files not listed: pracma, sp, gstat.
+# Rcpp dependencies: calc_moran.cpp.
 
 
 #' Fit multi-area Poisson spatial generalized linear model.
@@ -99,8 +100,6 @@
 #'                Biometrika 80.2 (1993): 267-278.
 #'
 #' @note Requires the Matrix library.
-#' @note Requires the moranfast library if we want to return Moran's I of residuals.
-#'  Install with `devtools::install_github('mcooper/moranfast')`.
 #'
 #' @import Matrix
 #' @importFrom stats coef
@@ -126,11 +125,6 @@ poisECM_spNNGP <- function(poisECMData_obj,
                            verbose = FALSE,
                            dense_matrices = TRUE)
 {
-  if (!requireNamespace("moranfast", quietly = TRUE)) {
-    warning(
-      "moranfast is not installed: This package requires the moranfast package to compute Moran's I values. Install it with devtools::install_github('mcooper/moranfast')"
-    )
-  }
   # Start clock
   t0_EM = Sys.time()
 
@@ -208,7 +202,9 @@ poisECM_spNNGP <- function(poisECMData_obj,
     lib_vec <- Reduce(c, poisECMData_obj$library_size_list)
     X_mat <- Reduce(rbind, poisECMData_obj$X_list)
     # Fit GLM
-    beta_tracker[, 1] <- as.vector(stats::coef(stats::glm(z_vec / lib_vec ~ 0 + X_mat, family = stats::poisson())))
+    beta_tracker[, 1] <- as.vector(stats::coef(
+      stats::glm(z_vec / lib_vec ~ 0 + X_mat, family = stats::poisson())
+    ))
 
     # Memory
     rm(z_vec)
@@ -330,17 +326,12 @@ poisECM_spNNGP <- function(poisECMData_obj,
       # Performance
       R2_tracker[area_idx, em_idx] <- stats::cor(z_hat, z_list[[area_idx]])^2
       MSE_tracker[area_idx, em_idx] <- mean(abs(z_hat - z_list[[area_idx]])^2)
-      # Observed, expected, sd, p-value
-      # Only run if this package is installed (only available in git...)
-      if (requireNamespace("moranfast", quietly = TRUE)) {
-        resid_moran[area_idx, em_idx, ] <- moranfast::calc_moran(
-          z_hat - z_list[[area_idx]],
-          poisECMData_obj$coords_list[[area_idx]][, 1],
-          poisECMData_obj$coords_list[[area_idx]][, 2]
-        )
-      } else {
-        resid_moran[area_idx, em_idx, ] <- NA
-      }
+      # Observed, expected, sd
+      resid_moran[area_idx, em_idx, ] <- calc_moran(
+        z_hat - z_list[[area_idx]],
+        poisECMData_obj$coords_list[[area_idx]][, 1],
+        poisECMData_obj$coords_list[[area_idx]][, 2]
+      )
 
 
       # Data log likelihood
@@ -588,6 +579,7 @@ poisECM_spNNGP <- function(poisECMData_obj,
 #' @note This method can be used to check a hand-created input object.
 #'  E.g., if a user does not want to use prepData.
 #'
+#' @returns Nothing.
 #' @import Matrix
 #' @export
 checkInputsPoisECMspNNGP <- function (poisECMData_obj) {

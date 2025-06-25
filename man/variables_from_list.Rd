@@ -13,6 +13,9 @@ variables_from_list(lst, target_environ = parent.frame())
 
 \item{target_environ}{Environment to instantiate variables in.}
 }
+\value{
+Nothing; the global environment is modified.
+}
 \description{
 Utility function to instantiate variables from elements in a named list.
 E.g., call this function on list(a=1, b=2) would result in variables a and b

@@ -89,6 +89,9 @@ prepData <- function(count_matrix,
   if (!is.null(design_formula) && !is.null(design_mat)) {
     stop("Cannot supply both design formula and design matrix: pick one.")
   }
+  if (is.null(compute_eigs)) {
+    compute_eigs <- "NONE"
+  }
 
   # Check dimensions and names
   stopifnot(ncol(count_matrix) == nrow(meta_data))
@@ -263,7 +266,7 @@ prepData <- function(count_matrix,
       D <- Matrix::Diagonal(nrow(W), Matrix::rowSums(W))
 
       W_list[[1 + length(W_list)]] <- W
-      D_list[[1 + length(W_list)]] <- D
+      D_list[[1 + length(D_list)]] <- D
 
       if (0 == min(Matrix::rowSums(W))) {
         warning(paste0("Not every cell has a neighbor, ", samp))

@@ -11,6 +11,9 @@ checkInputsPoisECMspNNGP(poisECMData_obj)
 \item{poisECMData_obj}{Object containing data.
 Created by the prepData method.}
 }
+\value{
+Nothing.
+}
 \description{
 Check inputs for the poisECM_spNNGP method.
 Make sure that the input object has everything needed to run without error.

@@ -1,5 +1,6 @@
 ## Functions to run after model fitting (inference).
-# Dependencies in file: Matrix, dplyr, tibble, moranfast.
+# Dependencies in file: Matrix, dplyr, tibble.
+# Rcpp dependencies: calc_moran.cpp.
 
 
 #' Summarizes the results of the poisECM algorithms for a single gene.
@@ -12,7 +13,6 @@
 #' @param poisECMOutput_obj Output of the poisECM algorithms.
 #'
 #' @returns A dataframe with MSE, spatial parameters, and Moran's I values.
-#'  Moran's I values are only returned if the package moranfast is installed.
 #'  Key (General):
 #'    Each row corresponds to one sample.
 #'    n_cells is the number of measurements in the sample.
@@ -33,20 +33,11 @@
 #'    theta: Posterior expectation of exp(eta).
 #'    librarysize: Often, the total counts per each cell.
 #'
-#' @note Requires the moranfast library if we want to return Moran's I of residuals.
-#'    Install with `devtools::install_github('mcooper/moranfast')`.
-#'
 #' @importFrom tibble add_column
 #' @importFrom dplyr bind_rows
 #'
 #' @export
 summarizePoisECMPerformance <- function(poisECMData_obj, poisECMOutput_obj) {
-  if (!requireNamespace("moranfast", quietly = TRUE)) {
-    warning(
-      "moranfast is not installed: This package requires the moranfast package to compute Moran's I values. Install it with devtools::install_github('mcooper/moranfast')"
-    )
-  }
-
   # Loop over samples to aggregate metrics
   inner_MSE_df <- list()
   for (s_idx in 1:length(poisECMData_obj$coords_list)) {
@@ -92,57 +83,56 @@ summarizePoisECMPerformance <- function(poisECMData_obj, poisECMOutput_obj) {
       }
     }
     # Initialize the Moran's I vector
-    # Only compute it if we have moranfast AND coordinates
+    # Only compute it if we have coordinates
     MI_vec <- rep(NA, 8)
-    if (requireNamespace("moranfast", quietly = TRUE)) {
-      if (!(
-        is.null(poisECMData_obj$coords_list[[s_idx]][, 1]) ||
-        is.null(poisECMData_obj$coords_list[[s_idx]][, 2])
-      )) {
-        MI_vec <- c(
-          moranfast::calc_moran(
-            counts,
-            poisECMData_obj$coords_list[[s_idx]][, 1],
-            poisECMData_obj$coords_list[[s_idx]][, 2]
-          )[1],
-          moranfast::calc_moran(
-            preds,
-            poisECMData_obj$coords_list[[s_idx]][, 1],
-            poisECMData_obj$coords_list[[s_idx]][, 2]
-          )[1],
-          moranfast::calc_moran(
-            resids,
-            poisECMData_obj$coords_list[[s_idx]][, 1],
-            poisECMData_obj$coords_list[[s_idx]][, 2]
-          )[1],
-          moranfast::calc_moran(
-            phis,
-            poisECMData_obj$coords_list[[s_idx]][, 1],
-            poisECMData_obj$coords_list[[s_idx]][, 2]
-          )[1],
-          moranfast::calc_moran(
-            etas,
-            poisECMData_obj$coords_list[[s_idx]][, 1],
-            poisECMData_obj$coords_list[[s_idx]][, 2]
-          )[1],
-          moranfast::calc_moran(
-            Xbs,
-            poisECMData_obj$coords_list[[s_idx]][, 1],
-            poisECMData_obj$coords_list[[s_idx]][, 2]
-          )[1],
-          moranfast::calc_moran(
-            thetas,
-            poisECMData_obj$coords_list[[s_idx]][, 1],
-            poisECMData_obj$coords_list[[s_idx]][, 2]
-          )[1],
-          moranfast::calc_moran(
-            library_sizes,
-            poisECMData_obj$coords_list[[s_idx]][, 1],
-            poisECMData_obj$coords_list[[s_idx]][, 2]
-          )[1]
-        )
-      }
+    if (!(
+      is.null(poisECMData_obj$coords_list[[s_idx]][, 1]) ||
+      is.null(poisECMData_obj$coords_list[[s_idx]][, 2])
+    )) {
+      MI_vec <- c(
+        calc_moran(
+          counts,
+          poisECMData_obj$coords_list[[s_idx]][, 1],
+          poisECMData_obj$coords_list[[s_idx]][, 2]
+        )[1],
+        calc_moran(
+          preds,
+          poisECMData_obj$coords_list[[s_idx]][, 1],
+          poisECMData_obj$coords_list[[s_idx]][, 2]
+        )[1],
+        calc_moran(
+          resids,
+          poisECMData_obj$coords_list[[s_idx]][, 1],
+          poisECMData_obj$coords_list[[s_idx]][, 2]
+        )[1],
+        calc_moran(
+          phis,
+          poisECMData_obj$coords_list[[s_idx]][, 1],
+          poisECMData_obj$coords_list[[s_idx]][, 2]
+        )[1],
+        calc_moran(
+          etas,
+          poisECMData_obj$coords_list[[s_idx]][, 1],
+          poisECMData_obj$coords_list[[s_idx]][, 2]
+        )[1],
+        calc_moran(
+          Xbs,
+          poisECMData_obj$coords_list[[s_idx]][, 1],
+          poisECMData_obj$coords_list[[s_idx]][, 2]
+        )[1],
+        calc_moran(
+          thetas,
+          poisECMData_obj$coords_list[[s_idx]][, 1],
+          poisECMData_obj$coords_list[[s_idx]][, 2]
+        )[1],
+        calc_moran(
+          library_sizes,
+          poisECMData_obj$coords_list[[s_idx]][, 1],
+          poisECMData_obj$coords_list[[s_idx]][, 2]
+        )[1]
+      )
     }
+
     inner_MSE_df[[s_idx]] <- data.frame(
       # Basic parameters
       gene = poisECMOutput_obj$run_settings$gene_name,

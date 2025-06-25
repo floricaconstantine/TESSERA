@@ -61,6 +61,8 @@ poisson_loglike <- function(z, theta_hat) {
 #' @note This function is not currently used elsewhere in the codebase.
 #' @note This function has identical functionality and essentially identical code
 #'  to extract.named in mvbutils.
+#'
+#' @returns Nothing; the global environment is modified.
 variables_from_list <- function(lst, target_environ = parent.frame()) {
   # Get names of fields in list lst
   list_fields <- names(lst)

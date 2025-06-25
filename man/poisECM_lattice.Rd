@@ -163,9 +163,6 @@ at least one neighbor, i.e., that there are no isolated points,
 for at least the CAR and SAR models.
 
 Requires the Matrix library.
-
-Requires the moranfast library if we want to return Moran's I of residuals.
-Install with \code{devtools::install_github('mcooper/moranfast')}.
 }
 \references{
 Meng, Xiao-Li, and Donald B. Rubin.
