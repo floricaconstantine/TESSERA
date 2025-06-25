@@ -272,9 +272,17 @@ poisECM_lattice <- function(poisECMData_obj,
     lib_vec <- Reduce(c, poisECMData_obj$library_size_list)
     X_mat <- Reduce(rbind, poisECMData_obj$X_list)
     # Fit GLM
-    beta_tracker[, 1] <- as.vector(stats::coef(
-      stats::glm(z_vec / lib_vec ~ 0 + X_mat, family = stats::poisson())
+    beta_tmp <- as.vector(stats::coef(
+      # stats::glm(z_vec / lib_vec ~ 0 + X_mat, family = stats::poisson())
+      stats::glm(
+        z_vec ~ 0 + X_mat,
+        family = stats::poisson(),
+        offset = log(lib_vec)
+      )
     ))
+    beta_tmp[is.nan(beta_tmp)] <- 0
+    beta_tmp[is.infinite(beta_tmp)] <- 0
+    beta_tracker[, 1] <- beta_tmp
 
     # Memory
     rm(z_vec)
@@ -429,10 +437,11 @@ poisECM_lattice <- function(poisECMData_obj,
       # data_log_like_tracker[area_idx, em_idx] <- poisson_loglike(z_list[[area_idx]], theta_hat * library_size_list[[area_idx]])
       data_log_like_tracker[area_idx, em_idx] <- sum(
         stats::dpois(
-          z_list[[area_idx]],
+          round(z_list[[area_idx]]),
           theta_hat * poisECMData_obj$library_size_list[[area_idx]],
           log = TRUE
-        )
+        ),
+        na.rm = TRUE
       )
 
       # Expected log likelihood
