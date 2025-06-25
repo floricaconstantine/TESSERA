@@ -13,6 +13,7 @@ prepData(
   coord_data = NULL,
   D_THRESH = NULL,
   k_search = 20,
+  adj_mat = NULL,
   compute_eigs = "CSL"
 )
 }
@@ -46,6 +47,9 @@ Needed to compute adjacency matrices.
 Not needed for non-lattice models (set to NULL).}
 
 \item{k_search}{When forming adjacency matrices, the maximum number of neighbors.}
+
+\item{adj_mat}{A pre-computed adjacency matrix (sparse).
+Instead of forming it via D_THRESH or coordinates, a user can supply it.}
 
 \item{compute_eigs}{Whether to compute eigenvalues of various matrices.
 CAR/SAR: D^{-1} W; Leroux: D - W.

@@ -30,6 +30,8 @@
 #'  Needed to compute adjacency matrices.
 #'  Not needed for non-lattice models (set to NULL).
 #' @param k_search When forming adjacency matrices, the maximum number of neighbors.
+#' @param adj_mat A pre-computed adjacency matrix (sparse).
+#'  Instead of forming it via D_THRESH or coordinates, a user can supply it.
 #' @param compute_eigs Whether to compute eigenvalues of various matrices.
 #'  CAR/SAR: D^{-1} W; Leroux: D - W.
 #'  Depends on forming adjacency matrices, so needs coord_data, D_THRESH, k_search.
@@ -77,6 +79,7 @@ prepData <- function(count_matrix,
                      coord_data = NULL,
                      D_THRESH = NULL,
                      k_search = 20,
+                     adj_mat = NULL,
                      # C: CAR, S: SAR, L: Leroux, "NONE": None
                      compute_eigs = "CSL") {
   # Process arguments
@@ -97,6 +100,13 @@ prepData <- function(count_matrix,
   if (!is.null(design_mat)) {
     stopifnot(ncol(count_matrix) == nrow(design_mat))
     stopifnot(identical(rownames(design_mat), rownames(meta_data)))
+  }
+  if (!is.null(adj_mat)) {
+    print("Using supplied adjacency matrix.")
+    stopifnot(ncol(adj_mat) == nrow(adj_mat)) # Square
+    stopifnot(ncol(adj_mat) == nrow(meta_data)) # Matching dimensions
+    stopifnot(identical(rownames(adj_mat), colnames(adj_mat))) # Symmetry
+    stopifnot(identical(rownames(adj_mat), rownames(meta_data))) # Names
   }
 
   # Sample names
@@ -229,9 +239,54 @@ prepData <- function(count_matrix,
   }
   names(X_list) <- sample_names
 
+  # Adjacency matrix
+  if (!is.null(adj_mat)) {
+    print("Subsetting provided adjacency matrix.")
+    # Separate into lists
+    for (samp in sample_names) {
+      # Indices for cells in sample
+      idx_local <- which(meta_data[, sample_col] == samp)
+      cell_names_local <- rownames(meta_data)[idx_local]
 
-  ## Create adjacency matrices: If we have coordinates and a threshold
-  if (!is.null(coord_data) && !is.null(D_THRESH)) {
+      # Subset matrix
+      W <- adj_mat[idx_local, idx_local]
+      # Ensure symmetry (sometimes ties in distances lead to weird things)
+      # W <- W + Matrix::t(W)
+      # W <- 1 * (W != 0)
+      # Check to make sure things are correct
+      # stopifnot(max(abs(W - Matrix::t(W))) == 0)
+      # stopifnot(max(W) == 1)
+      # stopifnot(min(W) == 0)
+      # stopifnot(0 == sum(abs(Matrix::diag(W)) != 0))
+
+      # Degree matrix
+      D <- Matrix::Diagonal(nrow(W), Matrix::rowSums(W))
+
+      W_list[[1 + length(W_list)]] <- W
+      D_list[[1 + length(W_list)]] <- D
+
+      if (0 == min(Matrix::rowSums(W))) {
+        warning(paste0("Not every cell has a neighbor, ", samp))
+      }
+      if (0 != max(abs(W - Matrix::t(W)))) {
+        warning(paste0("Adjacency is not symmetric, ", samp))
+      }
+      if (1 != max(W)) {
+        warning(paste0("Adjacency is not in {0, 1}, ", samp))
+      }
+      if (0 != min(W)) {
+        warning(paste0("Adjacency is not in {0, 1}, ", samp))
+      }
+      if (0 != sum(abs(Matrix::diag(W)) != 0)) {
+        warning(paste0("Adjacency is not diagonal-free, ", samp))
+      }
+    }
+    names(W_list) <- sample_names
+    names(D_list) <- sample_names
+  } else if (!is.null(coord_data) && !is.null(D_THRESH) && is.null(adj_mat)) {
+    print("Creating adjacency matrix.")
+
+    ## Create adjacency matrices: If we have coordinates and a threshold
     for (idx in 1:length(coords_list)) {
       # Get indices of nearest neighbors for each cell
       nn_idx <- spatstat.geom::nnwhich(coords_list[[idx]], k = 1:k_search)
@@ -259,11 +314,12 @@ prepData <- function(count_matrix,
       )
       # Ensure symmetry (sometimes ties in distances lead to weird things)
       W <- W + Matrix::t(W)
-      W[W > 0] <- 1
+      W <- 1 * (W != 0)
       # Check to make sure things are correct
       stopifnot(max(abs(W - Matrix::t(W))) == 0)
       stopifnot(max(W) == 1)
       stopifnot(min(W) == 0)
+      stopifnot(0 == sum(abs(Matrix::diag(W)) != 0))
 
       # Degree matrix
       D <- Matrix::Diagonal(nrow(W), Matrix::rowSums(W))
