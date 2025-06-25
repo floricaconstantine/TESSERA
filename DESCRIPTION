@@ -18,7 +18,7 @@ License: Apache License (>= 2)
 Imports: Matrix, gstat, sp, pracma, MASS, 
   BRISC, CARBayes, brms, mgcv, 
   spatstat.geom, dplyr, ggplot2, reshape2, Rfast, tibble,
-  stats
+  stats, Rcpp
 LinkingTo: Rcpp
 biocViews: Regression, DifferentialExpression, GeneExpression
 Encoding: UTF-8

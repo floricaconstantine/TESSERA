@@ -121,6 +121,9 @@
 #' @importFrom stats rnorm
 #' @importFrom stats runif
 #' @importFrom stats var
+#' @importFrom Rcpp sourceCpp
+#' @importFrom Rcpp evalCpp
+#' @useDynLib poisECM
 #'
 #' @export
 poisECM_lattice <- function(poisECMData_obj,

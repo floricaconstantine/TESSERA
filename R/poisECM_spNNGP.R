@@ -108,6 +108,9 @@
 #' @importFrom stats poisson
 #' @importFrom stats rnorm
 #' @importFrom stats var
+#' @importFrom Rcpp sourceCpp
+#' @importFrom Rcpp evalCpp
+#' @useDynLib poisECM
 #'
 #' @export
 poisECM_spNNGP <- function(poisECMData_obj,

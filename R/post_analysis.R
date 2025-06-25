@@ -35,6 +35,9 @@
 #'
 #' @importFrom tibble add_column
 #' @importFrom dplyr bind_rows
+#' @importFrom Rcpp sourceCpp
+#' @importFrom Rcpp evalCpp
+#' @useDynLib poisECM
 #'
 #' @export
 summarizePoisECMPerformance <- function(poisECMData_obj, poisECMOutput_obj) {

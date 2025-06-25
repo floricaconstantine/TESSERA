@@ -1,7 +1,8 @@
 /* Note: The following code is taken from the moranfast repository
  *  https://github.com/mcooper/moranfast/tree/master
  * on Tuesday 24 June 2025. All credit and rights for this code go to
- * Matthew Cooper, per the license text below.
+ * Matthew Cooper, per the license text below. There have been minor stylistic
+ * edits / documentation added.
 */
 /**
  * MIT License
@@ -30,9 +31,16 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
-// This function is useful for calculating Moran's I
-// Without holding an entire distance matrix in memory
-
+//' Helper function for Moran's I.
+//'
+//' @author Matthew Cooper.
+//'
+//' @param x1 First x-coordinate.
+//' @param y1 First y-coordinate.
+//' @param x2 Second x-coordinate.
+//' @param y2 Second y-coordinate.
+//'
+//' @returns Euclidean distance between (x1, y1) and (x2, y2).
 // [[Rcpp::export]]
 double distanceCalculate(double x1, double y1, double x2, double y2)
 {
@@ -50,6 +58,13 @@ double distanceCalculate(double x1, double y1, double x2, double y2)
   return dist;
 }
 
+//' Helper function for Moran's I: Center a vector.
+//'
+//' @author Matthew Cooper.
+//'
+//' @param x Measurements.
+//'
+//' @returns x - mean(x).
 // [[Rcpp::export]]
 NumericVector normalize(NumericVector x)
 {
@@ -59,6 +74,20 @@ NumericVector normalize(NumericVector x)
   return x_norm;
 }
 
+//' Fast computation of Moran's I.
+//'
+//' @author Matthew Cooper.
+//'
+//' @param x Measurements.
+//' @param c1 x-coordinates.
+//' @param c2 y-coordinates.
+//'
+//' @returns I Moran's I.
+//' @returns EI Expected value of Moran's I under the null of no
+//'   spatial correlation.
+//' @returns SD Standard deviation of Moran's I.
+//'
+//' @export
 // [[Rcpp::export]]
 NumericVector calc_moran(NumericVector x, NumericVector c1, NumericVector c2)
 {
