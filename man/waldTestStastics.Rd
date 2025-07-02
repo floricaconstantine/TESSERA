@@ -11,12 +11,16 @@ waldTestStastics(poisECMOutput_obj, contrast_mat)
 \item{poisECMOutput_obj}{Output of the poisECM algorithms.}
 
 \item{contrast_mat}{Matrix with contrasts of the estimated coeficients.
-Rows are contrasts, columns correspond to columns in beta_hat (covariates).}
+Rows are contrasts, columns correspond to columns in beta_hat (covariates).
+beta_hat is the vector of estimated coefficients, stored in poisECMOutput_obj.}
 }
 \value{
-A dataframe of Wald t-statistics.
+A dataframe of Wald t-statistics. Square these to get F-statistics.
 }
 \description{
 Given the output of the poisECM algorithms and a contrast matrix, compute
 Wald T-statistics.
+}
+\author{
+Florica J Constantine, florica AT berkeley.edu
 }

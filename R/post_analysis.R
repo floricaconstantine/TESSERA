@@ -185,11 +185,14 @@ summarizePoisECMPerformance <- function(poisECMData_obj, poisECMOutput_obj) {
 #' Given the output of the poisECM algorithms and a contrast matrix, compute
 #'  Wald T-statistics.
 #'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
 #' @param poisECMOutput_obj Output of the poisECM algorithms.
 #' @param contrast_mat Matrix with contrasts of the estimated coeficients.
 #'  Rows are contrasts, columns correspond to columns in beta_hat (covariates).
+#'  beta_hat is the vector of estimated coefficients, stored in poisECMOutput_obj.
 #'
-#' @returns A dataframe of Wald t-statistics.
+#' @returns A dataframe of Wald t-statistics. Square these to get F-statistics.
 #'
 #' @importFrom dplyr bind_rows
 #'
@@ -255,7 +258,10 @@ waldTestStastics <- function (poisECMOutput_obj, contrast_mat) {
 
 
 #' Helper function for Wald stat covariances.
-#'  Invert a precision matrix, handling failure cases.
+#'
+#' Invert a precision matrix, handling failure cases.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
 #'
 #' @param A Estimated precision matrix.
 #'
@@ -289,4 +295,188 @@ inversePrecisionMatrixWald <- function(A) {
     Ainv <- 0 * A
     return(Ainv)
   }
+}
+
+
+#' Fit a scaled non-central chi^2_1 distribution to a vector of statistics.
+#'
+#' We use the method of moments with the mean and variance to estimate parameters
+#' of a scaled non-central chi squared distribution with one degree of freedom.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param wald_stats Vector of Wald statistics: non-negative F-statistics.
+#'  Square t-statistics to obtain F-statistics.
+#' @param trimfrac NULL if ignored, c(LOWER, UPPER) if not.
+#'  What fraction to trim from the left and right tails, e.g., c(0, 1e-4)
+#'  clips nothing from the left tail and the top 1e-4 fraction from the right tail,
+#'  i.e., everything above the 1 - 1e-4 quantile is trimmed.
+#'
+#' @returns Vector of (scaling, shift).
+#'  (scaling) chi_1^2(shift).
+#'
+#' @note Consider using the trimfrac parameter if the data have outliers as
+#'  this function is sensitive to the presence of large values/outliers.
+#'
+#' @importFrom stats var
+#' @export
+#'
+#' @examples
+#' fit_scaled_noncentral_chi2(5 * stats::rchisq(10000, 1, ncp=10))
+fit_scaled_noncentral_chi2 <- function(wald_stats, trimfrac = NULL) {
+  # Toss out nan and inf
+  wald_stats <- wald_stats[!is.nan(wald_stats)]
+  wald_stats <- wald_stats[!is.infinite(wald_stats)]
+
+  # Trim the vector of statistics
+  if (!is.null(trimfrac)) {
+    q_l <- quantile(wald_stats, trimfrac[1])
+    q_u <- quantile(wald_stats, 1 - trimfrac[2])
+    wald_stats <- wald_stats[wald_stats >= q_l]
+    wald_stats <- wald_stats[wald_stats <= q_u]
+  }
+
+  v_w <- stats::var(wald_stats, na.rm = TRUE)
+  m_w <- mean(wald_stats, na.rm = TRUE)
+
+  scaling <- (1.0 / 2.0) * (2 * m_w - sqrt(2.0) * sqrt(max(0, 2.0 * m_w^2 - v_w)))
+  shift <- sqrt(2.0) * sqrt(max(0, 2.0 * m_w^2 - v_w)) / (2.0 * scaling)
+
+  return(c(scaling, shift))
+}
+
+#' Given Wald statistics, compute p-values.
+#'
+#' In the poisECM algorithm, and in generalized linear mixed models in general,
+#' the exact distribution of p-values for Wald statistics under the null hypothesis
+#' is unknown.
+#' We know that the standard errors are, for finite samples, likely biased
+#' downward (too small).
+#' Moreover, for finite samples, due to the approximations
+#' in the E-step of the fitting algorithm, there may be a small positive bias.
+#' Hence, a scaled chi-squared distribution or scaled F-distribution with
+#' a non-centrality parameter might be a good model for the statistics under
+#' the null hypothesis, where we note that an unscaled chi-squared or F distribution
+#' are the standard asymptotic distributions for Wald statistics.
+#' To use this function, the Wald statistics as well as a threshold are required.
+#' The threshold is a rough upper bound for the statistics coming from the null
+#' distribution--it need not be exact, but it should be greater than most of the
+#' null distributed statistics and smaller than most of the non-null distributed
+#' statistics.
+#' In the absence of oracle knowledge, we recommend the `selectWaldStatisticThreshold`
+#' function in this package for choosing an optimal threshold value.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param wald_stats Vector of Wald statistics: non-negative F-statistics.
+#'  Square t-statistics to obtain F-statistics.
+#' @param threshold A rough guess or upper bound for the Wald statistics under
+#'  the null hypothesis.
+#'
+#' @returns Vector of p-values (un-adjusted for multiple corrections).
+#'
+#' @importFrom stats pchisq
+#' @export
+#'
+#' @examples
+#' waldStatisticPValuesThreshold(c(
+#'   5 * stats::rchisq(2000, 1, ncp = 10),
+#'   200 + 5 * stats::rchisq(2000, 1, ncp = 10)
+#'  ), 200)
+waldStatisticPValuesThreshold <- function(wald_stats, threshold) {
+  chi2_params <- fit_scaled_noncentral_chi2(wald_stats[wald_stats < threshold])
+  return(stats::pchisq(
+    wald_stats / chi2_params[1],
+    1,
+    ncp = chi2_params[2],
+    lower.tail = FALSE
+  ))
+}
+
+#' Given Wald statistics, compute an optimal threshold.
+#'
+#' In the poisECM algorithm, and in generalized linear mixed models in general,
+#' the exact distribution of p-values for Wald statistics under the null hypothesis
+#' is unknown.
+#' We know that the standard errors are, for finite samples, likely biased
+#' downward (too small).
+#' Moreover, for finite samples, due to the approximations
+#' in the E-step of the fitting algorithm, there may be a small positive bias.
+#' Hence, a scaled chi-squared distribution or scaled F-distribution with
+#' a non-centrality parameter might be a good model for the statistics under
+#' the null hypothesis, where we note that an unscaled chi-squared or F distribution
+#' are the standard asymptotic distributions for Wald statistics.
+#' To use this function, the Wald statistics as well as a threshold is estimated.
+#' The threshold is a rough upper bound for the statistics coming from the null
+#' distribution--it need not be exact, but it should be greater than most of the
+#' null distributed statistics and smaller than most of the non-null distributed
+#' statistics.
+#' The threshold is estimated by noting that under the null hypothesis,
+#' the p-values should be approximately Uniform(0, 1)
+#' distributed; for each threshold value, we compute the mean-squared error
+#' between the quantiles of the p-values and those of the Uniform(0, 1) distribution
+#' and choose the threshold with the lowest mean-squared error.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param wald_stats Vector of Wald statistics: non-negative F-statistics.
+#'  Square t-statistics to obtain F-statistics.
+#' @param trimfrac NULL if ignored, c(LOWER, UPPER) if not.
+#'  What fraction to trim from the left and right tails, e.g., c(0, 1e-4)
+#'  clips nothing from the left tail and the top 1e-4 fraction from the right tail,
+#'  i.e., everything above the 1 - 1e-4 quantile is trimmed.
+#'  In general, for this application, we recommend setting the lower/left value
+#'  to 0 and the right value to something small to drop outliers.
+#'
+#' @returns Threshold value.
+#'
+#' @note Consider using the trimfrac parameter if the data have outliers:
+#'  This function is sensitive to the presence of large values/outliers.
+#'
+#' @importFrom stats pchisq
+#' @importFrom stats quantile
+#' @importFrom stats optimize
+#'
+#' @export
+#'
+#' @examples
+#' selectWaldStatisticThreshold(c(5 * stats::rchisq(2000, 1, ncp = 10),
+#'  200 + 5 * stats::rchisq(2000, 1, ncp = 10)))
+#' selectWaldStatisticThreshold(5 * stats::rchisq(2000, 1, ncp = 10))
+selectWaldStatisticThreshold <- function(wald_stats, trimfrac = NULL) {
+  # Toss out nan and inf
+  wald_stats <- wald_stats[!is.nan(wald_stats)]
+  wald_stats <- wald_stats[!is.infinite(wald_stats)]
+
+  # Trim the vector of statistics
+  if (!is.null(trimfrac)) {
+    q_l <- quantile(wald_stats, trimfrac[1])
+    q_u <- quantile(wald_stats, 1 - trimfrac[2])
+    wald_stats <- wald_stats[wald_stats >= q_l]
+    wald_stats <- wald_stats[wald_stats <= q_u]
+  }
+
+  wrapper_optimization <- function(threshold) {
+    # Subset to Wald statistics under threshold
+    wald_subset <- wald_stats[wald_stats < threshold]
+    # Fit scaled non-central chi^2_1 distribution
+    chi2_params <- fit_scaled_noncentral_chi2(wald_subset)
+    # Calculate p-values
+    wald_subset_p <- stats::pchisq(wald_subset / chi2_params[1],
+                                   1,
+                                   ncp = chi2_params[2],
+                                   lower.tail = FALSE)
+    # Obtain quantiles of the p-values
+    p_quantile <- stats::quantile(wald_subset_p, seq(0.0, 1.0, 1.0 / length(wald_subset_p)))
+
+    # MSE between observed quantiles and the Uniform[0, 1] distribution quantiles
+    return(mean((
+      p_quantile - seq(0.0, 1.0, 1.0 / length(wald_subset_p))
+    )^2))
+  }
+
+  # optim_out <- stats::optim(median(wald_stats), wrapper_optimization)
+  # return(optim_out$par)
+  optim_out <- stats::optimize(wrapper_optimization, c(min(wald_stats), max(wald_stats)))
+  return(optim_out$minimum)
 }

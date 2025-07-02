@@ -2,8 +2,7 @@
 % Please edit documentation in R/post_analysis.R
 \name{inversePrecisionMatrixWald}
 \alias{inversePrecisionMatrixWald}
-\title{Helper function for Wald stat covariances.
-Invert a precision matrix, handling failure cases.}
+\title{Helper function for Wald stat covariances.}
 \usage{
 inversePrecisionMatrixWald(A)
 }
@@ -14,6 +13,8 @@ inversePrecisionMatrixWald(A)
 Inverse of A.
 }
 \description{
-Helper function for Wald stat covariances.
 Invert a precision matrix, handling failure cases.
+}
+\author{
+Florica J Constantine, florica AT berkeley.edu
 }
