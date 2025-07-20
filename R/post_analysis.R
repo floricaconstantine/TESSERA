@@ -372,6 +372,8 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, trimfrac = NULL) {
 #'  Square t-statistics to obtain F-statistics.
 #' @param threshold A rough guess or upper bound for the Wald statistics under
 #'  the null hypothesis.
+#' @param conditional TRUE: p-values are conditional on X | X < Threshold;
+#'  FALSE: p-values are not conditional.
 #'
 #' @returns Vector of p-values (un-adjusted for multiple corrections).
 #'
@@ -383,14 +385,46 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, trimfrac = NULL) {
 #'   5 * stats::rchisq(2000, 1, ncp = 10),
 #'   200 + 5 * stats::rchisq(2000, 1, ncp = 10)
 #'  ), 200)
-waldStatisticPValuesThreshold <- function(wald_stats, threshold) {
+waldStatisticPValuesThreshold <- function(wald_stats, threshold, conditional =
+                                            TRUE) {
   chi2_params <- fit_scaled_noncentral_chi2(wald_stats[wald_stats < threshold])
-  return(stats::pchisq(
-    wald_stats / chi2_params[1],
-    1,
-    ncp = chi2_params[2],
-    lower.tail = FALSE
-  ))
+
+  if (!conditional) {
+    return(stats::pchisq(
+      wald_stats / chi2_params[1],
+      1,
+      ncp = chi2_params[2],
+      lower.tail = FALSE
+    ))
+  } else {
+    # Event A: P{X > observed}
+    # Event B: P{X < threshold}
+    # A intersect B: P{observed < X < threshold}
+    #   = P{X < threshold} - P{X < observed}
+    # P{A | B} = P{A intersect B} / P{B}
+
+    # P{B} = P{X < threshold}: Need to scale by chi2_params[1], as in
+    # Wald statistics to match scaling
+    p_B <- stats::pchisq(threshold / chi2_params[1],
+                         1,
+                         ncp = chi2_params[2],
+                         lower.tail = TRUE)
+
+    # P{A intersect B} = P{observed < X < threshold}
+    # First compute P{X < observed}
+    p_A_B <- stats::pchisq(wald_stats / chi2_params[1],
+                           1,
+                           ncp = chi2_params[2],
+                           lower.tail = TRUE)
+    # Now take difference
+    p_A_B <- p_B - p_A_B
+    # Just in case, never needed
+    p_A_B <- pmax(0, p_A_B)
+    # Observed > threshold has probability zero under conditional
+    p_A_B[wald_stats > threshold] <- 0
+
+    return(pmin(p_A_B / p_B, 1.0))
+  }
 }
 
 #' Given Wald statistics, compute an optimal threshold.
@@ -427,6 +461,8 @@ waldStatisticPValuesThreshold <- function(wald_stats, threshold) {
 #'  i.e., everything above the 1 - 1e-4 quantile is trimmed.
 #'  In general, for this application, we recommend setting the lower/left value
 #'  to 0 and the right value to something small to drop outliers.
+#' @param conditional TRUE: p-values are conditional on X | X < Threshold;
+#'  FALSE: p-values are not conditional.
 #'
 #' @returns Threshold value.
 #'
@@ -443,7 +479,9 @@ waldStatisticPValuesThreshold <- function(wald_stats, threshold) {
 #' selectWaldStatisticThreshold(c(5 * stats::rchisq(2000, 1, ncp = 10),
 #'  200 + 5 * stats::rchisq(2000, 1, ncp = 10)))
 #' selectWaldStatisticThreshold(5 * stats::rchisq(2000, 1, ncp = 10))
-selectWaldStatisticThreshold <- function(wald_stats, trimfrac = NULL) {
+selectWaldStatisticThreshold <- function(wald_stats,
+                                         trimfrac = NULL,
+                                         conditional = TRUE) {
   # Toss out nan and inf
   wald_stats <- wald_stats[!is.nan(wald_stats)]
   wald_stats <- wald_stats[!is.infinite(wald_stats)]
@@ -459,13 +497,8 @@ selectWaldStatisticThreshold <- function(wald_stats, trimfrac = NULL) {
   wrapper_optimization <- function(threshold) {
     # Subset to Wald statistics under threshold
     wald_subset <- wald_stats[wald_stats < threshold]
-    # Fit scaled non-central chi^2_1 distribution
-    chi2_params <- fit_scaled_noncentral_chi2(wald_subset)
     # Calculate p-values
-    wald_subset_p <- stats::pchisq(wald_subset / chi2_params[1],
-                                   1,
-                                   ncp = chi2_params[2],
-                                   lower.tail = FALSE)
+    wald_subset_p <- waldStatisticPValuesThreshold(wald_subset, threshold, conditional)
     # Obtain quantiles of the p-values
     p_quantile <- stats::quantile(wald_subset_p, seq(0.0, 1.0, 1.0 / length(wald_subset_p)))
 

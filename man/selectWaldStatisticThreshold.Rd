@@ -4,7 +4,7 @@
 \alias{selectWaldStatisticThreshold}
 \title{Given Wald statistics, compute an optimal threshold.}
 \usage{
-selectWaldStatisticThreshold(wald_stats, trimfrac = NULL)
+selectWaldStatisticThreshold(wald_stats, trimfrac = NULL, conditional = TRUE)
 }
 \arguments{
 \item{wald_stats}{Vector of Wald statistics: non-negative F-statistics.
@@ -16,6 +16,9 @@ clips nothing from the left tail and the top 1e-4 fraction from the right tail,
 i.e., everything above the 1 - 1e-4 quantile is trimmed.
 In general, for this application, we recommend setting the lower/left value
 to 0 and the right value to something small to drop outliers.}
+
+\item{conditional}{TRUE: p-values are conditional on X | X < Threshold;
+FALSE: p-values are not conditional.}
 }
 \value{
 Threshold value.

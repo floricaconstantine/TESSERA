@@ -4,7 +4,7 @@
 \alias{waldStatisticPValuesThreshold}
 \title{Given Wald statistics, compute p-values.}
 \usage{
-waldStatisticPValuesThreshold(wald_stats, threshold)
+waldStatisticPValuesThreshold(wald_stats, threshold, conditional = TRUE)
 }
 \arguments{
 \item{wald_stats}{Vector of Wald statistics: non-negative F-statistics.
@@ -12,6 +12,9 @@ Square t-statistics to obtain F-statistics.}
 
 \item{threshold}{A rough guess or upper bound for the Wald statistics under
 the null hypothesis.}
+
+\item{conditional}{TRUE: p-values are conditional on X | X < Threshold;
+FALSE: p-values are not conditional.}
 }
 \value{
 Vector of p-values (un-adjusted for multiple corrections).
