@@ -379,9 +379,13 @@ prepData <- function(count_matrix,
     if (grepl("C", compute_eigs, ignore.case = TRUE)
         || grepl("S", compute_eigs, ignore.case = TRUE)) {
       names(eig_CS_list) <- sample_names
+    } else {
+      eig_CS_list <- NULL
     }
     if (grepl("L", compute_eigs, ignore.case = TRUE)) {
       names(eig_L_list) <- sample_names
+    } else {
+      eig_L_list <- NULL
     }
   }
 

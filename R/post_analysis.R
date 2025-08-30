@@ -226,16 +226,19 @@ waldTestStastics <- function (poisECMOutput_obj, contrast_mat) {
     gene <- NA
   }
 
+  V_hat <- inversePrecisionMatrixWald(poisECMOutput_obj$beta_neghessian)
   wald_contrast_df <- list()
   for (c_idx in 1:nrow(contrast_mat)) {
     # Find indices involved in contrast and subset
     subset_idx <- which(contrast_mat[c_idx, ] != 0)
-    R <- contrast_mat[c_idx, subset_idx]
+    # R <- contrast_mat[c_idx, subset_idx]
+    R <- contrast_mat[c_idx, ]
     # Compute contrast value
-    Rbeta <- sum(R * beta_hat[subset_idx])
+    # Rbeta <- sum(R * beta_hat[subset_idx])
+    Rbeta <- sum(R * beta_hat)
 
     # Contrast SE
-    V_hat <- inversePrecisionMatrixWald(poisECMOutput_obj$beta_neghessian[subset_idx, subset_idx])
+    # V_hat <- inversePrecisionMatrixWald(poisECMOutput_obj$beta_neghessian[subset_idx, subset_idx])
     RVR_inv <- sqrt(as.numeric(R %*% V_hat %*% R))
 
     wald_contrast_df[[1 + length(wald_contrast_df)]] <-
