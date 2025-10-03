@@ -4,7 +4,7 @@
 \alias{glm_wrapper}
 \title{Wrapper to fit basic Poisson GLM.}
 \usage{
-glm_wrapper(z_list, X_list)
+glm_wrapper(z_list, X_list, library_size_list = NULL)
 }
 \arguments{
 \item{z_list}{List of vectors of observed counts---one vector per area.}
@@ -13,6 +13,10 @@ glm_wrapper(z_list, X_list)
 Same length and ordering as z_list.
 Matrices with number of rows equal to length of corresponding vector in
 z_list.}
+
+\item{library_size_list}{A list with a vector of library sizes for each sample.
+Total counts for each location if there are more than one gene/measurement;
+if NULL, set to 1.}
 }
 \value{
 The output list from glm, plus a time field for how long the

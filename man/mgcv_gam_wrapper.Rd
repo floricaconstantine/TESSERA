@@ -12,7 +12,8 @@ mgcv_gam_wrapper(
   model_family = "poisson",
   z_offset = 0.5,
   spline_k = -1,
-  spline_basis = "tp"
+  spline_basis = "tp",
+  library_size_list = NULL
 )
 }
 \arguments{
@@ -43,6 +44,10 @@ log(z + z_offset).}
 \item{spline_k}{Dimension of spline basis.}
 
 \item{spline_basis}{Type of basis---must be valid for mgcv::s.}
+
+\item{library_size_list}{A list with a vector of library sizes for each sample.
+Total counts for each location if there are more than one gene/measurement;
+if NULL, set to 1.}
 }
 \value{
 The output list from mgcv::gam, plus a time field for how long the

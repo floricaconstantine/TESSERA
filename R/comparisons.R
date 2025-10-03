@@ -27,6 +27,9 @@
 #'    log(z + z_offset).
 #' @param spline_k Dimension of spline basis.
 #' @param spline_basis Type of basis---must be valid for mgcv::s.
+#' @param library_size_list A list with a vector of library sizes for each sample.
+#'    Total counts for each location if there are more than one gene/measurement;
+#'    if NULL, set to 1.
 #'
 #' @returns The output list from mgcv::gam, plus a time field for how long the
 #'    function ran for.
@@ -46,13 +49,21 @@ mgcv_gam_wrapper <- function(z_list,
                              model_family = "poisson",
                              z_offset = 0.5,
                              spline_k = -1,
-                             spline_basis = "tp") {
+                             spline_basis = "tp",
+                             library_size_list = NULL) {
   # Start clock
   t0_mgcv <- Sys.time()
 
   # Create a single set of vectors/covariate matrix
   z_vec <- Reduce(c, z_list)
   X_mat <- Reduce(rbind, X_list)
+
+  # If present, apply the library size
+  if (!is.null(library_size_list)) {
+    lib_vec <- Reduce(c, library_size_list)
+    z_vec <- z_vec / lib_vec
+  }
+
   xc <- Reduce(c, x_coords_list)
   yc <- Reduce(c, y_coords_list)
 
@@ -88,10 +99,14 @@ mgcv_gam_wrapper <- function(z_list,
 
   # Fit model
   if ("poisson" == model_family) {
-    mgcv_out <- mgcv::gam(mgcv_formula, family = stats::poisson(), data = X_df)
+    mgcv_out <- mgcv::gam(mgcv_formula,
+                          family = stats::poisson(),
+                          data = X_df)
   } else if ("gaussian" == model_family) {
     X_df$z <- log(X_df$z + z_offset)
-    mgcv_out <- mgcv::gam(mgcv_formula, family = stats::gaussian(), data = X_df)
+    mgcv_out <- mgcv::gam(mgcv_formula,
+                          family = stats::gaussian(),
+                          data = X_df)
   } else {
     stop("Invalid model family.")
   }
@@ -128,6 +143,9 @@ mgcv_gam_wrapper <- function(z_list,
 #' @param warmup Burn-in for MCMC.
 #' @param thin Thinning rate for MCMC.
 #' @param cores Number of cores to use for MCMC.
+#' @param library_size_list A list with a vector of library sizes for each sample.
+#'    Total counts for each location if there are more than one gene/measurement;
+#'    if NULL, set to 1.
 #'
 #' @returns The output list from brms::brm, plus a time field for how long the
 #'    function ran for.
@@ -153,13 +171,21 @@ BRMS_CAR_SAR_wrapper <- function(z_list,
                                  iter = 2000,
                                  warmup = 200,
                                  thin = 2,
-                                 cores = 1)  {
+                                 cores = 1,
+                                 library_size_list = NULL)  {
   # Start clock
   t0_brm <- Sys.time()
 
   # Create a single set of vectors/covariate matrix
   z_vec <- Reduce(c, z_list)
   X_mat <- Reduce(rbind, X_list)
+
+  # If present, apply the library size
+  if (!is.null(library_size_list)) {
+    lib_vec <- Reduce(c, library_size_list)
+    z_vec <- z_vec / lib_vec
+  }
+
   beta_dim <- ncol(X_mat)
   # Create a single adjacency matrix
   W <- Matrix::bdiag(W_list)
@@ -235,6 +261,9 @@ BRMS_CAR_SAR_wrapper <- function(z_list,
 #' @param warmup Burn-in for MCMC.
 #' @param thin Thinning rate for MCMC.
 #' @param cores Number of cores to use for MCMC.
+#' @param library_size_list A list with a vector of library sizes for each sample.
+#'    Total counts for each location if there are more than one gene/measurement;
+#'    if NULL, set to 1.
 #'
 #' @returns The output list from CARBayes::S.CARleroux, plus a time field
 #'  for how long the function ran for.
@@ -256,13 +285,21 @@ CARBayes_Leroux_wrapper <- function(z_list,
                                     iter = 2000,
                                     warmup = 200,
                                     thin = 2,
-                                    cores = 1)  {
+                                    cores = 1,
+                                    library_size_list = NULL)  {
   # Start clock
   t0_cb <- Sys.time()
 
   # Create a single set of vectors/covariate matrix
   z_vec <- Reduce(c, z_list)
   X_mat <- Reduce(rbind, X_list)
+
+  # If present, apply the library size
+  if (!is.null(library_size_list)) {
+    lib_vec <- Reduce(c, library_size_list)
+    z_vec <- z_vec / lib_vec
+  }
+
   # Create a single adjacency matrix
   # WARNING: THIS HAS TO BE A MATRIX IN R
   # SO, THIS IS TOTALLY DENSE!!
@@ -414,6 +451,9 @@ CARBayes_Leroux_wrapper <- function(z_list,
 #'    Same length and ordering as z_list.
 #'    Matrices with number of rows equal to length of corresponding vector in
 #'    z_list.
+#' @param library_size_list A list with a vector of library sizes for each sample.
+#'    Total counts for each location if there are more than one gene/measurement;
+#'    if NULL, set to 1.
 #'
 #' @returns The output list from glm, plus a time field for how long the
 #'    function ran for.
@@ -421,13 +461,19 @@ CARBayes_Leroux_wrapper <- function(z_list,
 #' @importFrom stats glm
 #' @importFrom stats poisson
 #' @export
-glm_wrapper <- function(z_list, X_list) {
+glm_wrapper <- function(z_list, X_list, library_size_list = NULL) {
   # Start clock
   t0_glm <- Sys.time()
 
   # Stack into a single vector/matrix
   z_vec <- Reduce(c, z_list)
   X_mat <- Reduce(rbind, X_list)
+
+  # If present, apply the library size
+  if (!is.null(library_size_list)) {
+    lib_vec <- Reduce(c, library_size_list)
+    z_vec <- z_vec / lib_vec
+  }
   # Fit GLM
   glm_out <- stats::glm(z_vec ~ 0 + X_mat, family = stats::poisson())
 
@@ -498,6 +544,9 @@ lm_wrapper <- function(z_list,
 #'    Same length and ordering as z_list.
 #'    Matrices with number of rows equal to length of corresponding vector in
 #'    z_list.
+#' @param library_size_list A list with a vector of library sizes for each sample.
+#'    Total counts for each location if there are more than one gene/measurement;
+#'    if NULL, set to 1.
 #'
 #' @returns The output list from glm.nb, plus a time field for how long the
 #'    function ran for.
@@ -506,13 +555,20 @@ lm_wrapper <- function(z_list,
 #'
 #' @importFrom MASS glm.nb
 #' @export
-glm_nb_wrapper <- function(z_list, X_list) {
+glm_nb_wrapper <- function(z_list, X_list, library_size_list = NULL) {
   # Start clock
   t0_glm <- Sys.time()
 
   # Stack into a single vector/matrix
   z_vec <- Reduce(c, z_list)
   X_mat <- Reduce(rbind, X_list)
+
+  # If present, apply the library size
+  if (!is.null(library_size_list)) {
+    lib_vec <- Reduce(c, library_size_list)
+    z_vec <- z_vec / lib_vec
+  }
+
   # Fit GLM
   glm_out <- MASS::glm.nb(z_vec ~ 0 + X_mat)
 

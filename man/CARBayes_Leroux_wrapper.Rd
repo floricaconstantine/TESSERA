@@ -14,7 +14,8 @@ CARBayes_Leroux_wrapper(
   iter = 2000,
   warmup = 200,
   thin = 2,
-  cores = 1
+  cores = 1,
+  library_size_list = NULL
 )
 }
 \arguments{
@@ -43,6 +44,10 @@ log(z + z_offset).}
 \item{thin}{Thinning rate for MCMC.}
 
 \item{cores}{Number of cores to use for MCMC.}
+
+\item{library_size_list}{A list with a vector of library sizes for each sample.
+Total counts for each location if there are more than one gene/measurement;
+if NULL, set to 1.}
 }
 \value{
 The output list from CARBayes::S.CARleroux, plus a time field
