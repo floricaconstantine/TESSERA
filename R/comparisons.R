@@ -12,14 +12,10 @@
 #'    Same length and ordering as z_list.
 #'    Matrices with number of rows equal to length of corresponding vector in
 #'    z_list.
-#' @param x_coords_list List of x-coordinates for observations---one vector per area.
+#' @param coords_list List of coordinate matrices (x, y)---one matrix per area.
 #'    Same length and ordering as z_list.
-#'    Vectors lengths equal to length of corresponding vector in z_list, i.e.,
-#'    a 1:1 correspondence.
-#' @param y_coords_list List of y-coordinates for observations---one vector per area.
-#'    Same length and ordering as z_list.
-#'    Vectors lengths equal to length of corresponding vector in z_list, i.e.,
-#'    a 1:1 correspondence.
+#'    Matrices with number of rows equal to length of corresponding vector in
+#'    z_list.
 #' @param model_family "poisson" or "gaussian".
 #'    Which model family to fit. Note that Poisson models don't scale well in the
 #'    multi-area setting---the spline is fit on a per-area basis.
@@ -44,8 +40,7 @@
 #' @export
 mgcv_gam_wrapper <- function(z_list,
                              X_list,
-                             x_coords_list,
-                             y_coords_list,
+                             coords_list,
                              model_family = "poisson",
                              z_offset = 0.5,
                              spline_k = -1,
@@ -55,17 +50,18 @@ mgcv_gam_wrapper <- function(z_list,
   t0_mgcv <- Sys.time()
 
   # Create a single set of vectors/covariate matrix
-  z_vec <- Reduce(c, z_list)
-  X_mat <- Reduce(rbind, X_list)
+  z_vec <- as.vector(Reduce(c, z_list))
+  X_mat <- as.matrix(Reduce(rbind, X_list))
+  coords <- as.matrix(Reduce(rbind, coords_list))
 
   # If present, apply the library size
   if (!is.null(library_size_list)) {
-    lib_vec <- Reduce(c, library_size_list)
+    lib_vec <- as.vector(Reduce(c, library_size_list))
     z_vec <- z_vec / lib_vec
   }
 
-  xc <- Reduce(c, x_coords_list)
-  yc <- Reduce(c, y_coords_list)
+  xc <- coords[, 1]
+  yc <- coords[, 2]
 
   # Create an indicator for each area
   area_id <- rep(NA, length(z_vec))
@@ -79,7 +75,7 @@ mgcv_gam_wrapper <- function(z_list,
   beta_dim <- ncol(X_mat)
   X_df <- cbind(data.frame(X_mat), z_vec, xc, yc, area_id)
   # Memory
-  rm(z_vec, X_mat, xc, yc, area_id)
+  rm(z_vec, X_mat, xc, yc, area_id, coords)
 
   # Name columns
   for (idx in 1:beta_dim) {
@@ -177,13 +173,14 @@ BRMS_CAR_SAR_wrapper <- function(z_list,
   t0_brm <- Sys.time()
 
   # Create a single set of vectors/covariate matrix
-  z_vec <- Reduce(c, z_list)
-  X_mat <- Reduce(rbind, X_list)
+  z_vec <- as.vector(Reduce(c, z_list))
+  X_mat <- as.matrix(Reduce(rbind, X_list))
 
   # If present, apply the library size
   if (!is.null(library_size_list)) {
-    lib_vec <- Reduce(c, library_size_list)
-    z_vec <- z_vec / lib_vec
+    lib_vec <- as.vector(Reduce(c, library_size_list))
+  } else {
+    lib_vec <- rep(1, length(z_vecs))
   }
 
   beta_dim <- ncol(X_mat)
@@ -199,13 +196,16 @@ BRMS_CAR_SAR_wrapper <- function(z_list,
   }
 
   # Create dataframe
-  X_df <- cbind(data.frame(X_mat), z_vec)
+  X_df <- cbind(data.frame(X_mat), z_vec, log(lib_vec))
   # Memory
-  rm(z_vec, X_mat)
+  rm(z_vec, X_mat, lib_vec)
   for (idx in 1:beta_dim) {
     colnames(X_df)[idx] <- paste0("X", idx)
   }
   colnames(X_df)[1 + beta_dim] <- "z"
+  colnames(X_df)[2 + beta_dim] <- "log_lib"
+  # Add in offset to formula
+  form_str <- paste0(form_str, " + offset(log_lib)")
 
   # Create formula
   BRM_formula <- stats::as.formula(paste0("z ~ 0 + ", paste(colnames(X_df)[1:beta_dim], collapse = " + "), form_str))
@@ -216,7 +216,12 @@ BRMS_CAR_SAR_wrapper <- function(z_list,
       BRM_formula,
       family = stats::poisson(),
       data = X_df,
-      data2 = list(W = W)
+      data2 = list(W = W),
+      chains = chains,
+      iter = iter,
+      warmup = warmup,
+      thin = thin,
+      cores = cores
     )
   } else if ("gaussian" == model_family) {
     X_df$z <- log(X_df$z + z_offset)
@@ -224,7 +229,12 @@ BRMS_CAR_SAR_wrapper <- function(z_list,
       BRM_formula,
       family = stats::gaussian(),
       data = X_df,
-      data2 = list(W = W)
+      data2 = list(W = W),
+      chains = chains,
+      iter = iter,
+      warmup = warmup,
+      thin = thin,
+      cores = cores
     )
   } else {
     stop("Invalid model family.")
@@ -291,13 +301,14 @@ CARBayes_Leroux_wrapper <- function(z_list,
   t0_cb <- Sys.time()
 
   # Create a single set of vectors/covariate matrix
-  z_vec <- Reduce(c, z_list)
-  X_mat <- Reduce(rbind, X_list)
+  z_vec <- as.vector(Reduce(c, z_list))
+  X_mat <- as.matrix(Reduce(rbind, X_list))
 
   # If present, apply the library size
   if (!is.null(library_size_list)) {
-    lib_vec <- Reduce(c, library_size_list)
-    z_vec <- z_vec / lib_vec
+    lib_vec <- as.vector(Reduce(c, library_size_list))
+  } else {
+    lib_vec <- rep(1, length(z_vec))
   }
 
   # Create a single adjacency matrix
@@ -314,7 +325,7 @@ CARBayes_Leroux_wrapper <- function(z_list,
     stop("Invalid model family.")
   }
   cb_out <- CARBayes::S.CARleroux(
-    z_vec ~ 0 + X_mat,
+    z_vec ~ 0 + X_mat + offset(log(lib_vec)),
     family = model_family,
     burnin = warmup,
     n.sample = iter,
@@ -466,12 +477,12 @@ glm_wrapper <- function(z_list, X_list, library_size_list = NULL) {
   t0_glm <- Sys.time()
 
   # Stack into a single vector/matrix
-  z_vec <- Reduce(c, z_list)
-  X_mat <- Reduce(rbind, X_list)
+  z_vec <- as.vector(Reduce(c, z_list))
+  X_mat <- as.matrix(Reduce(rbind, X_list))
 
   # If present, apply the library size
   if (!is.null(library_size_list)) {
-    lib_vec <- Reduce(c, library_size_list)
+    lib_vec <- as.vector(Reduce(c, library_size_list))
     z_vec <- z_vec / lib_vec
   }
   # Fit GLM
@@ -513,8 +524,8 @@ lm_wrapper <- function(z_list,
   t0_glm <- Sys.time()
 
   # Stack into a single vector/matrix
-  z_vec <- Reduce(c, z_list)
-  X_mat <- Reduce(rbind, X_list)
+  z_vec <- as.vector(Reduce(c, z_list))
+  X_mat <- as.matrix(Reduce(rbind, X_list))
 
   # Transform z
   if (transform_z) {
@@ -560,12 +571,12 @@ glm_nb_wrapper <- function(z_list, X_list, library_size_list = NULL) {
   t0_glm <- Sys.time()
 
   # Stack into a single vector/matrix
-  z_vec <- Reduce(c, z_list)
-  X_mat <- Reduce(rbind, X_list)
+  z_vec <- as.vector(Reduce(c, z_list))
+  X_mat <- as.matrix(Reduce(rbind, X_list))
 
   # If present, apply the library size
   if (!is.null(library_size_list)) {
-    lib_vec <- Reduce(c, library_size_list)
+    lib_vec <- as.vector(Reduce(c, library_size_list))
     z_vec <- z_vec / lib_vec
   }
 
@@ -623,9 +634,9 @@ BRISC_wrapper <- function(z_list,
   t0_glm <- Sys.time()
 
   # Stack into a single vector/matrix
-  z_vec <- Reduce(c, z_list)
-  X_mat <- Reduce(rbind, X_list)
-  coords <- Reduce(rbind, coords_list)
+  z_vec <- as.vector(Reduce(c, z_list))
+  X_mat <- as.matrix(Reduce(rbind, X_list))
+  coords <- as.matrix(Reduce(rbind, coords_list))
 
   # Transform z
   if (transform_z) {

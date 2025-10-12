@@ -78,11 +78,19 @@ summarizePoisECMPerformance <- function(poisECMData_obj, poisECMOutput_obj) {
       if ("spNNGP" == fit_model) {
         gamma_hat <- NA
         tau2_hat <- NA
+
         kernel_type <- poisECMOutput_obj$run_settings$cov_type
-        nugget_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 1]
-        sill_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 2]
-        range_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 3]
-        smoothness_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 4]
+        if (1 == length(poisECMData_obj$coords_list)) {
+          nugget_hat <- poisECMOutput_obj$cov_param_hat[1]
+          sill_hat <- poisECMOutput_obj$cov_param_hat[2]
+          range_hat <- poisECMOutput_obj$cov_param_hat[3]
+          smoothness_hat <- poisECMOutput_obj$cov_param_hat[4]
+        } else {
+          nugget_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 1]
+          sill_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 2]
+          range_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 3]
+          smoothness_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 4]
+        }
       }
     }
     # Initialize the Moran's I vector

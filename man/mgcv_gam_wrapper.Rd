@@ -7,8 +7,7 @@
 mgcv_gam_wrapper(
   z_list,
   X_list,
-  x_coords_list,
-  y_coords_list,
+  coords_list,
   model_family = "poisson",
   z_offset = 0.5,
   spline_k = -1,
@@ -24,15 +23,10 @@ Same length and ordering as z_list.
 Matrices with number of rows equal to length of corresponding vector in
 z_list.}
 
-\item{x_coords_list}{List of x-coordinates for observations---one vector per area.
+\item{coords_list}{List of coordinate matrices (x, y)---one matrix per area.
 Same length and ordering as z_list.
-Vectors lengths equal to length of corresponding vector in z_list, i.e.,
-a 1:1 correspondence.}
-
-\item{y_coords_list}{List of y-coordinates for observations---one vector per area.
-Same length and ordering as z_list.
-Vectors lengths equal to length of corresponding vector in z_list, i.e.,
-a 1:1 correspondence.}
+Matrices with number of rows equal to length of corresponding vector in
+z_list.}
 
 \item{model_family}{"poisson" or "gaussian".
 Which model family to fit. Note that Poisson models don't scale well in the
