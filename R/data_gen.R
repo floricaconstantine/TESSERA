@@ -25,6 +25,8 @@
 #'  "intercept": Constant column of all 1s
 #' @param ar_gamma Autocorrelation parameter for X if needed.
 #' @param X Instead of passing in X_type, pass in a pre-defined matrix X.
+#' @param library_size Instead of using all 1s, pass in a pre-specified library size.
+#'  Expected value/offset for each point.
 #'
 #' @return A list with the following fields:
 #' @returns X: Binary covariates.
@@ -65,7 +67,8 @@ generate_data_one_area <- function(n_points,
                                    tau2_true = NULL,
                                    X_type = "rand_bern",
                                    ar_gamma = 0.75,
-                                   X = NULL
+                                   X = NULL,
+                                   library_size = NULL
                                    ) {
   # Model covariance function
   if ("CAR" == model_type) {
@@ -103,7 +106,9 @@ generate_data_one_area <- function(n_points,
   }
 
   # Expected value/offset for each point
-  library_size <- rep(1.0, n_points)
+  if (is.null(library_size)) {
+    library_size <- rep(1.0, n_points)
+  }
 
   # Sample x and y coordinates for locations
   x_coords <- stats::runif(n_points)
@@ -203,6 +208,8 @@ generate_data_one_area <- function(n_points,
 #'  "intercept": Constant column of all 1s
 #' @param ar_gamma Autocorrelation parameter for X if needed.
 #' @param X Instead of passing in X_type, pass in a pre-defined matrix X.
+#' @param library_size Instead of using all 1s, pass in a pre-specified library size.
+#'  Expected value/offset for each point.
 #'
 #' @return A list with the following fields:
 #' @returns X: Binary covariates.
@@ -246,7 +253,8 @@ generate_data_one_area_spNNGP <- function(n_points,
                                           beta_true,
                                           X_type = "rand_bern",
                                           ar_gamma = 0.75,
-                                          X = NULL
+                                          X = NULL,
+                                          library_size = NULL
                                           ) {
   # Covariate matrix
   # Covariate matrix
@@ -274,7 +282,9 @@ generate_data_one_area_spNNGP <- function(n_points,
   }
 
   # Expected value/offset for each point
-  library_size <- rep(1.0, n_points)
+  if (is.null(library_size)) {
+    library_size <- rep(1.0, n_points)
+  }
 
   # Sample x and y coordinates for locations
   x_coords <- stats::runif(n_points)

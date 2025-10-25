@@ -13,7 +13,8 @@ generate_data_one_area_spNNGP(
   beta_true,
   X_type = "rand_bern",
   ar_gamma = 0.75,
-  X = NULL
+  X = NULL,
+  library_size = NULL
 )
 }
 \arguments{
@@ -46,6 +47,9 @@ as in "rand_bern"
 \item{ar_gamma}{Autocorrelation parameter for X if needed.}
 
 \item{X}{Instead of passing in X_type, pass in a pre-defined matrix X.}
+
+\item{library_size}{Instead of using all 1s, pass in a pre-specified library size.
+Expected value/offset for each point.}
 }
 \value{
 A list with the following fields:
