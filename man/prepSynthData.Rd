@@ -44,7 +44,7 @@ If these ranges are exceeded, errors are likely.}
 \item{cov_params}{Spatial correlation parameters.
 A matrix (samples x 3/4 parameters) or array (genes x samples x 3/4 parameters).
 Only needed for spNNGP.
-Parameters are {nugget, sill, range, and an optional smoothness (Matern)}.}
+Parameters are (nugget, sill, range, and an optional smoothness (Matern)).}
 
 \item{cov_type}{Spatial correlation kernel.
 Only needed for spNNGP.

@@ -39,12 +39,12 @@ Q_matrix_CAR <- function(W, D, gamma_val) {
 #'
 #' @export
 Q_matrix_SAR <- function(W, D, gamma_val) {
-  # D^{-1}
+  # D^\{-1\}
   D_inv <-
     Matrix::Diagonal(dim(W)[1], 1 / Matrix::diag(D))
   # Identity matrix
   id_mat <- Matrix::Diagonal(dim(W)[1], 1)
-  # I - gamma Z = I - gamma D^{-1} W
+  # I - gamma Z = I - gamma D^\{-1\} W
   I_gamma_Z <- id_mat - ((gamma_val * D_inv) %*% W)
 
   # (I - gamma Z)^\top D (I - gamma Z)
@@ -156,7 +156,7 @@ neg_hessian_tau2 <- function(Vhat, eta_hat, Q, tau2_hat, beta_hat, X) {
 #' @note Applies to a single area.
 #'
 #' @param gamma_hat Parameter of interest: Estimate of correlation parameter.
-#' @param eig_vals Eigenvalues of Z = D^{-1} W.
+#' @param eig_vals Eigenvalues of Z = D^\{-1\} W.
 #'
 #' @returns Negative Hessian of gamma.
 #'  Also called the observed information.
@@ -181,7 +181,7 @@ neg_hessian_gamma_CAR <- function(gamma_hat, eig_vals) {
 #' @param X Covariate matrix.
 #' @param W Neighbor/adjacency matrix (symmetric, binary).
 #' @param D Degree matrix (diagonal, values are row-sums of W).
-#' @param eig_vals Eigenvalues of Z = D^{-1} W.
+#' @param eig_vals Eigenvalues of Z = D^\{-1\} W.
 #'
 #' @returns Negative Hessian of gamma.
 #'  Also called the observed information.
@@ -204,10 +204,10 @@ neg_hessian_gamma_SAR <- function(Vhat,
     gamma_hat * eig_vals
   )))^2)
 
-  # D^{-1}
+  # D^\{-1\}
   D_inv <-
     Matrix::Diagonal(dim(W)[1], 1 / Matrix::diag(D))
-  # Z = D^{-1} W
+  # Z = D^\{-1\} W
   Z <- D_inv %*% W
 
   # eta - X beta
@@ -267,7 +267,7 @@ neg_hessian_gamma_Leroux <- function(gamma_hat, eig_vals) {
 #' @param X Covariate matrix.
 #' @param W Neighbor/adjacency matrix (symmetric, binary).
 #' @param D Degree matrix (diagonal, values are row-sums of W).
-#' @param eig_vals Eigenvalues of Z = D^{-1} W (CAR/SAR), D - W (Leroux), or Q (spNNGP).
+#' @param eig_vals Eigenvalues of Z = D^\{-1\} W (CAR/SAR), D - W (Leroux), or Q (spNNGP).
 #' @param model_type "CAR", "SAR", or "Leroux", or "spNNGP".
 #'    If spNNGP, set tau^2 to 1 and the value of gamma is irrelevant.
 #'  Model for the random effects.
@@ -462,7 +462,7 @@ nngp_prec_mat <- function(sp_dist, coords, cov_type, cov_params) {
   A_col <- list()
   A_row <- list()
   A_val <- list()
-  # Entries of diagonal D^{-1}
+  # Entries of diagonal D^\{-1\}
   Dinv_val <- rep(0, ncol(sp_dist) + 1)
   # Loop over samples
   for (idx in 1:ncol(sp_dist)) {
@@ -527,7 +527,7 @@ nngp_prec_mat <- function(sp_dist, coords, cov_type, cov_params) {
   # Identity matrix
   id_mat <- Matrix::Diagonal(dim(A_mat)[1], 1)
 
-  # (I - A)^\top D^{-1} (I - A)
+  # (I - A)^\top D^\{-1\} (I - A)
   Q <- crossprod(id_mat - A_mat,
                  Matrix::Diagonal(length(Dinv_val), Dinv_val) %*% (id_mat - A_mat))
 

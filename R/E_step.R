@@ -35,7 +35,7 @@ E_step_Vhat <- function(Q, tau2, z) {
     V <- Matrix::solve(Vinv)
     return(V)
   }, error = function(cond) {
-    print("INVERSION OF Inv(V_hat) FAILED")
+    warning("INVERSION OF Inv(V_hat) FAILED")
     err_flag <- TRUE
   })
   # Then try pseudoinverse
@@ -44,7 +44,7 @@ E_step_Vhat <- function(Q, tau2, z) {
       V <- pracma::pinv(as.matrix(Vinv))
       return(V)
     }, error = function(cond) {
-      print("PSEUDOINVERSE OF Inv(V_hat) FAILED")
+      warning("PSEUDOINVERSE OF Inv(V_hat) FAILED")
       err_flag <- TRUE
     })
   }
@@ -80,7 +80,7 @@ E_step_Vhat_PLU <- function(Q, tau2, z) {
   Vinv <- (Q / tau2) + Matrix::Diagonal(dim(Q)[1], 0.5 + z)
 
   # Compute PLU decomposition: V^{-1} = P L U
-  decomp  <- Matrix::expand(Matrix::lu( Vinv ))
+  decomp  <- Matrix::expand(Matrix::lu(Vinv))
   decomp$Linv <- Matrix::solve(decomp$L)
   decomp$Uinv <- Matrix::solve(decomp$U)
   return(decomp)
@@ -192,7 +192,8 @@ E_step_thetahat_PLU <- function(decomp, eta_hat) {
   # exp(eta + (1/2) V_{i, i})
   # Take an P L U decomposition and use that to get the diagonals.
   # Inverse of P L U = U^{-1} L^{-1} P^T
-  diag_lu <- colSums((decomp$Linv %*% t(decomp$P)) * t(decomp$Uinv));
+  diag_lu <- colSums((decomp$Linv %*% t(decomp$P)) * t(decomp$Uinv))
+
   return(exp(eta_hat + 0.5 * diag_lu))
 }
 

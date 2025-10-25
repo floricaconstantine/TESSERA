@@ -33,7 +33,7 @@
 #' @param adj_mat A pre-computed adjacency matrix (sparse).
 #'  Instead of forming it via D_THRESH or coordinates, a user can supply it.
 #' @param compute_eigs Whether to compute eigenvalues of various matrices.
-#'  CAR/SAR: D^{-1} W; Leroux: D - W.
+#'  CAR/SAR: D^\{-1\} W; Leroux: D - W.
 #'  Depends on forming adjacency matrices, so needs coord_data, D_THRESH, k_search.
 #'  "None": Compute no eigenvalues.
 #'  String containing "C": Compute eigenvalues for the CAR model.
@@ -105,7 +105,7 @@ prepData <- function(count_matrix,
     stopifnot(identical(rownames(design_mat), rownames(meta_data)))
   }
   if (!is.null(adj_mat)) {
-    print("Using supplied adjacency matrix.")
+    cat("Using supplied adjacency matrix.", "\n")
     stopifnot(ncol(adj_mat) == nrow(adj_mat)) # Square
     stopifnot(ncol(adj_mat) == nrow(meta_data)) # Matching dimensions
     stopifnot(identical(rownames(adj_mat), colnames(adj_mat))) # Symmetry
@@ -244,7 +244,7 @@ prepData <- function(count_matrix,
 
   # Adjacency matrix
   if (!is.null(adj_mat)) {
-    print("Subsetting provided adjacency matrix.")
+    cat("Subsetting provided adjacency matrix.", "\n")
     # Separate into lists
     for (samp in sample_names) {
       # Indices for cells in sample
@@ -286,8 +286,9 @@ prepData <- function(count_matrix,
     }
     names(W_list) <- sample_names
     names(D_list) <- sample_names
-  } else if (!is.null(coord_data) && !is.null(D_THRESH) && is.null(adj_mat)) {
-    print("Creating adjacency matrix.")
+  } else if (!is.null(coord_data) &&
+             !is.null(D_THRESH) && is.null(adj_mat)) {
+    cat("Creating adjacency matrix.", "\n")
 
     ## Create adjacency matrices: If we have coordinates and a threshold
     for (idx in 1:length(coords_list)) {

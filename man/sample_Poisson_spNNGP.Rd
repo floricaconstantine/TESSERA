@@ -27,7 +27,7 @@ Exponential, Matern, Gaussian, and Spherical, respectively.}
 Rows are samples, nrow(coords) == nrow(X).}
 
 \item{cov_params}{Covariance parameters
-{nugget, sill, range, smoothness (optional)}.}
+(nugget, sill, range, smoothness (optional)).}
 
 \item{nngp_k}{How many neighbors to use for the spNNGP kernel.}
 
@@ -39,7 +39,7 @@ A list with the following fields:
 z: Sampled counts Pois(theta x lib size).
 
 phi_true: True sampled random effects.
-(multivariate normal with mean zero and covariance tau^2 Q^{-1}).
+(multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
 
 eta_true: phi + X beta.
 

@@ -85,7 +85,7 @@
 #'   adjacency as weights.
 #'   areas x EM Iterations matrix---history across iterations.
 #' @returns resid_moran: Moran's I for each area computed using coordinates.
-#'   areas x EM Iterations x {value, expectation, sd} array.
+#'   areas x EM Iterations x (value, expectation, sd) array.
 #'   NULL unless coordinates are supplied.
 #' @returns start_idx_list: Indices where each area's values start in predictions, etc.
 #'    E.g., if area 1 has 100 points and area 2 has 50, we would have
@@ -193,7 +193,7 @@ poisECM_lattice <- function(poisECMData_obj,
   # Compute eigenvalues if needed
   if (is.null(poisECMData_obj$eig_CS_list) &&
       is.null(poisECMData_obj$eig_L_list)) {
-    print("Eigenvalues not supplied: Computing now.")
+    cat("Eigenvalues not supplied: Computing now.")
     eig_val_list <- list()
     for (area_idx in 1:n_areas) {
       # D^{-1} W for CAR and SAR, D - W for Leroux
@@ -263,7 +263,7 @@ poisECM_lattice <- function(poisECMData_obj,
   # Initialize parameters: beta
   if (is.character(beta_init) && ("random" == beta_init)) {
     beta_tracker[, 1] <- stats::rnorm(beta_dim)
-    print("Random initialization for beta.")
+    cat("Random initialization for beta.", "\n")
   } else if (is.character(beta_init) && ("glm" == beta_init)) {
     # Let's be intelligent: initialize with a basic GLM
 
@@ -288,20 +288,20 @@ poisECM_lattice <- function(poisECMData_obj,
     rm(z_vec)
     rm(X_mat)
 
-    print("GLM initialization for beta.")
+    cat("GLM initialization for beta.", "\n")
   } else if (is.numeric(beta_init) &&
              (is.vector(beta_init) || is.matrix(beta_init))) {
     # Pass in a value
     beta_tracker[, 1] <- as.vector(beta_init)
 
-    print("Pre-defined initialization for beta.")
+    cat("Pre-defined initialization for beta.", "\n")
   } else {
     stop("Invalid initialization for beta.")
   }
   # Handle NA
   beta_tracker[is.nan(beta_tracker[, 1]), 1] <- 0.0
   beta_tracker[is.na(beta_tracker[, 1]), 1] <- 0.0
-  print(beta_tracker[, 1])
+  cat("Initial beta", beta_tracker[, 1], "\n")
 
   # Initialize parameters: gamma
   if (is.character(gamma_init) && ("moran" == gamma_init)) {
@@ -309,13 +309,13 @@ poisECM_lattice <- function(poisECMData_obj,
       tmp_z <- log((0.5 + z_list[[area_idx]]) / poisECMData_obj$library_size_list[[area_idx]]) - poisECMData_obj$X_list[[area_idx]] %*% beta_tracker[, 1]
       gamma_tracker[area_idx, 1] <- abs(moran_I_nb(tmp_z, poisECMData_obj$W_list[[area_idx]]))
     }
-    print("Moran initialization for gamma")
+    cat("Moran initialization for gamma", "\n")
   } else if (is.character(gamma_init) && ("random" == gamma_init)) {
     gamma_tracker[, 1] <- stats::runif(n_areas)
-    print("Random initialization for gamma")
+    cat("Random initialization for gamma", "\n")
   } else if (is.numeric(gamma_init)) {
     gamma_tracker[, 1] <- gamma_init
-    print("Predefined initialization for gamma")
+    cat("Predefined initialization for gamma", "\n")
   } else {
     stop("Invalid initialization for gamma.")
   }
@@ -323,7 +323,7 @@ poisECM_lattice <- function(poisECMData_obj,
   gamma_tracker[is.nan(gamma_tracker[, 1]), 1] <- 0.0
   gamma_tracker[is.na(gamma_tracker[, 1]), 1] <- 0.0
 
-  print(gamma_tracker[, 1])
+  cat("Initial gamma", gamma_tracker[, 1], "\n")
 
 
 
@@ -341,19 +341,19 @@ poisECM_lattice <- function(poisECMData_obj,
         )) #- 2
       )
     }
-    print("Log-Normal initialization for tau^2")
+    cat("Log-Normal initialization for tau^2", "\n")
   } else if (is.character(tau2_init) && ("var" == tau2_init)) {
     for (area_idx in 1:n_areas) {
       tmp_z <- log((0.5 + z_list[[area_idx]]) / poisECMData_obj$library_size_list[[area_idx]]) - poisECMData_obj$X_list[[area_idx]] %*% beta_tracker[, 1]
       tau2_tracker[area_idx, 1] <- stats::var(tmp_z)
     }
-    print("Variance initialization for tau^2")
+    cat("Variance initialization for tau^2", "\n")
   } else if (is.character(tau2_init) && ("random" == tau2_init)) {
     tau2_tracker[, 1] <- abs(stats::rnorm(n_areas))
-    print("Random initialization for tau^2")
+    cat("Random initialization for tau^2", "\n")
   } else if (is.numeric(tau2_init)) {
     tau2_tracker[, 1] <- tau2_init
-    print("Predefined initialization for tau^2")
+    cat("Predefined initialization for tau^2", "\n")
   } else {
     stop("Invalid initialization for tau^2.")
   }
@@ -361,7 +361,7 @@ poisECM_lattice <- function(poisECMData_obj,
   tau2_tracker[is.nan(tau2_tracker[, 1]), 1] <- 0.0
   tau2_tracker[is.na(tau2_tracker[, 1]), 1] <- 0.0
   tau2_tracker[tau2_tracker[, 1] == 0.0, 1] <- 1e-3
-  print(tau2_tracker[, 1])
+  cat("Initial tau2", tau2_tracker[, 1], "\n")
 
   # Also initialize dependency Q as a function of W, D, and gamma
   Q_hat_list <- list()
@@ -374,7 +374,7 @@ poisECM_lattice <- function(poisECMData_obj,
   # Loop over EM iterations
   for (em_idx in 1:em_iters) {
     if (verbose || (0 == (em_idx %% 100))) {
-      print(
+      cat(
         paste(
           "Start of EM Iteration",
           em_idx,
@@ -383,7 +383,8 @@ poisECM_lattice <- function(poisECMData_obj,
           ";",
           Sys.time() - t0_EM,
           "Elapsed"
-        )
+        ),
+        "\n"
       )
     }
 
@@ -494,60 +495,60 @@ poisECM_lattice <- function(poisECMData_obj,
         # Handle optimization going off the rails
         if (("CAR" == model_type) | ("SAR" == model_type)) {
           if (-1 > gamma_out$gamma_hat) {
-            print(
+            warning(
               paste0(
                 "Iteration ",
                 em_idx,
                 ", Inner iteration ",
                 opt_idx,
                 ", Area ",
-                area_idx
+                area_idx,
+                " gamma is less than -1, correcting"
               )
             )
-            print("gamma is less than -1, correcting")
             gamma_out$gamma_hat <- max(-1, gamma_out$gamma_hat)
           }
           if (1 < gamma_out$gamma_hat) {
-            print(
+            warning(
               paste0(
                 "Iteration ",
                 em_idx,
                 ", Inner iteration ",
                 opt_idx,
                 ", Area ",
-                area_idx
+                area_idx,
+                " gamma is larger than 1, correcting"
               )
             )
-            print("gamma is larger than 1, correcting")
             gamma_out$gamma_hat <- min(1, gamma_out$gamma_hat)
           }
         } else if ("Leroux" == model_type) {
           if (0 > gamma_out$gamma_hat) {
-            print(
+            warning(
               paste0(
                 "Iteration ",
                 em_idx,
                 ", Inner iteration ",
                 opt_idx,
                 ", Area ",
-                area_idx
+                area_idx,
+                " gamma is less than 0, correcting"
               )
             )
-            print("gamma is less than 0, correcting")
             gamma_out$gamma_hat <- max(0, gamma_out$gamma_hat)
           }
           if (1 < gamma_out$gamma_hat) {
-            print(
+            warning(
               paste0(
                 "Iteration ",
                 em_idx,
                 ", Inner iteration ",
                 opt_idx,
                 ", Area ",
-                area_idx
+                area_idx,
+                " gamma is larger than 1, correcting"
               )
             )
-            print("gamma is larger than 1, correcting")
             gamma_out$gamma_hat <- min(1, gamma_out$gamma_hat)
           }
         }
@@ -567,11 +568,13 @@ poisECM_lattice <- function(poisECMData_obj,
     }
 
     if (verbose || (0 == (em_idx %% 100))) {
-      print(beta_tracker[, 1 + em_idx])
-      print(cbind(tau2_tracker[, 1 + em_idx], gamma_tracker[, 1 + em_idx]))
-      print(data_log_like_tracker[, em_idx])
+      cat("beta", beta_tracker[, 1 + em_idx], "\n")
+      cat("tau2, gamma",
+          cbind(tau2_tracker[, 1 + em_idx], gamma_tracker[, 1 + em_idx]),
+          "\n")
+      cat("log-lik", data_log_like_tracker[, em_idx], "\n")
 
-      print(
+      cat(
         paste(
           "Wrapping up of EM Iteration",
           em_idx,
@@ -580,7 +583,8 @@ poisECM_lattice <- function(poisECMData_obj,
           ";",
           Sys.time() - t0_EM,
           "Elapsed"
-        )
+        ),
+        "\n"
       )
     }
 
@@ -609,7 +613,7 @@ poisECM_lattice <- function(poisECMData_obj,
       e_ll_diff <- (e_ll_new - e_ll_old)
       e_ll_rel_diff <- e_ll_diff / e_ll_old
       if (verbose || (0 == (em_idx %% 100))) {
-        print(
+        cat(
           paste0(
             "End of iteration ",
             em_idx,
@@ -625,31 +629,32 @@ poisECM_lattice <- function(poisECMData_obj,
             e_ll_diff,
             "; Relative difference in expected log-likelihood: ",
             e_ll_rel_diff
-          )
+          ),
+          "\n"
         )
       }
 
       if ("abs_loglike" == em_stopping) {
         if (abs(ll_diff) < em_tol) {
-          print("Ending early")
+          cat("Ending early", "\n")
           break
         }
       }
       else if ("rel_loglike" == em_stopping) {
         if (abs(ll_rel_diff) < em_tol) {
-          print("Ending early")
+          cat("Ending early", "\n")
           break
         }
       }
       else if ("abs_beta_norm" == em_stopping) {
         if (beta_diff_norm < em_tol) {
-          print("Ending early")
+          cat("Ending early", "\n")
           break
         }
       }
       else if ("rel_beta_norm" == em_stopping) {
         if (beta_diff_norm / beta_old_norm < em_tol) {
-          print("Ending early")
+          cat("Ending early", "\n")
           break
         }
       }
@@ -659,7 +664,7 @@ poisECM_lattice <- function(poisECMData_obj,
     }
   }
   t1_EM = Sys.time()
-  print(t1_EM - t0_EM)
+  cat("Time", t1_EM - t0_EM, "\n")
 
   # Compute Negative Hessians
   beta_neghessian <- neg_hessian_beta(Q_hat_list, tau2_tracker[, em_idx + 1], poisECMData_obj$X_list)

@@ -68,7 +68,7 @@
 #' @returns phi_hat: Estimated spatial random effects.
 #'    Vector of all values (corresponds to z_list stacked together).
 #' @returns cov_param_tracker: Estimated correlation parameters.
-#'    areas x EM iterations x {Nugget, Sill, Range, Smoothness}---history across iterations.
+#'    areas x EM iterations x (Nugget, Sill, Range, Smoothness)---history across iterations.
 #' @returns beta_tracker: Estimated fixed effects.
 #'    coefficients x EM iterations matrix---history across iterations.
 #' @returns R2_tracker: Squared correlation between predictions and observations.
@@ -83,7 +83,7 @@
 #'   adjacency as weights.
 #'   areas x EM Iterations matrix---history across iterations.
 #' @returns resid_moran: Moran's I for each area computed using coordinates.
-#'   areas x EM Iterations x {value, expectation, sd} array.
+#'   areas x EM Iterations x (value, expectation, sd) array.
 #'   NULL unless coordinates are supplied.
 #' @returns start_idx_list: Indices where each area's values start in predictions, etc.
 #'    E.g., if area 1 has 100 points and area 2 has 50, we would have
@@ -196,7 +196,7 @@ poisECM_spNNGP <- function(poisECMData_obj,
   # Initialize parameters: beta
   if (is.character(beta_init) && ("random" == beta_init)) {
     beta_tracker[, 1] <- stats::rnorm(beta_dim)
-    print("Random initialization for beta.")
+    cat("Random initialization for beta.", "\n")
   } else if (is.character(beta_init) && ("glm" == beta_init)) {
     # Reasonable initialization: a basic GLM
 
@@ -221,20 +221,20 @@ poisECM_spNNGP <- function(poisECMData_obj,
     rm(z_vec)
     rm(X_mat)
 
-    print("GLM initialization for beta.")
+    cat("GLM initialization for beta.", "\n")
   } else if (is.numeric(beta_init) &&
              (is.vector(beta_init) || is.matrix(beta_init))) {
     # Pass in a value
     beta_tracker[, 1] <- as.vector(beta_init)
 
-    print("Pre-defined initialization for beta.")
+    cat("Pre-defined initialization for beta.", "\n")
   } else {
     stop("Invalid initialization for beta.")
   }
   # Handle NA
   beta_tracker[is.nan(beta_tracker[, 1]), 1] <- 0.0
   beta_tracker[is.na(beta_tracker[, 1]), 1] <- 0.0
-  print(beta_tracker[, 1])
+  cat("Initial beta", beta_tracker[, 1], "\n")
 
   # Initialize parameters: covariance structure
   if (is.character(cov_init) && ("BRISC" == cov_init)) {
@@ -249,7 +249,7 @@ poisECM_spNNGP <- function(poisECMData_obj,
       )
       cov_param_tracker[area_idx, 1, 1:length(param_est)] <- param_est
     }
-    print("BRISC initialization for covariances.")
+    cat("BRISC initialization for covariances.", "\n")
   } else if (is.character(cov_init) && ("variogram" == cov_init)) {
     for (area_idx in 1:n_areas) {
       param_est <- M_step_variogram(
@@ -261,19 +261,20 @@ poisECM_spNNGP <- function(poisECMData_obj,
       )
       cov_param_tracker[area_idx, 1, 1:length(param_est)] <- param_est
     }
-    print("Variogram initialization for covariances.")
+    cat("Variogram initialization for covariances.", "\n")
   } else if (is.vector(cov_init)) {
     for (area_idx in 1:n_areas) {
       cov_param_tracker[area_idx, 1, 1:length(cov_init)] <- cov_init
     }
-    print("Predefined initialization for covariances: Common.")
+    cat("Predefined initialization for covariances: Common.", "\n")
   } else if (is.matrix(cov_init)) {
     cov_param_tracker[, 1, 1:ncol(cov_init)] <- cov_init
-    print("Predefined initialization for covariances: Individual.")
+    cat("Predefined initialization for covariances: Individual.",
+        "\n")
   } else {
     stop("Invalid initialization for parameters.")
   }
-  print(cov_param_tracker[, 1, ])
+  cat("Initial covariance parameters", cov_param_tracker[, 1, ], "\n")
 
 
   # Also initialize dependency Q as a function of the variogram parameters
@@ -293,7 +294,7 @@ poisECM_spNNGP <- function(poisECMData_obj,
   # Loop over EM iterations
   for (em_idx in 1:em_iters) {
     if (verbose || (0 == (em_idx %% 100))) {
-      print(
+      cat(
         paste(
           "Start of EM Iteration",
           em_idx,
@@ -302,7 +303,8 @@ poisECM_spNNGP <- function(poisECMData_obj,
           ";",
           Sys.time() - t0_EM,
           "Elapsed"
-        )
+        ),
+        "\n"
       )
     }
 
@@ -431,11 +433,11 @@ poisECM_spNNGP <- function(poisECMData_obj,
     }
 
     if (verbose || (0 == (em_idx %% 100))) {
-      print(beta_tracker[, 1 + em_idx])
-      print(cov_param_tracker[, 1 + em_idx, ])
-      print(data_log_like_tracker[, em_idx])
+      cat("beta", beta_tracker[, 1 + em_idx], "\n")
+      cat("covariance parameters", cov_param_tracker[, 1 + em_idx, ], "\n")
+      cat("log-lik", data_log_like_tracker[, em_idx], "\n")
 
-      print(
+      cat(
         paste(
           "Wrapping up of EM Iteration",
           em_idx,
@@ -444,7 +446,8 @@ poisECM_spNNGP <- function(poisECMData_obj,
           ";",
           Sys.time() - t0_EM,
           "Elapsed"
-        )
+        ),
+        "\n"
       )
     }
 
@@ -463,25 +466,25 @@ poisECM_spNNGP <- function(poisECMData_obj,
       beta_old_norm <- sqrt(sum(beta_tracker[, em_idx]^2))
       if ("abs_loglike" == em_stopping) {
         if (abs(ll_new - ll_old) < em_tol) {
-          print("Ending early")
+          cat("Ending early", "\n")
           break
         }
       }
       else if ("rel_loglike" == em_stopping) {
         if (abs(ll_new - ll_old) / abs(ll_old) < em_tol) {
-          print("Ending early")
+          cat("Ending early", "\n")
           break
         }
       }
       else if ("abs_beta_norm" == em_stopping) {
         if (beta_diff_norm < em_tol) {
-          print("Ending early")
+          cat("Ending early", "\n")
           break
         }
       }
       else if ("rel_beta_norm" == em_stopping) {
         if (beta_diff_norm / beta_old_norm < em_tol) {
-          print("Ending early")
+          cat("Ending early", "\n")
           break
         }
       }
@@ -491,7 +494,7 @@ poisECM_spNNGP <- function(poisECMData_obj,
     }
   }
   t1_EM = Sys.time()
-  print(t1_EM - t0_EM)
+  cat("Time", t1_EM - t0_EM, "\n")
 
   # Compute Negative Hessians
   beta_neghessian <- neg_hessian_beta(Q_hat_list, rep(1, n_areas), poisECMData_obj$X_list) # tau^2 is 1

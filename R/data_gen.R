@@ -16,26 +16,27 @@
 #' @param X_type How to generate the covariates X.
 #'  Note that the coordinates are sorted by x then by y, so nearby points are
 #'  more likely to be neighbors.
-#'  "rand_bern": X_{i, j} ~ 2 ( sign(N(0, 1)) + 1 ) in {0, 1}
-#'  "rand_unif": X_{i, j} ~ U(0, 1)
-#'  "rand_norm": X_{i, j} ~ N(0, 1)
-#'  "ar1": X_{:, j} follows an AR(1) process.
+#'  "rand_bern": X_\{i, j\} ~ 2 ( sign(N(0, 1)) + 1 ) in \{0, 1\}
+#'  "rand_unif": X_\{i, j\} ~ U(0, 1)
+#'  "rand_norm": X_\{i, j\} ~ N(0, 1)
+#'  "ar1": X_\{:, j\} follows an AR(1) process.
 #'  "ar1_bern": Generate the AR(1) as above, and apply the same sign transformation
 #'    as in "rand_bern"
 #'  "intercept": Constant column of all 1s
 #' @param ar_gamma Autocorrelation parameter for X if needed.
+#' @param X Instead of passing in X_type, pass in a pre-defined matrix X.
 #'
 #' @return A list with the following fields:
 #' @returns X: Binary covariates.
 #' @returns W: Adjacency matrix.
 #' @returns D: Diagonal degree matrix (row-sums of W).
-#' @returns eig_list: List of eigenvalues of Z = D^{-1} W (CAR/SAR) or D - W (Leroux).
+#' @returns eig_list: List of eigenvalues of Z = D^\{-1\} W (CAR/SAR) or D - W (Leroux).
 #' @returns library_size: Scaling for theta.
 #' @returns x_coords: x-coordinates of points.
 #' @returns y_coords: y-coordinates of points.
 #' @returns Q: Unscaled precision matrix. Depends on W, D, gamma_true.
 #' @returns phi_true: True sampled random effects.
-#'  (multivariate normal with mean zero and covariance tau^2 Q^{-1}).
+#'  (multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
 #' @returns eta_true: phi + X beta.
 #' @returns theta_true: exp(eta).
 #' @returns z: Sampled counts Pois(theta x lib size).
@@ -63,7 +64,9 @@ generate_data_one_area <- function(n_points,
                                    gamma_true = NULL,
                                    tau2_true = NULL,
                                    X_type = "rand_bern",
-                                   ar_gamma = 0.75) {
+                                   ar_gamma = 0.75,
+                                   X = NULL
+                                   ) {
   # Model covariance function
   if ("CAR" == model_type) {
     Q_fcn = Q_matrix_CAR
@@ -76,27 +79,28 @@ generate_data_one_area <- function(n_points,
   }
 
   # Covariate matrix
-  if ("rand_bern" == X_type) {
-    X <- matrix((sign(stats::rnorm(
-      length(beta_true) * n_points
-    )) + 1) / 2, nrow = n_points)
-  } else if ("rand_norm" == X_type) {
-    X <- matrix(stats::rnorm(length(beta_true) * n_points), nrow = n_points)
-  } else if ("rand_unif" == X_type) {
-    X <- matrix(stats::runif(length(beta_true) * n_points), nrow = n_points)
-  } else if (("ar1" == X_type) || ("ar1_bern" == X_type)) {
-    X <- matrix(NA, nrow = n_points, ncol = length(beta_true))
-    for (col_idx in 1:ncol(X)) {
-      X[, col_idx] <- stats::arima.sim(list(ar = ar_gamma), n_points)
-    }
+  if (is.null(X)) {
+    if ("rand_bern" == X_type) {
+      X <- matrix((sign(stats::rnorm(
+        length(beta_true) * n_points
+      )) + 1) / 2, nrow = n_points)
+    } else if ("rand_norm" == X_type) {
+      X <- matrix(stats::rnorm(length(beta_true) * n_points), nrow = n_points)
+    } else if ("rand_unif" == X_type) {
+      X <- matrix(stats::runif(length(beta_true) * n_points), nrow = n_points)
+    } else if (("ar1" == X_type) || ("ar1_bern" == X_type)) {
+      X <- matrix(NA, nrow = n_points, ncol = length(beta_true))
+      for (col_idx in 1:ncol(X)) {
+        X[, col_idx] <- stats::arima.sim(list(ar = ar_gamma), n_points)
+      }
 
-    if ("ar1_bern" == X_type) {
-      X <- (sign(X) + 1) / 2
+      if ("ar1_bern" == X_type) {
+        X <- (sign(X) + 1) / 2
+      }
+    } else if ("intercept" == X_type) {
+      X <- matrix(data = 1, nrow = n_points)
     }
-  } else if ("intercept" == X_type) {
-    X <- matrix(data = 1, nrow = n_points)
   }
-
 
   # Expected value/offset for each point
   library_size <- rep(1.0, n_points)
@@ -129,7 +133,7 @@ generate_data_one_area <- function(n_points,
   D <- Matrix::Matrix(D, sparse = TRUE)
   W <- Matrix::Matrix(W, sparse = TRUE)
 
-  # D^{-1} W for CAR and SAR, D - W for Leroux
+  # D^\{-1\} W for CAR and SAR, D - W for Leroux
   if (("CAR" == model_type) || ("SAR" == model_type)) {
     eig_list <-
       Re(eigen(Matrix::solve(D, W), FALSE, only.values = TRUE)$values)
@@ -190,20 +194,21 @@ generate_data_one_area <- function(n_points,
 #' @param X_type How to generate the covariates X.
 #'  Note that the coordinates are sorted by x then by y, so nearby points are
 #'  more likely to be neighbors.
-#'  "rand_bern": X_{i, j} ~ 2 ( sign(N(0, 1)) + 1 ) in {0, 1}
-#'  "rand_unif": X_{i, j} ~ U(0, 1)
-#'  "rand_norm": X_{i, j} ~ N(0, 1)
-#'  "ar1": X_{:, j} follows an AR(1) process.
+#'  "rand_bern": X_\{i, j\} ~ 2 ( sign(N(0, 1)) + 1 ) in \{0, 1\}
+#'  "rand_unif": X_\{i, j\} ~ U(0, 1)
+#'  "rand_norm": X_\{i, j\} ~ N(0, 1)
+#'  "ar1": X_\{:, j\} follows an AR(1) process.
 #'  "ar1_bern": Generate the AR(1) as above, and apply the same sign transformation
 #'    as in "rand_bern"
 #'  "intercept": Constant column of all 1s
 #' @param ar_gamma Autocorrelation parameter for X if needed.
+#' @param X Instead of passing in X_type, pass in a pre-defined matrix X.
 #'
 #' @return A list with the following fields:
 #' @returns X: Binary covariates.
 #' @returns W: Adjacency matrix.
 #' @returns D: Diagonal degree matrix (row-sums of W).
-#' @returns eig_list: List of eigenvalues of Z = D^{-1} W (CAR/SAR) or D - W (Leroux).
+#' @returns eig_list: List of eigenvalues of Z = D^\{-1\} W (CAR/SAR) or D - W (Leroux).
 #' @returns library_size: Scaling for theta.
 #' @returns x_coords: x-coordinates of points.
 #' @returns y_coords: y-coordinates of points.
@@ -211,7 +216,7 @@ generate_data_one_area <- function(n_points,
 #' @returns Eigenvalues Dinv.
 #' @returns Lower triangular factor A.
 #' @returns phi_true: True sampled random effects.
-#'  (multivariate normal with mean zero and covariance tau^2 Q^{-1}).
+#'  (multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
 #' @returns eta_true: phi + X beta.
 #' @returns theta_true: exp(eta).
 #' @returns z: Sampled counts Pois(theta x lib size).
@@ -240,27 +245,32 @@ generate_data_one_area_spNNGP <- function(n_points,
                                           nngp_k,
                                           beta_true,
                                           X_type = "rand_bern",
-                                          ar_gamma = 0.75) {
+                                          ar_gamma = 0.75,
+                                          X = NULL
+                                          ) {
   # Covariate matrix
-  if ("rand_bern" == X_type) {
-    X <- matrix((sign(stats::rnorm(
-      length(beta_true) * n_points
-    )) + 1) / 2, nrow = n_points)
-  } else if ("rand_norm" == X_type) {
-    X <- matrix(stats::rnorm(length(beta_true) * n_points), nrow = n_points)
-  } else if ("rand_unif" == X_type) {
-    X <- matrix(stats::runif(length(beta_true) * n_points), nrow = n_points)
-  } else if (("ar1" == X_type) || ("ar1_bern" == X_type)) {
-    X <- matrix(NA, nrow = n_points, ncol = length(beta_true))
-    for (col_idx in 1:ncol(X)) {
-      X[, col_idx] <- stats::arima.sim(list(ar = ar_gamma), n_points)
-    }
+  # Covariate matrix
+  if (is.null(X)) {
+    if ("rand_bern" == X_type) {
+      X <- matrix((sign(stats::rnorm(
+        length(beta_true) * n_points
+      )) + 1) / 2, nrow = n_points)
+    } else if ("rand_norm" == X_type) {
+      X <- matrix(stats::rnorm(length(beta_true) * n_points), nrow = n_points)
+    } else if ("rand_unif" == X_type) {
+      X <- matrix(stats::runif(length(beta_true) * n_points), nrow = n_points)
+    } else if (("ar1" == X_type) || ("ar1_bern" == X_type)) {
+      X <- matrix(NA, nrow = n_points, ncol = length(beta_true))
+      for (col_idx in 1:ncol(X)) {
+        X[, col_idx] <- stats::arima.sim(list(ar = ar_gamma), n_points)
+      }
 
-    if ("ar1_bern" == X_type) {
-      X <- (sign(X) + 1) / 2
+      if ("ar1_bern" == X_type) {
+        X <- (sign(X) + 1) / 2
+      }
+    } else if ("intercept" == X_type) {
+      X <- matrix(data = 1, nrow = n_points)
     }
-  } else if ("intercept" == X_type) {
-    X <- matrix(data = 1, nrow = n_points)
   }
 
   # Expected value/offset for each point
@@ -303,8 +313,7 @@ generate_data_one_area_spNNGP <- function(n_points,
   close_to_zero_const <- 2.0 * .Machine$double.eps
   if ((close_to_zero_const >= cov_params[1]) &&
       (close_to_zero_const >= cov_params[2])) {
-    print("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO.")
-    print("FAILSAFE: Q IS ZERO AND NOT USED")
+    warning("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO. FAILSAFE: Q IS ZERO AND NOT USED")
 
     Q <- Matrix::Diagonal(n_points, 0)
     A <- Matrix::Diagonal(n_points, 0)
@@ -320,8 +329,7 @@ generate_data_one_area_spNNGP <- function(n_points,
   close_to_zero_const <- 2.0 * .Machine$double.eps
   if ((close_to_zero_const >= cov_params[1]) &&
       (close_to_zero_const >= cov_params[2])) {
-    print("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO.")
-    print("FAILSAFE: PHI IS ZERO.")
+    warning("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO. FAILSAFE: PHI IS ZERO.")
     eta_true <- as.numeric(X %*% beta_true)
     phi_true <- 0 * eta_true
   } else{
@@ -370,7 +378,7 @@ generate_data_one_area_spNNGP <- function(n_points,
 #' @return A list with the following fields:
 #' @returns z: Sampled counts Pois(theta x lib size).
 #' @returns phi_true: True sampled random effects.
-#'  (multivariate normal with mean zero and covariance tau^2 Q^{-1}).
+#'  (multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
 #' @returns eta_true: phi + X beta.
 #' @returns theta_true: exp(eta).
 #'
@@ -437,14 +445,14 @@ sample_Poisson_lattice <- function(model_type,
 #' @param coords Matrix of coordinates.
 #'  Rows are samples, nrow(coords) == nrow(X).
 #' @param cov_params Covariance parameters
-#'  {nugget, sill, range, smoothness (optional)}.
+#'  (nugget, sill, range, smoothness (optional)).
 #' @param nngp_k How many neighbors to use for the spNNGP kernel.
 #' @param beta_true True fixed effects.
 #'
 #' @return A list with the following fields:
 #' @returns z: Sampled counts Pois(theta x lib size).
 #' @returns phi_true: True sampled random effects.
-#'  (multivariate normal with mean zero and covariance tau^2 Q^{-1}).
+#'  (multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
 #' @returns eta_true: phi + X beta.
 #' @returns theta_true: exp(eta).
 #'
@@ -471,8 +479,7 @@ sample_Poisson_spNNGP <- function(cov_type,
   close_to_zero_const <- 2.0 * .Machine$double.eps
   if ((close_to_zero_const >= cov_params[1]) &&
       (close_to_zero_const >= cov_params[2])) {
-    print("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO.")
-    print("FAILSAFE: Q IS ZERO AND NOT USED")
+    warning("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO. FAILSAFE: Q IS ZERO AND NOT USED")
 
     Q <- Matrix::Diagonal(nrow(coords), 0)
   } else {
@@ -484,8 +491,7 @@ sample_Poisson_spNNGP <- function(cov_type,
   close_to_zero_const <- 2.0 * .Machine$double.eps
   if ((close_to_zero_const >= cov_params[1]) &&
       (close_to_zero_const >= cov_params[2])) {
-    print("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO.")
-    print("FAILSAFE: PHI IS ZERO.")
+    warning("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO. FAILSAFE: PHI IS ZERO.")
     eta_true <- as.numeric(X %*% beta_true)
     phi_true <- 0 * eta_true
   } else{
@@ -533,7 +539,7 @@ sample_Poisson_spNNGP <- function(cov_type,
 #' @param cov_params Spatial correlation parameters.
 #'  A matrix (samples x 3/4 parameters) or array (genes x samples x 3/4 parameters).
 #'  Only needed for spNNGP.
-#'  Parameters are {nugget, sill, range, and an optional smoothness (Matern)}.
+#'  Parameters are (nugget, sill, range, and an optional smoothness (Matern)).
 #' @param cov_type Spatial correlation kernel.
 #'  Only needed for spNNGP.
 #'  "Exp", "Mat", "Gau", and "Sph" are the valid options, for

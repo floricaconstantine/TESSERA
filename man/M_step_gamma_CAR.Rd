@@ -34,7 +34,7 @@ M_step_gamma_CAR(
 \item{D}{Diagonal degree matrix (row sums of W).
 Not needed, but passed in for consistency with API.}
 
-\item{eig_vals}{Eigenvalues of Z = D^{-1} W.}
+\item{eig_vals}{Eigenvalues of Z = D^\{-1\} W.}
 
 \item{gamma_current}{Previous value of gamma.
 Only needed for failure modes.}

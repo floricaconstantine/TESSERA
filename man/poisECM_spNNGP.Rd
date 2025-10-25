@@ -102,7 +102,7 @@ phi_hat: Estimated spatial random effects.
 Vector of all values (corresponds to z_list stacked together).
 
 cov_param_tracker: Estimated correlation parameters.
-areas x EM iterations x {Nugget, Sill, Range, Smoothness}---history across iterations.
+areas x EM iterations x (Nugget, Sill, Range, Smoothness)---history across iterations.
 
 beta_tracker: Estimated fixed effects.
 coefficients x EM iterations matrix---history across iterations.
@@ -124,7 +124,7 @@ adjacency as weights.
 areas x EM Iterations matrix---history across iterations.
 
 resid_moran: Moran's I for each area computed using coordinates.
-areas x EM Iterations x {value, expectation, sd} array.
+areas x EM Iterations x (value, expectation, sd) array.
 NULL unless coordinates are supplied.
 
 start_idx_list: Indices where each area's values start in predictions, etc.

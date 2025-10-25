@@ -38,7 +38,7 @@ The scaled precision matrix in spNNGP.}
 
 \item{D}{Degree matrix (diagonal, values are row-sums of W).}
 
-\item{eig_vals}{Eigenvalues of Z = D^{-1} W (CAR/SAR), D - W (Leroux), or Q (spNNGP).}
+\item{eig_vals}{Eigenvalues of Z = D^\{-1\} W (CAR/SAR), D - W (Leroux), or Q (spNNGP).}
 
 \item{model_type}{"CAR", "SAR", or "Leroux", or "spNNGP".
 If spNNGP, set tau^2 to 1 and the value of gamma is irrelevant.

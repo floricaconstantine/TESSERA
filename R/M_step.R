@@ -38,7 +38,7 @@ M_step_tau2 <- function(Vhat, eta_hat, Q, beta_hat, X) {
   # Make sure tau^2 doesn't go off the rails
   close_to_zero_const <- 1e2 * .Machine$double.eps
   if (close_to_zero_const >= tau2_hat) {
-    print("Invalid tau^2, setting to a small positive number")
+    warning("Invalid tau^2, setting to a small positive number")
     tau2_hat = max(tau2_hat, close_to_zero_const)
   }
 
@@ -98,7 +98,7 @@ M_step_beta <- function(eta_list, Q_list, tau2_list, X_list) {
     beta_hat <- Matrix::solve(B, zeta_vec)
     return(beta_hat)
   }, error = function(cond) {
-    print("INVERSION OF B FAILED")
+    warning("INVERSION OF B FAILED")
     err_flag <- TRUE
   })
   # Then try pseudoinverse
@@ -107,7 +107,7 @@ M_step_beta <- function(eta_list, Q_list, tau2_list, X_list) {
       beta_hat <- pracma::pinv(as.matrix(B)) %*% zeta_vec
       return(beta_hat)
     }, error = function(cond) {
-      print("PSEUDOINVERSE OF B FAILED")
+      warning("PSEUDOINVERSE OF B FAILED")
       err_flag <- TRUE
     })
   }
@@ -134,7 +134,7 @@ M_step_beta <- function(eta_list, Q_list, tau2_list, X_list) {
 #' @param W Neighbor/adjacency matrix (symmetric, binary).
 #' @param D Diagonal degree matrix (row sums of W).
 #'  Not needed, but passed in for consistency with API.
-#' @param eig_vals Eigenvalues of Z = D^{-1} W.
+#' @param eig_vals Eigenvalues of Z = D^\{-1\} W.
 #' @param gamma_current Previous value of gamma.
 #'  Only needed for failure modes.
 #'
@@ -202,7 +202,7 @@ M_step_gamma_CAR <- function(Vhat,
     # Return estimate and gradient value
     return(list(gamma_hat = gamma_out$root, grad_val = gamma_out$f.root))
   }, error = function(cond) {
-    print("UNIROOT FAILED")
+    warning("UNIROOT FAILED")
     err_flag <- TRUE
   })
   # Then try Newton-Raphson
@@ -210,18 +210,16 @@ M_step_gamma_CAR <- function(Vhat,
     # If null, random
     if (is.null(gamma_current)) {
       gamma_current = stats::runif(1)
-      print(gamma_current)
+      cat("Assigning random gamma", gamma_current, "\n")
     }
 
     err_flag <- tryCatch({
       gamma_out <- pracma::newtonRaphson(grad_fcn, gamma_current)
 
-      # print(gamma_out) # Since it failed, let's diagnose it
-
       # Return estimate and gradient value
       return(list(gamma_hat = gamma_out$root, grad_val = gamma_out$f.root))
     }, error = function(cond) {
-      print("NEWTON-RAPHSON FAILED")
+      warning("NEWTON-RAPHSON FAILED")
       err_flag <- TRUE
     })
   }
@@ -230,18 +228,16 @@ M_step_gamma_CAR <- function(Vhat,
     # If null, random
     if (is.null(gamma_current)) {
       gamma_current = stats::runif(1)
-      print(gamma_current)
+      cat("Assigning random gamma", gamma_current, "\n")
     }
 
     err_flag <- tryCatch({
       gamma_out <- pracma::fzero(grad_fcn, gamma_current)
 
-      # print(gamma_out) # Since it failed, let's diagnose it
-
       # Return estimate and gradient value
       return(list(gamma_hat = gamma_out$x, grad_val = gamma_out$fval))
     }, error = function(cond) {
-      print("FZERO FAILED")
+      warning("FZERO FAILED")
       err_flag <- TRUE
     })
   }
@@ -265,7 +261,7 @@ M_step_gamma_CAR <- function(Vhat,
 #' @param X Covariate matrix.
 #' @param W Neighbor/adjacency matrix (symmetric, binary).
 #' @param D Diagonal degree matrix (row sums of W).
-#' @param eig_vals Eigenvalues of Z = D^{-1} W.
+#' @param eig_vals Eigenvalues of Z = D^\{-1\} W.
 #' @param gamma_current Previous value of gamma.
 #'  Only needed for failure modes.
 #'
@@ -291,10 +287,10 @@ M_step_gamma_SAR <- function(Vhat,
                              D,
                              eig_vals,
                              gamma_current = NULL) {
-  # D^{-1}
+  # D^\{-1\}
   D_inv <-
     Matrix::Diagonal(dim(W)[1], 1 / Matrix::diag(D))
-  # Z = D^{-1} W
+  # Z = D^\{-1\} W
   Z <- D_inv %*% W
 
   # eta - X beta
@@ -358,7 +354,7 @@ M_step_gamma_SAR <- function(Vhat,
     # Return estimate and gradient value
     return(list(gamma_hat = gamma_out$root, grad_val = gamma_out$f.root))
   }, error = function(cond) {
-    print("UNIROOT FAILED")
+    warning("UNIROOT FAILED")
     err_flag <- TRUE
   })
   # Then try Newton-Raphson
@@ -366,18 +362,16 @@ M_step_gamma_SAR <- function(Vhat,
     # If null, random
     if (is.null(gamma_current)) {
       gamma_current = stats::runif(1)
-      print(gamma_current)
+      cat("Assigning random gamma", gamma_current, "\n")
     }
 
     err_flag <- tryCatch({
       gamma_out <- pracma::newtonRaphson(grad_fcn, gamma_current)
 
-      # print(gamma_out) # Since it failed, let's diagnose it
-
       # Return estimate and gradient value
       return(list(gamma_hat = gamma_out$root, grad_val = gamma_out$f.root))
     }, error = function(cond) {
-      print("NEWTON-RAPHSON FAILED")
+      warning("NEWTON-RAPHSON FAILED")
       err_flag <- TRUE
     })
   }
@@ -386,18 +380,16 @@ M_step_gamma_SAR <- function(Vhat,
     # If null, random
     if (is.null(gamma_current)) {
       gamma_current = stats::runif(1)
-      print(gamma_current)
+      cat("Assigning random gamma", gamma_current, "\n")
     }
 
     err_flag <- tryCatch({
       gamma_out <- pracma::fzero(grad_fcn, gamma_current)
 
-      # print(gamma_out) # Since it failed, let's diagnose it
-
       # Return estimate and gradient value
       return(list(gamma_hat = gamma_out$x, grad_val = gamma_out$fval))
     }, error = function(cond) {
-      print("FZERO FAILED")
+      warning("FZERO FAILED")
       err_flag <- TRUE
     })
   }
@@ -491,7 +483,7 @@ M_step_gamma_Leroux <- function(Vhat,
     # Return estimate and gradient value
     return(list(gamma_hat = gamma_out$root, grad_val = gamma_out$f.root))
   }, error = function(cond) {
-    print("UNIROOT FAILED")
+    warning("UNIROOT FAILED")
     err_flag <- TRUE
   })
   # Then try Newton-Raphson
@@ -499,18 +491,16 @@ M_step_gamma_Leroux <- function(Vhat,
     # If null, random
     if (is.null(gamma_current)) {
       gamma_current = stats::runif(1)
-      print(gamma_current)
+      cat("Assigning random gamma", gamma_current, "\n")
     }
 
     err_flag <- tryCatch({
       gamma_out <- pracma::newtonRaphson(grad_fcn, gamma_current)
 
-      # print(gamma_out) # Since it failed, let's diagnose it
-
       # Return estimate and gradient value
       return(list(gamma_hat = gamma_out$root, grad_val = gamma_out$f.root))
     }, error = function(cond) {
-      print("NEWTON-RAPHSON FAILED")
+      warning("NEWTON-RAPHSON FAILED")
       err_flag <- TRUE
     })
   }
@@ -519,18 +509,16 @@ M_step_gamma_Leroux <- function(Vhat,
     # If null, random
     if (is.null(gamma_current)) {
       gamma_current = stats::runif(1)
-      print(gamma_current)
+      cat("Assigning random gamma", gamma_current, "\n")
     }
 
     err_flag <- tryCatch({
       gamma_out <- pracma::fzero(grad_fcn, gamma_current)
 
-      # print(gamma_out) # Since it failed, let's diagnose it
-
       # Return estimate and gradient value
       return(list(gamma_hat = gamma_out$x, grad_val = gamma_out$fval))
     }, error = function(cond) {
-      print("FZERO FAILED")
+      warning("FZERO FAILED")
       err_flag <- TRUE
     })
   }
@@ -618,14 +606,14 @@ M_step_variogram <- function(eta_hat, beta_hat, X, coords, cov_type = "Exp") {
     vg_params[is.nan(vg_params)] <- close_to_zero_const
     if ((close_to_zero_const >= vg_params[1]) &&
         (close_to_zero_const >= vg_params[2])) {
-      print("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO.")
-      print("FAILSAFE: Setting nugget to observed variance.")
+      warning(
+        "BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO. FAILSAFE: Setting nugget to observed variance."
+      )
       vg_params[1] <- max(close_to_zero_const, stats::var(sp_dat$z))
-      print(vg_params[1])
+      cat("Assigning nugget", vg_params[1], "\n")
     }
     if (close_to_zero_const >= vg_params[3]) {
-      print("WARNING: INVALID RANGE")
-      print("FAILSAFE: Setting range to 95% of p-sill distance.")
+      warning("WARNING: INVALID RANGE; FAILSAFE: Setting range to 95% of p-sill distance.")
 
       # Compute 95% of sill
       sill_95 <- 0.95 * vg_params[2]
@@ -643,12 +631,11 @@ M_step_variogram <- function(eta_hat, beta_hat, X, coords, cov_type = "Exp") {
 
     return(vg_params)
   }, error = function(cond) {
-    print("FIT.VARIOGRAM FAILED")
-    print("WILL DEFAULT TO A FAILSAFE")
+    warning("FIT.VARIOGRAM FAILED; WILL DEFAULT TO A FAILSAFE")
     err_flag <- TRUE
   })
   if (err_flag) {
-    print("Initiating FAILSAFE SINCE FIT.VARIOGRAM FAILED: Assuming non-spatial data.")
+    warning("Initiating FAILSAFE SINCE FIT.VARIOGRAM FAILED: Assuming non-spatial data.")
     vg_params <- c(close_to_zero_const,
                    close_to_zero_const,
                    close_to_zero_const)
@@ -733,7 +720,7 @@ M_step_BRISC <- function(eta_hat,
     )
 
     if (b_out$Theta[1] + b_out$Theta[2] < close_to_zero_const) {
-      print("Variances are low/unstable; FAILSAFE--Everything is non-spatial")
+      warning("Variances are low/unstable; FAILSAFE--Everything is non-spatial")
       b_out$Theta[1] <- max(close_to_zero_const, stats::var(phi_hat))
       b_out$Theta[2] <- max(close_to_zero_const, b_out$Theta[2])
       # Use maximum distance as a proxy for the range
@@ -743,12 +730,11 @@ M_step_BRISC <- function(eta_hat,
     }
     return(as.vector(b_out$Theta))
   }, error = function(cond) {
-    print("BRISC FAILED")
-    print("WILL DEFAULT TO A FAILSAFE")
+    warning("BRISC FAILED; WILL DEFAULT TO A FAILSAFE")
     err_flag <- TRUE
   })
   if (err_flag) {
-    print("Initiating FAILSAFE SINCE BRISC FAILED: Fitting via a variogram.")
+    warning("Initiating FAILSAFE SINCE BRISC FAILED: Fitting via a variogram.")
 
     # Return zeros for the variances, and default values for the rest
     # close_to_zero_const <- 2.0 * .Machine$double.eps

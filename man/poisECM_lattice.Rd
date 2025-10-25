@@ -126,7 +126,7 @@ adjacency as weights.
 areas x EM Iterations matrix---history across iterations.
 
 resid_moran: Moran's I for each area computed using coordinates.
-areas x EM Iterations x {value, expectation, sd} array.
+areas x EM Iterations x (value, expectation, sd) array.
 NULL unless coordinates are supplied.
 
 start_idx_list: Indices where each area's values start in predictions, etc.

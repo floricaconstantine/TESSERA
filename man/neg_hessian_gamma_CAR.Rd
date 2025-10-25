@@ -10,7 +10,7 @@ neg_hessian_gamma_CAR(gamma_hat, eig_vals)
 \arguments{
 \item{gamma_hat}{Parameter of interest: Estimate of correlation parameter.}
 
-\item{eig_vals}{Eigenvalues of Z = D^{-1} W.}
+\item{eig_vals}{Eigenvalues of Z = D^\{-1\} W.}
 }
 \value{
 Negative Hessian of gamma.

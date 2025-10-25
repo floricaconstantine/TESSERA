@@ -33,7 +33,7 @@ M_step_gamma_SAR(
 
 \item{D}{Diagonal degree matrix (row sums of W).}
 
-\item{eig_vals}{Eigenvalues of Z = D^{-1} W.}
+\item{eig_vals}{Eigenvalues of Z = D^\{-1\} W.}
 
 \item{gamma_current}{Previous value of gamma.
 Only needed for failure modes.}

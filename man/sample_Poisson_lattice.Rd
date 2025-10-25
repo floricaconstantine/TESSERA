@@ -38,7 +38,7 @@ A list with the following fields:
 z: Sampled counts Pois(theta x lib size).
 
 phi_true: True sampled random effects.
-(multivariate normal with mean zero and covariance tau^2 Q^{-1}).
+(multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
 
 eta_true: phi + X beta.
 

@@ -287,8 +287,7 @@ inversePrecisionMatrixWald <- function(A) {
     Ainv <- Matrix::solve(A)
     return(Ainv)
   }, error = function(cond) {
-    cat("INVERSION OF Inv(V_hat) FAILED", "\n")
-    # print(A)
+    warning("INVERSION OF Inv(V_hat) FAILED", "\n")
     err_flag <- TRUE
   })
   # Then try pseudoinverse
@@ -297,12 +296,12 @@ inversePrecisionMatrixWald <- function(A) {
       Ainv <- pracma::pinv(as.matrix(A))
       return(Ainv)
     }, error = function(cond) {
-      cat("PSEUDOINVERSE OF Inv(V_hat) FAILED", "\n")
+      warning("PSEUDOINVERSE OF Inv(V_hat) FAILED", "\n")
       err_flag <- TRUE
     })
   }
   if (err_flag) {
-    cat("Setting covariance to zero.", "\n")
+    warning("Setting covariance to zero.", "\n")
     Ainv <- 0 * A
     return(Ainv)
   }

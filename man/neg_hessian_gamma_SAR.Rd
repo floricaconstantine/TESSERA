@@ -34,7 +34,7 @@ neg_hessian_gamma_SAR(
 
 \item{D}{Degree matrix (diagonal, values are row-sums of W).}
 
-\item{eig_vals}{Eigenvalues of Z = D^{-1} W.}
+\item{eig_vals}{Eigenvalues of Z = D^\{-1\} W.}
 }
 \value{
 Negative Hessian of gamma.

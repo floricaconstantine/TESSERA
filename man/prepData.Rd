@@ -52,7 +52,7 @@ Not needed for non-lattice models (set to NULL).}
 Instead of forming it via D_THRESH or coordinates, a user can supply it.}
 
 \item{compute_eigs}{Whether to compute eigenvalues of various matrices.
-CAR/SAR: D^{-1} W; Leroux: D - W.
+CAR/SAR: D^\{-1\} W; Leroux: D - W.
 Depends on forming adjacency matrices, so needs coord_data, D_THRESH, k_search.
 "None": Compute no eigenvalues.
 String containing "C": Compute eigenvalues for the CAR model.

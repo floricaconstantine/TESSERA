@@ -180,7 +180,7 @@ BRMS_CAR_SAR_wrapper <- function(z_list,
   if (!is.null(library_size_list)) {
     lib_vec <- as.vector(Reduce(c, library_size_list))
   } else {
-    lib_vec <- rep(1, length(z_vecs))
+    lib_vec <- rep(1, length(z_vec))
   }
 
   beta_dim <- ncol(X_mat)

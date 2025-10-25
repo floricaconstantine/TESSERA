@@ -12,7 +12,8 @@ generate_data_one_area(
   gamma_true = NULL,
   tau2_true = NULL,
   X_type = "rand_bern",
-  ar_gamma = 0.75
+  ar_gamma = 0.75,
+  X = NULL
 )
 }
 \arguments{
@@ -32,15 +33,17 @@ Coordinates are samples in (0, 1)^2 so 0.03 is a reasonable value.}
 \item{X_type}{How to generate the covariates X.
 Note that the coordinates are sorted by x then by y, so nearby points are
 more likely to be neighbors.
-"rand_bern": X_{i, j} ~ 2 ( sign(N(0, 1)) + 1 ) in {0, 1}
-"rand_unif": X_{i, j} ~ U(0, 1)
-"rand_norm": X_{i, j} ~ N(0, 1)
-"ar1": X_{:, j} follows an AR(1) process.
+"rand_bern": X_\{i, j\} ~ 2 ( sign(N(0, 1)) + 1 ) in \{0, 1\}
+"rand_unif": X_\{i, j\} ~ U(0, 1)
+"rand_norm": X_\{i, j\} ~ N(0, 1)
+"ar1": X_\{:, j\} follows an AR(1) process.
 "ar1_bern": Generate the AR(1) as above, and apply the same sign transformation
 as in "rand_bern"
 "intercept": Constant column of all 1s}
 
 \item{ar_gamma}{Autocorrelation parameter for X if needed.}
+
+\item{X}{Instead of passing in X_type, pass in a pre-defined matrix X.}
 }
 \value{
 A list with the following fields:
@@ -51,7 +54,7 @@ W: Adjacency matrix.
 
 D: Diagonal degree matrix (row-sums of W).
 
-eig_list: List of eigenvalues of Z = D^{-1} W (CAR/SAR) or D - W (Leroux).
+eig_list: List of eigenvalues of Z = D^\{-1\} W (CAR/SAR) or D - W (Leroux).
 
 library_size: Scaling for theta.
 
@@ -62,7 +65,7 @@ y_coords: y-coordinates of points.
 Q: Unscaled precision matrix. Depends on W, D, gamma_true.
 
 phi_true: True sampled random effects.
-(multivariate normal with mean zero and covariance tau^2 Q^{-1}).
+(multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
 
 eta_true: phi + X beta.
 
