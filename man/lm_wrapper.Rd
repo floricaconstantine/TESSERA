@@ -4,7 +4,13 @@
 \alias{lm_wrapper}
 \title{Wrapper to fit basic linear model.}
 \usage{
-lm_wrapper(z_list, X_list, transform_z = TRUE, z_offset = 0.5)
+lm_wrapper(
+  z_list,
+  X_list,
+  transform_z = TRUE,
+  z_offset = 0.5,
+  library_size_list = NULL
+)
 }
 \arguments{
 \item{z_list}{List of vectors of observed counts---one vector per area.}
@@ -18,6 +24,10 @@ z_list.}
 
 \item{z_offset}{If transform_z, the counts z are transformed as
 log(z + z_offset).}
+
+\item{library_size_list}{A list with a vector of library sizes for each sample.
+Total counts for each location if there are more than one gene/measurement;
+if NULL, set to 1.}
 }
 \value{
 The output list from lm, plus a time field for how long the

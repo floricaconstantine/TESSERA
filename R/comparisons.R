@@ -238,16 +238,21 @@ mgcv_gam_wrapper <- function(z_list,
 #' @param transform_z Boolean: log-transform z or not.
 #' @param z_offset If transform_z, the counts z are transformed as
 #'    log(z + z_offset).
+#' @param library_size_list A list with a vector of library sizes for each sample.
+#'    Total counts for each location if there are more than one gene/measurement;
+#'    if NULL, set to 1.
 #'
 #' @returns The output list from lm, plus a time field for how long the
 #'    function ran for.
 #'
 #' @importFrom stats lm
+#' @importFrom stats offset
 #' @export
 lm_wrapper <- function(z_list,
                        X_list,
                        transform_z = TRUE,
-                       z_offset = 0.5) {
+                       z_offset = 0.5,
+                       library_size_list = NULL) {
   # Start clock
   t0_glm <- Sys.time()
 
@@ -258,6 +263,17 @@ lm_wrapper <- function(z_list,
   # Transform z
   if (transform_z) {
     z_vec <- log(z_vec + z_offset)
+  }
+
+  # If present, apply the library size
+  if (!is.null(library_size_list)) {
+    lib_vec <- as.vector(Reduce(c, library_size_list))
+
+    # Fit LM
+    lm_out <- stats::lm(z_vec ~ 0 + X_mat + stats::offset(log(lib_vec)))
+  } else {
+    # Fit LM
+    lm_out <- stats::lm(z_vec ~ 0 + X_mat)
   }
 
   # Fit LM
