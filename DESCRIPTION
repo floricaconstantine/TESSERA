@@ -16,7 +16,7 @@ Description: Fit a Poisson generalized spatial linear model for analyzing
   structures across tissue samples. 
 License: Apache License (>= 2)
 Imports: Matrix, gstat, sp, pracma, MASS, 
-  BRISC, CARBayes, brms, mgcv, 
+  BRISC, CARBayes, brms, mgcv, INLA,
   spatstat.geom, dplyr, ggplot2, reshape2, Rfast, tibble,
   stats, Rcpp
 LinkingTo: Rcpp

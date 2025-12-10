@@ -593,3 +593,183 @@ BRISC_wrapper <- function(z_list,
 
   return(b_out)
 }
+
+#' Wrapper to fit a multi-sample BYM2 model with INLA (INLA).
+#'
+#' This function works for multiple areas, but is very slow.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param z_list List of vectors of observed counts---one vector per area.
+#' @param X_list List of design or covariate matrices---one matrix per area.
+#'    Same length and ordering as z_list.
+#'    Matrices with number of rows equal to length of corresponding vector in
+#'    z_list.
+#' @param W_list List of spatial adjacency matrices---one matrix per area.
+#' @param model_family "poisson" or "gaussian".
+#'    Which model family to fit. Note that Poisson models don't scale well in the
+#'    multi-area setting---the spline is fit on a per-area basis.
+#' @param z_offset In the "gaussian" case, the counts z are transformed as
+#'    log(z + z_offset).
+#' @param num_threads Number threads to run.
+#' @param compute_dic INLA parameter.
+#' @param compute_waic INLA parameter.
+#' @param compute_cpo INLA parameter.
+#' @param verbose Whether INLA is verbose.
+#' @param library_size_list A list with a vector of library sizes for each sample.
+#'    Total counts for each location if there are more than one gene/measurement;
+#'    if NULL, set to 1.
+#'
+#' @returns The output list from INLA::inla, plus a time field
+#'  for how long the function ran for.
+#'
+#' @note Requires the INLA library.
+#'
+#' @import Matrix
+#' @import INLA
+#'
+#' @importFrom INLA inla.read.graph
+#' @importFrom INLA inla.getOption
+#' @importFrom INLA inla.setOption
+#' @importFrom INLA inla
+#'
+#' @export
+INLA_BYM2_wrapper <- function(z_list,
+                              X_list,
+                              W_list,
+                              model_family = "poisson",
+                              z_offset = 0.5,
+                              num_threads = 1,
+                              compute_dic = TRUE,
+                              compute_waic = TRUE,
+                              compute_cpo = FALSE,
+                              verbose = TRUE,
+                              library_size_list = NULL) {
+  t0 <- Sys.time()
+
+  n_blocks <- length(z_list)
+  if (!(length(X_list) == n_blocks && length(W_list) == n_blocks)) {
+    stop("z_list, X_list, and W_list must have the same length/order.")
+  }
+
+  # Create a single set of vectors/covariate matrix
+  z_vec <- as.vector(Reduce(c, z_list))
+  X_mat <- as.matrix(Reduce(rbind, X_list))
+
+  # If present, apply the library size
+  if (!is.null(library_size_list)) {
+    lib_vec <- as.vector(Reduce(c, library_size_list))
+  } else {
+    lib_vec <- rep(1, length(z_vec))
+  }
+  n_total <- length(z_vec)
+  beta_dim <- ncol(X_mat)
+
+  # Apply Gaussian transform if requested
+  if ("gaussian" == model_family) {
+    z_vec <- log(z_vec + z_offset)
+    family_inla <- "gaussian"
+  } else if ("poisson" == model_family) {
+    family_inla <- "poisson"
+  } else {
+    stop("Unsupported model_family. Use 'poisson' or 'gaussian'.")
+  }
+
+  # Build data frame
+  df <- as.data.frame(X_mat)
+  names(df) <- paste0("X", seq_len(beta_dim))
+  df$z <- z_vec
+  df$lib_size <- lib_vec
+
+  # Build block-specific region indices and graphs
+  region_idx_list <- vector("list", n_blocks)
+  graph_list <- vector("list", n_blocks)
+  start <- 1L
+
+  for (b in seq_len(n_blocks)) {
+    nb <- length(z_list[[b]])
+    idx_vec <- rep(NA_integer_, n_total)
+    idx_vec[start:(start + nb - 1L)] <- seq.int(1L, nb)
+    region_idx_list[[b]] <- idx_vec
+    start <- start + nb
+
+    # Convert adjacency to INLA graph
+    Wb <- W_list[[b]]
+    if (!is.matrix(Wb) && !inherits(Wb, "Matrix")) {
+      stop(sprintf("W_list[[%d]] must be a matrix-like adjacency.", b))
+    }
+    graph_list[[b]] <- INLA::inla.read.graph(as.matrix(Wb))
+  }
+
+  # Add region indices to data frame
+  for (b in seq_len(n_blocks)) {
+    df[[paste0("region_b", b)]] <- region_idx_list[[b]]
+  }
+
+  # Fixed effects
+  fixed_part <- paste0(paste0("X", seq_len(beta_dim)), collapse = " + ")
+
+  # BYM2 terms per block
+  spatial_terms <- paste0(
+    "f(region_b",
+    seq_len(n_blocks),
+    ", model = 'bym2', graph = graph_list[[",
+    seq_len(n_blocks),
+    "]], scale.model = TRUE)"
+  )
+
+  # Combine into formula string
+  formula_str <- paste0(
+    "z ~ 0 + ",
+    fixed_part,
+    " + offset(log(lib_size)) + ",
+    paste(spatial_terms, collapse = " + ")
+  )
+  formula_inla <- stats::as.formula(formula_str)
+
+  # Evaluation environment for INLA to find graph_list
+  eval_env <- new.env(parent = environment())
+  assign("graph_list", graph_list, envir = eval_env)
+
+  # Set INLA threads
+  old_threads <- INLA::inla.getOption("num.threads")
+  on.exit({
+    INLA::inla.setOption(num.threads = old_threads)
+  }, add = TRUE)
+  INLA::inla.setOption(num.threads = num_threads)
+
+  # Fit model
+  if (verbose) {
+    message("Fitting INLA BYM2 model with ", n_blocks, " blocks...")
+  }
+  fit <- eval(call("with", eval_env, {
+    INLA::inla(
+      formula_inla,
+      family = family_inla,
+      data = df,
+      control.compute = list(
+        dic = compute_dic,
+        waic = compute_waic,
+        cpo = compute_cpo
+      ),
+      control.fixed = list(correlation.matrix = TRUE),
+      verbose = verbose
+    )
+  }))
+
+  t1 <- Sys.time()
+  fit$time <- difftime(t1, t0, units = "secs")
+
+  # Store useful outputs
+  fit$predicted <- as.vector(fit$summary.fitted.values$mean)
+  fit$beta_hat <- as.vector(fit$summary.fixed$mean)
+  names(fit$beta_hat) <- colnames(X_list[[1]])
+  # Parametrize in terms of other models for consistency
+  fit$gamma_hat <- fit$summary.hyperpar$mean[grepl("Phi", rownames(fit$summary.hyperpar))]
+  fit$tau2_hat <- 1.0 / fit$summary.hyperpar$mean[grepl("Precision", rownames(fit$summary.hyperpar))]
+  fit$beta_cov <- fit$misc$lincomb.derived.covariance.matrix
+  rownames(fit$beta_cov) <- colnames(X_list[[1]])
+  colnames(fit$beta_cov) <- colnames(X_list[[1]])
+
+  return(fit)
+}
