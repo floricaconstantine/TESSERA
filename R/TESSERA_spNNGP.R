@@ -13,7 +13,7 @@
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param poisECMData_obj Object containing data.
+#' @param TESSERAData_obj Object containing data.
 #'  Created by the prepData method.
 #' @param gene_name Which gene/measurement to fit.
 #'  I.e., Which row in the count data matrix to fit.
@@ -93,7 +93,7 @@
 #'    Matrix.
 #' @returns run_settings: A list with the parameter settings used to run the algorithm.
 #' @returns performanceSummary: A dataframe with summary statistics for each sample.
-#'  See [summarizePoisECMPerformance()] for more details.
+#'  See [summarizeTESSERAPerformance()] for more details.
 #'
 #' @references Meng, Xiao-Li, and Donald B. Rubin.
 #'                "Maximum likelihood estimation via the ECM algorithm: A general framework."
@@ -110,10 +110,10 @@
 #' @importFrom stats var
 #' @importFrom Rcpp sourceCpp
 #' @importFrom Rcpp evalCpp
-#' @useDynLib poisECM
+#' @useDynLib TESSERA
 #'
 #' @export
-poisECM_spNNGP <- function(poisECMData_obj,
+TESSERA_spNNGP <- function(TESSERAData_obj,
                            gene_name,
                            cov_type = "Exp",
                            nngp_k = 20,
@@ -132,11 +132,11 @@ poisECM_spNNGP <- function(poisECMData_obj,
   t0_EM = Sys.time()
 
   # Check inputs
-  checkInputsPoisECMspNNGP(poisECMData_obj)
+  checkInputsTESSERAspNNGP(TESSERAData_obj)
 
   # Extract gene of interest and associated counts
-  gene_idx <- which(rownames(poisECMData_obj$counts_list[[1]]) == gene_name)
-  z_list <- lapply(poisECMData_obj$counts_list, function (x) {
+  gene_idx <- which(rownames(TESSERAData_obj$counts_list[[1]]) == gene_name)
+  z_list <- lapply(TESSERAData_obj$counts_list, function (x) {
     x[gene_idx, ]
   })
 
@@ -146,8 +146,8 @@ poisECM_spNNGP <- function(poisECMData_obj,
   n_total_points <- 0
   # Starting points in larger matrices
   start_idx_list <- rep(NA, length(z_list))
-  for (idx in 1:length(poisECMData_obj$X_list)) {
-    n_total_points <- n_total_points + nrow(poisECMData_obj$X_list[[idx]])
+  for (idx in 1:length(TESSERAData_obj$X_list)) {
+    n_total_points <- n_total_points + nrow(TESSERAData_obj$X_list[[idx]])
     if (1 == idx) {
       start_idx_list[idx] <- 1
     } else {
@@ -155,12 +155,12 @@ poisECM_spNNGP <- function(poisECMData_obj,
     }
   }
   # Dimension of coefficient vector
-  beta_dim = ncol(poisECMData_obj$X_list[[1]])
+  beta_dim = ncol(TESSERAData_obj$X_list[[1]])
 
   # Set up nearest neighbor tracker and associated distances
   sp_dist_list <- list()
-  for (idx in 1:length(poisECMData_obj$coords_list)) {
-    sp_dist_list[[idx]] <- sparseDist(poisECMData_obj$coords_list[[idx]], nngp_k)
+  for (idx in 1:length(TESSERAData_obj$coords_list)) {
+    sp_dist_list[[idx]] <- sparseDist(TESSERAData_obj$coords_list[[idx]], nngp_k)
   }
 
   # Store parameter estimates and track
@@ -202,8 +202,8 @@ poisECM_spNNGP <- function(poisECMData_obj,
 
     # Stack into a single vector/matrix
     z_vec <- Reduce(c, z_list)
-    lib_vec <- Reduce(c, poisECMData_obj$library_size_list)
-    X_mat <- Reduce(rbind, poisECMData_obj$X_list)
+    lib_vec <- Reduce(c, TESSERAData_obj$library_size_list)
+    X_mat <- Reduce(rbind, TESSERAData_obj$X_list)
     # Fit GLM
     beta_tmp <- as.vector(stats::coef(
       # stats::glm(z_vec / lib_vec ~ 0 + X_mat, family = stats::poisson())
@@ -240,10 +240,10 @@ poisECM_spNNGP <- function(poisECMData_obj,
   if (is.character(cov_init) && ("BRISC" == cov_init)) {
     for (area_idx in 1:n_areas) {
       param_est <- M_step_BRISC(
-        log((0.5 + z_list[[area_idx]]) / poisECMData_obj$library_size_list[[area_idx]]),
+        log((0.5 + z_list[[area_idx]]) / TESSERAData_obj$library_size_list[[area_idx]]),
         beta_tracker[, 1],
-        poisECMData_obj$X_list[[area_idx]],
-        poisECMData_obj$coords_list[[area_idx]],
+        TESSERAData_obj$X_list[[area_idx]],
+        TESSERAData_obj$coords_list[[area_idx]],
         cov_type,
         nngp_k
       )
@@ -253,10 +253,10 @@ poisECM_spNNGP <- function(poisECMData_obj,
   } else if (is.character(cov_init) && ("variogram" == cov_init)) {
     for (area_idx in 1:n_areas) {
       param_est <- M_step_variogram(
-        log((0.5 + z_list[[area_idx]]) / poisECMData_obj$library_size_list[[area_idx]]),
+        log((0.5 + z_list[[area_idx]]) / TESSERAData_obj$library_size_list[[area_idx]]),
         beta_tracker[, 1],
-        poisECMData_obj$X_list[[area_idx]],
-        poisECMData_obj$coords_list[[area_idx]],
+        TESSERAData_obj$X_list[[area_idx]],
+        TESSERAData_obj$coords_list[[area_idx]],
         cov_type
       )
       cov_param_tracker[area_idx, 1, 1:length(param_est)] <- param_est
@@ -283,7 +283,7 @@ poisECM_spNNGP <- function(poisECMData_obj,
   A_hat_list <- list()
   for (area_idx in 1:n_areas) {
     param_est <- nngp_prec_mat(sp_dist_list[[area_idx]],
-                               poisECMData_obj$coords_list[[area_idx]],
+                               TESSERAData_obj$coords_list[[area_idx]],
                                cov_type,
                                cov_param_tracker[area_idx, 1, ])
     Q_hat_list[[area_idx]] <- param_est$Q
@@ -323,13 +323,13 @@ poisECM_spNNGP <- function(poisECMData_obj,
         Q_hat_list[[area_idx]],
         1.0,
         beta_tracker[, em_idx],
-        poisECMData_obj$X_list[[area_idx]],
+        TESSERAData_obj$X_list[[area_idx]],
         z_list[[area_idx]],
-        poisECMData_obj$library_size_list[[area_idx]]
+        TESSERAData_obj$library_size_list[[area_idx]]
       )
       # Get a few more things out of the E-step: theta and predictions
       theta_hat <- as.numeric(E_step_thetahat(Vhat_list[[area_idx]], eta_hat_list[[area_idx]]))
-      z_hat <- as.numeric(E_step_predict(theta_hat, poisECMData_obj$library_size_list[[area_idx]]))
+      z_hat <- as.numeric(E_step_predict(theta_hat, TESSERAData_obj$library_size_list[[area_idx]]))
 
       # Store stuff
       fit_tracker[start_idx_list[area_idx]:(start_idx_list[area_idx] + length(z_hat) - 1), em_idx] <- z_hat
@@ -342,8 +342,8 @@ poisECM_spNNGP <- function(poisECMData_obj,
       # Observed, expected, sd
       resid_moran[area_idx, em_idx, ] <- calc_moran(
         z_hat - z_list[[area_idx]],
-        poisECMData_obj$coords_list[[area_idx]][, 1],
-        poisECMData_obj$coords_list[[area_idx]][, 2]
+        TESSERAData_obj$coords_list[[area_idx]][, 1],
+        TESSERAData_obj$coords_list[[area_idx]][, 2]
       )
 
 
@@ -352,7 +352,7 @@ poisECM_spNNGP <- function(poisECMData_obj,
       data_log_like_tracker[area_idx, em_idx] <- sum(
         stats::dpois(
           round(z_list[[area_idx]]),
-          theta_hat * poisECMData_obj$library_size_list[[area_idx]],
+          theta_hat * TESSERAData_obj$library_size_list[[area_idx]],
           log = TRUE
         ),
         na.rm = TRUE
@@ -368,7 +368,7 @@ poisECM_spNNGP <- function(poisECMData_obj,
         1.0,
         # tau^2
         beta_tracker[, em_idx],
-        poisECMData_obj$X_list[[area_idx]],
+        TESSERAData_obj$X_list[[area_idx]],
         A_hat_list[[area_idx]],
         # W
         A_hat_list[[area_idx]],
@@ -393,16 +393,16 @@ poisECM_spNNGP <- function(poisECMData_obj,
           param_est <- M_step_variogram(
             eta_hat_list[[area_idx]],
             beta_tracker[, 1 + em_idx],
-            poisECMData_obj$X_list[[area_idx]],
-            poisECMData_obj$coords_list[[area_idx]],
+            TESSERAData_obj$X_list[[area_idx]],
+            TESSERAData_obj$coords_list[[area_idx]],
             cov_type
           )
         } else if ("BRISC" == cov_fit_method) {
           param_est <- M_step_BRISC(
             eta_hat_list[[area_idx]],
             beta_tracker[, 1 + em_idx],
-            poisECMData_obj$X_list[[area_idx]],
-            poisECMData_obj$coords_list[[area_idx]],
+            TESSERAData_obj$X_list[[area_idx]],
+            TESSERAData_obj$coords_list[[area_idx]],
             cov_type,
             nngp_k
           )
@@ -415,7 +415,7 @@ poisECM_spNNGP <- function(poisECMData_obj,
 
         # Update precision matrix Q and associated quantities
         param_est <- nngp_prec_mat(sp_dist_list[[area_idx]],
-                                   poisECMData_obj$coords_list[[area_idx]],
+                                   TESSERAData_obj$coords_list[[area_idx]],
                                    cov_type,
                                    cov_param_tracker[area_idx, 1 + em_idx, ])
         Q_hat_list[[area_idx]] <- param_est$Q
@@ -428,7 +428,7 @@ poisECM_spNNGP <- function(poisECMData_obj,
         Q_hat_list,
         rep(1, n_areas),
         # tau^2
-        poisECMData_obj$X_list
+        TESSERAData_obj$X_list
       )[, 1]
     }
 
@@ -497,32 +497,32 @@ poisECM_spNNGP <- function(poisECMData_obj,
   cat("Time", t1_EM - t0_EM, "\n")
 
   # Compute Negative Hessians
-  beta_neghessian <- neg_hessian_beta(Q_hat_list, rep(1, n_areas), poisECMData_obj$X_list) # tau^2 is 1
+  beta_neghessian <- neg_hessian_beta(Q_hat_list, rep(1, n_areas), TESSERAData_obj$X_list) # tau^2 is 1
 
   ## Name stuff
 
-  rownames(beta_tracker) <- colnames(poisECMData_obj$X_list[[1]])
+  rownames(beta_tracker) <- colnames(TESSERAData_obj$X_list[[1]])
   dimnames(cov_param_tracker) <- list(
-    names(poisECMData_obj$X_list),
+    names(TESSERAData_obj$X_list),
     1:dim(cov_param_tracker)[2],
     c("Nugget", "Sill", "Range", "Smoothness")
   )
-  rownames(R2_tracker) <- names(poisECMData_obj$X_list)
-  rownames(MSE_tracker) <- names(poisECMData_obj$X_list)
-  rownames(data_log_like_tracker) <- names(poisECMData_obj$X_list)
-  rownames(expected_log_like_tracker) <- names(poisECMData_obj$X_list)
+  rownames(R2_tracker) <- names(TESSERAData_obj$X_list)
+  rownames(MSE_tracker) <- names(TESSERAData_obj$X_list)
+  rownames(data_log_like_tracker) <- names(TESSERAData_obj$X_list)
+  rownames(expected_log_like_tracker) <- names(TESSERAData_obj$X_list)
   dimnames(resid_moran) <- list(
-    names(poisECMData_obj$X_list),
+    names(TESSERAData_obj$X_list),
     1:dim(resid_moran)[2],
     c("Moran_I", "ExpectedMoran_I", "PValue")
   )
 
-  names(start_idx_list) <- names(poisECMData_obj$X_list)
+  names(start_idx_list) <- names(TESSERAData_obj$X_list)
 
-  rownames(beta_neghessian) <- colnames(poisECMData_obj$X_list[[1]])
-  colnames(beta_neghessian) <- colnames(poisECMData_obj$X_list[[1]])
+  rownames(beta_neghessian) <- colnames(TESSERAData_obj$X_list[[1]])
+  colnames(beta_neghessian) <- colnames(TESSERAData_obj$X_list[[1]])
 
-  rownames(fit_tracker) <- Reduce(c, lapply(poisECMData_obj$counts_list, colnames))
+  rownames(fit_tracker) <- Reduce(c, lapply(TESSERAData_obj$counts_list, colnames))
   rownames(eta_tracker) <- rownames(fit_tracker)
   rownames(theta_tracker) <- rownames(fit_tracker)
 
@@ -537,7 +537,7 @@ poisECM_spNNGP <- function(poisECMData_obj,
       residuals = Reduce(c, z_list) - fit_tracker[, em_idx],
       eta_hat = eta_tracker[, em_idx],
       theta_hat = theta_tracker[, em_idx],
-      phi_hat = eta_tracker[, em_idx] - Reduce(rbind, poisECMData_obj$X_list) %*% beta_tracker[, (em_idx + 1)],
+      phi_hat = eta_tracker[, em_idx] - Reduce(rbind, TESSERAData_obj$X_list) %*% beta_tracker[, (em_idx + 1)],
 
       # Full paths of coefficients, spatial parameters
       cov_param_tracker = cov_param_tracker[, 1:(em_idx + 1), ],
@@ -575,19 +575,19 @@ poisECM_spNNGP <- function(poisECMData_obj,
         em_iters_actual = em_idx
       )
     ),
-    class = "poisECMOutput"
+    class = "TESSERAOutput"
   ))
 
-  out$performanceSummary <- summarizePoisECMPerformance(poisECMData_obj, out)
+  out$performanceSummary <- summarizeTESSERAPerformance(TESSERAData_obj, out)
   return(out)
 }
 
-#' Check inputs for the poisECM_spNNGP method.
+#' Check inputs for the TESSERA_spNNGP method.
 #'  Make sure that the input object has everything needed to run without error.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param poisECMData_obj Object containing data.
+#' @param TESSERAData_obj Object containing data.
 #'  Created by the prepData method.
 #'
 #' @note Does not return anything.
@@ -597,73 +597,73 @@ poisECM_spNNGP <- function(poisECMData_obj,
 #' @returns Nothing.
 #' @import Matrix
 #' @export
-checkInputsPoisECMspNNGP <- function (poisECMData_obj) {
+checkInputsTESSERAspNNGP <- function (TESSERAData_obj) {
   # Check that the bare minimum is present
-  stopifnot(!is.null(poisECMData_obj$counts_list))
-  stopifnot(!is.null(poisECMData_obj$X_list))
-  stopifnot(!is.null(poisECMData_obj$coords_list))
-  stopifnot(!is.null(poisECMData_obj$library_size_list))
+  stopifnot(!is.null(TESSERAData_obj$counts_list))
+  stopifnot(!is.null(TESSERAData_obj$X_list))
+  stopifnot(!is.null(TESSERAData_obj$coords_list))
+  stopifnot(!is.null(TESSERAData_obj$library_size_list))
 
   # Counts-specific checks
   # Check that there is at least one gene, really that it's a matrix.
-  stopifnot(1 <= min(sapply(poisECMData_obj$counts_list, nrow)))
+  stopifnot(1 <= min(sapply(TESSERAData_obj$counts_list, nrow)))
   # Check that same number of genes present
   stopifnot(1 == length(unique(
-    lapply(poisECMData_obj$counts_list, nrow)
+    lapply(TESSERAData_obj$counts_list, nrow)
   )))
   # Check ordering by rownames (gene names)
   stopifnot(all(sapply(
-    lapply(poisECMData_obj$counts_list, rownames),
+    lapply(TESSERAData_obj$counts_list, rownames),
     identical,
-    rownames(poisECMData_obj$counts_list[[1]])
+    rownames(TESSERAData_obj$counts_list[[1]])
   )))
 
   # Coordinates-specific checks
   # Need at least 2 coordinates
-  stopifnot(1 < min(sapply(poisECMData_obj$coords_list, ncol)))
+  stopifnot(1 < min(sapply(TESSERAData_obj$coords_list, ncol)))
 
   # Check that the number of measurements/cells is the same across lists
   # Implicit check that the number of entries in list is the same (number of samples)
   stopifnot(identical(
-    sapply(poisECMData_obj$counts_list, ncol),
-    sapply(poisECMData_obj$X_list, nrow)
+    sapply(TESSERAData_obj$counts_list, ncol),
+    sapply(TESSERAData_obj$X_list, nrow)
   ))
   stopifnot(identical(
-    sapply(poisECMData_obj$counts_list, ncol),
-    sapply(poisECMData_obj$library_size_list, length)
+    sapply(TESSERAData_obj$counts_list, ncol),
+    sapply(TESSERAData_obj$library_size_list, length)
   ))
   stopifnot(identical(
-    sapply(poisECMData_obj$counts_list, ncol),
-    sapply(poisECMData_obj$coords_list, nrow)
+    sapply(TESSERAData_obj$counts_list, ncol),
+    sapply(TESSERAData_obj$coords_list, nrow)
   ))
 
   # Check that the names of measurements match
-  for (idx in 1:length(poisECMData_obj$counts_list)) {
+  for (idx in 1:length(TESSERAData_obj$counts_list)) {
     stopifnot(identical(
-      colnames(poisECMData_obj$counts_list[[idx]]),
-      rownames(poisECMData_obj$X_list[[idx]])
+      colnames(TESSERAData_obj$counts_list[[idx]]),
+      rownames(TESSERAData_obj$X_list[[idx]])
     ))
     stopifnot(identical(
-      colnames(poisECMData_obj$counts_list[[idx]]),
-      names(poisECMData_obj$library_size_list[[idx]])
+      colnames(TESSERAData_obj$counts_list[[idx]]),
+      names(TESSERAData_obj$library_size_list[[idx]])
     ))
     stopifnot(identical(
-      colnames(poisECMData_obj$counts_list[[idx]]),
-      rownames(poisECMData_obj$coords_list[[idx]])
+      colnames(TESSERAData_obj$counts_list[[idx]]),
+      rownames(TESSERAData_obj$coords_list[[idx]])
     ))
   }
 
   # Check ordering of lists (sample IDs)
   stopifnot(identical(
-    names(poisECMData_obj$counts_list),
-    names(poisECMData_obj$X_list)
+    names(TESSERAData_obj$counts_list),
+    names(TESSERAData_obj$X_list)
   ))
   stopifnot(identical(
-    names(poisECMData_obj$counts_list),
-    names(poisECMData_obj$library_size_list)
+    names(TESSERAData_obj$counts_list),
+    names(TESSERAData_obj$library_size_list)
   ))
   stopifnot(identical(
-    names(poisECMData_obj$counts_list),
-    names(poisECMData_obj$coords_list)
+    names(TESSERAData_obj$counts_list),
+    names(TESSERAData_obj$coords_list)
   ))
 }

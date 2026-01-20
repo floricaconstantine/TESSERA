@@ -2,7 +2,7 @@
 % Please edit documentation in R/prepData.R
 \name{visualizeNeighborDistances}
 \alias{visualizeNeighborDistances}
-\title{Prepare data for the PoisECM method: Choose a distance threshold for
+\title{Prepare data for the TESSERA method: Choose a distance threshold for
 adjacency matrices.}
 \usage{
 visualizeNeighborDistances(meta_data, sample_col, coord_data, k_search = 20)
@@ -39,7 +39,7 @@ distances_plot: ggplot2 plot showing mean Euclidean distance (across cells)
 for each sample to the k-th nearest neighbor.
 }
 \description{
-Prepare data for the PoisECM method: Choose a distance threshold for
+Prepare data for the TESSERA method: Choose a distance threshold for
 adjacency matrices.
 }
 \author{

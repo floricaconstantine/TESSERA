@@ -24,7 +24,7 @@ FALSE: p-values are not conditional.}
 Threshold value.
 }
 \description{
-In the poisECM algorithm, and in generalized linear mixed models in general,
+In the TESSERA algorithm, and in generalized linear mixed models in general,
 the exact distribution of p-values for Wald statistics under the null hypothesis
 is unknown.
 We know that the standard errors are, for finite samples, likely biased

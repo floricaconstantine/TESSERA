@@ -1,10 +1,10 @@
-## Purpose of file: Prepare the data to run the poisECM algorithm
+## Purpose of file: Prepare the data to run the TESSERA algorithm
 # Create various lists containing, respectively,
 # coordinate matrices, covariate matrices, count matrices, library sizes, etc.
 # with a list element for each sample
 ## Florica Constantine (florica AT berkeley DOT edu)
 
-#' Prepare data for the PoisECM method.
+#' Prepare data for the TESSERA method.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
@@ -403,11 +403,11 @@ prepData <- function(count_matrix,
       eig_CS_list = eig_CS_list,
       eig_L_list = eig_L_list
     ),
-    class = "poisECMData"
+    class = "TESSERAData"
   ))
 }
 
-#' Prepare data for the PoisECM method: Choose a distance threshold for
+#' Prepare data for the TESSERA method: Choose a distance threshold for
 #'  adjacency matrices.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu

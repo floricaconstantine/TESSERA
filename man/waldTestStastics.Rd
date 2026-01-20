@@ -2,23 +2,23 @@
 % Please edit documentation in R/post_analysis.R
 \name{waldTestStastics}
 \alias{waldTestStastics}
-\title{Given the output of the poisECM algorithms and a contrast matrix, compute
+\title{Given the output of the TESSERA algorithms and a contrast matrix, compute
 Wald T-statistics.}
 \usage{
-waldTestStastics(poisECMOutput_obj, contrast_mat)
+waldTestStastics(TESSERAOutput_obj, contrast_mat)
 }
 \arguments{
-\item{poisECMOutput_obj}{Output of the poisECM algorithms.}
+\item{TESSERAOutput_obj}{Output of the TESSERA algorithms.}
 
 \item{contrast_mat}{Matrix with contrasts of the estimated coeficients.
 Rows are contrasts, columns correspond to columns in beta_hat (covariates).
-beta_hat is the vector of estimated coefficients, stored in poisECMOutput_obj.}
+beta_hat is the vector of estimated coefficients, stored in TESSERAOutput_obj.}
 }
 \value{
 A dataframe of Wald t-statistics. Square these to get F-statistics.
 }
 \description{
-Given the output of the poisECM algorithms and a contrast matrix, compute
+Given the output of the TESSERA algorithms and a contrast matrix, compute
 Wald T-statistics.
 }
 \author{

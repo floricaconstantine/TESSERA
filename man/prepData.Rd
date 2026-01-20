@@ -2,7 +2,7 @@
 % Please edit documentation in R/prepData.R
 \name{prepData}
 \alias{prepData}
-\title{Prepare data for the PoisECM method.}
+\title{Prepare data for the TESSERA method.}
 \usage{
 prepData(
   count_matrix,
@@ -87,7 +87,7 @@ eig_L_list: A list with Leroux model eigenvalues for each sample.
 If computed.
 }
 \description{
-Prepare data for the PoisECM method.
+Prepare data for the TESSERA method.
 }
 \author{
 Florica J Constantine, florica AT berkeley.edu

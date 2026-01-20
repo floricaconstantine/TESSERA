@@ -523,15 +523,15 @@ sample_Poisson_spNNGP <- function(cov_type,
   ))
 }
 
-#' Prepare synthetic data for the PoisECM method.
+#' Prepare synthetic data for the TESSERA method.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param poisECMData_obj Object containing data.
+#' @param TESSERAData_obj Object containing data.
 #'  Created by the prepData method.
 #' @param gene_list Which gene/measurement to fit.
 #'  I.e., Which row in the count data matrix to fit.
-#'   Rownames of `poisECMData_obj$counts_list[[idx]]`.
+#'   Rownames of `TESSERAData_obj$counts_list[[idx]]`.
 #'  A string (single gene) or a vector of strings (multiple genes).
 #' @param data_gen_model Which model to fit for the random effects.
 #'    "CAR", "SAR", and "Leroux" are the valid Lattice model options,
@@ -559,8 +559,8 @@ sample_Poisson_spNNGP <- function(cov_type,
 #'  A vector (single gene) or a matrix (genes x covariates, rows are genes).
 #'
 #' @return A list comprised of the following.
-#' @returns new_poisECMData_obj Object containing data.
-#'  Has all of the same information and values as poisECMData_obj,
+#' @returns new_TESSERAData_obj Object containing data.
+#'  Has all of the same information and values as TESSERAData_obj,
 #'  except for new counts_list values.
 #' @returns synthetic_count_summary: A dataframe summarizing statistics of the
 #'  generated counts and computing various similarity statistics between the
@@ -569,7 +569,7 @@ sample_Poisson_spNNGP <- function(cov_type,
 #' @importFrom dplyr bind_rows
 #'
 #' @export
-prepSynthData <- function(poisECMData_obj,
+prepSynthData <- function(TESSERAData_obj,
                           gene_list,
                           data_gen_model,
                           tau2_true = NULL,
@@ -580,11 +580,11 @@ prepSynthData <- function(poisECMData_obj,
                           beta_true = NULL) {
   # Make sure object is correct/usable
   if ("spNNGP" == data_gen_model) {
-    checkInputsPoisECMspNNGP(poisECMData_obj)
+    checkInputsTESSERAspNNGP(TESSERAData_obj)
   } else if (("CAR" == data_gen_model) ||
              ("SAR" == data_gen_model) ||
              ("Leroux" == data_gen_model)) {
-    checkInputsPoisECM(poisECMData_obj)
+    checkInputsTESSERA(TESSERAData_obj)
   } else {
     stop("Invalid data_gen_model.")
   }
@@ -608,7 +608,7 @@ prepSynthData <- function(poisECMData_obj,
                         ncol = length(beta_true))
   }
   stopifnot(length(gene_list) == nrow(beta_true))
-  stopifnot(ncol(poisECMData_obj$X_list[[1]]) == ncol(beta_true))
+  stopifnot(ncol(TESSERAData_obj$X_list[[1]]) == ncol(beta_true))
 
   # Check gamma, tau^2 for Lattice models
   if (("CAR" == data_gen_model) ||
@@ -627,8 +627,8 @@ prepSynthData <- function(poisECMData_obj,
     # Check dimensions of inputs
     stopifnot(length(gene_list) == nrow(tau2_true))
     stopifnot(length(gene_list) == nrow(gamma_true))
-    stopifnot(length(poisECMData_obj$counts_list) == ncol(tau2_true))
-    stopifnot(length(poisECMData_obj$counts_list) == ncol(gamma_true))
+    stopifnot(length(TESSERAData_obj$counts_list) == ncol(tau2_true))
+    stopifnot(length(TESSERAData_obj$counts_list) == ncol(gamma_true))
   } else if ("spNNGP" == data_gen_model) {
     # genes X samples X parameters
     if ((1 == length(dim(cov_params))) ||
@@ -637,7 +637,7 @@ prepSynthData <- function(poisECMData_obj,
       tmp <- array(data = 0,
                    dim = c(
                      length(gene_list),
-                     length(poisECMData_obj$X_list),
+                     length(TESSERAData_obj$X_list),
                      length(cov_params)
                    ))
       tmp[1, 1, ] <- cov_params
@@ -647,7 +647,7 @@ prepSynthData <- function(poisECMData_obj,
       tmp <- array(data = 0,
                    dim = c(
                      length(gene_list),
-                     length(poisECMData_obj$X_list),
+                     length(TESSERAData_obj$X_list),
                      ncol(cov_params)
                    ))
       tmp[1, , ] <- cov_params
@@ -655,37 +655,37 @@ prepSynthData <- function(poisECMData_obj,
     }
     # Check dimensions of inputs
     stopifnot(length(gene_list) == dim(cov_params)[1])
-    stopifnot(length(poisECMData_obj$counts_list) == dim(cov_params)[2])
+    stopifnot(length(TESSERAData_obj$counts_list) == dim(cov_params)[2])
     stopifnot(3 == length(dim(cov_params)))
   }
 
   # Synthetic counts list
   synth_counts_list <- list()
   # Initialize synthetic counts list with matrices for each sample
-  for (s_idx in 1:length(poisECMData_obj$counts_list)) {
+  for (s_idx in 1:length(TESSERAData_obj$counts_list)) {
     synth_counts_list[[s_idx]] <- matrix(0,
                                          nrow = length(gene_list),
-                                         ncol = ncol(poisECMData_obj$counts_list[[s_idx]]))
+                                         ncol = ncol(TESSERAData_obj$counts_list[[s_idx]]))
     rownames(synth_counts_list[[s_idx]]) <- gene_list
-    colnames(synth_counts_list[[s_idx]]) <- colnames(poisECMData_obj$counts_list[[s_idx]])
+    colnames(synth_counts_list[[s_idx]]) <- colnames(TESSERAData_obj$counts_list[[s_idx]])
   }
-  names(synth_counts_list) <- names(poisECMData_obj$counts_list)
+  names(synth_counts_list) <- names(TESSERAData_obj$counts_list)
 
   # Sample from a Poisson lattice model to obtain new count matrices for each sample
   summary_df <- list()
   for (g_idx in 1:length(gene_list)) {
     gene <- gene_list[g_idx]
 
-    for (s_idx in 1:length(poisECMData_obj$counts_list)) {
+    for (s_idx in 1:length(TESSERAData_obj$counts_list)) {
       if (("CAR" == data_gen_model) ||
           ("SAR" == data_gen_model) ||
           ("Leroux" == data_gen_model)) {
         synth_counts_list[[s_idx]][g_idx, ] <- sample_Poisson_lattice(
           model_type = data_gen_model,
-          X = poisECMData_obj$X_list[[s_idx]],
-          W = poisECMData_obj$W_list[[s_idx]],
-          D = poisECMData_obj$D_list[[s_idx]],
-          library_size = poisECMData_obj$library_size_list[[s_idx]],
+          X = TESSERAData_obj$X_list[[s_idx]],
+          W = TESSERAData_obj$W_list[[s_idx]],
+          D = TESSERAData_obj$D_list[[s_idx]],
+          library_size = TESSERAData_obj$library_size_list[[s_idx]],
           tau2_true = tau2_true[g_idx, s_idx],
           gamma_true = gamma_true[g_idx, s_idx],
           beta_true = beta_true[g_idx, ]
@@ -693,9 +693,9 @@ prepSynthData <- function(poisECMData_obj,
       } else if ("spNNGP" == data_gen_model) {
         synth_counts_list[[s_idx]][g_idx, ] <- sample_Poisson_spNNGP(
           cov_type = cov_type,
-          X = poisECMData_obj$X_list[[s_idx]],
-          library_size = poisECMData_obj$library_size_list[[s_idx]],
-          coords = poisECMData_obj$coords_list[[s_idx]],
+          X = TESSERAData_obj$X_list[[s_idx]],
+          library_size = TESSERAData_obj$library_size_list[[s_idx]],
+          coords = TESSERAData_obj$coords_list[[s_idx]],
           cov_params = cov_params[g_idx, s_idx, ],
           nngp_k = nngp_k,
           beta_true = beta_true[g_idx, ]
@@ -704,9 +704,9 @@ prepSynthData <- function(poisECMData_obj,
     }
 
     # Store summary about the generated counts/comparison with real data
-    synth_summary <- sapply(1:length(poisECMData_obj$counts_list), function (x) {
+    synth_summary <- sapply(1:length(TESSERAData_obj$counts_list), function (x) {
       x_tmp <- as.vector(synth_counts_list[[x]][g_idx, ])
-      y_tmp <- as.vector(poisECMData_obj$counts_list[[x]][g_idx, ])
+      y_tmp <- as.vector(TESSERAData_obj$counts_list[[x]][g_idx, ])
 
       # Create PMFs for both real/synthetic data
       tX = as.data.frame(table(x_tmp))
@@ -721,12 +721,12 @@ prepSynthData <- function(poisECMData_obj,
       # Summary information
       s_X <- summary(as.vector(synth_counts_list[[x]][g_idx, ]))
       names(s_X) <- paste0("synth_", names(s_X))
-      s_Y <- summary(as.vector(poisECMData_obj$counts_list[[x]][g_idx, ]))
+      s_Y <- summary(as.vector(TESSERAData_obj$counts_list[[x]][g_idx, ]))
       names(s_Y) <- paste0("orig_", names(s_Y))
       return(Reduce(cbind, list(
         data.frame(
           gene = gene,
-          sample = names(poisECMData_obj$counts_list)[x],
+          sample = names(TESSERAData_obj$counts_list)[x],
           "TV" = sum(abs(tXY$X - tXY$Y)) / 2,
           # Total variation distance [0, 1]
           "KS" = max(abs(tXY$X - tXY$Y)),
@@ -750,13 +750,13 @@ prepSynthData <- function(poisECMData_obj,
     summary_df <- summary_df[[1]]
   }
 
-  # Create new poisECMData object
-  new_poisECMData_obj <- poisECMData_obj
-  new_poisECMData_obj$counts_list <- synth_counts_list
+  # Create new TESSERAData object
+  new_TESSERAData_obj <- TESSERAData_obj
+  new_TESSERAData_obj$counts_list <- synth_counts_list
 
   return(
     list(
-      new_poisECMData_obj = new_poisECMData_obj,
+      new_TESSERAData_obj = new_TESSERAData_obj,
       synthetic_count_summary = summary_df
     )
   )

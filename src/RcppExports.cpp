@@ -12,7 +12,7 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 
 // distanceCalculate
 double distanceCalculate(double x1, double y1, double x2, double y2);
-RcppExport SEXP _poisECM_distanceCalculate(SEXP x1SEXP, SEXP y1SEXP, SEXP x2SEXP, SEXP y2SEXP) {
+RcppExport SEXP _TESSERA_distanceCalculate(SEXP x1SEXP, SEXP y1SEXP, SEXP x2SEXP, SEXP y2SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -26,7 +26,7 @@ END_RCPP
 }
 // normalize
 NumericVector normalize(NumericVector x);
-RcppExport SEXP _poisECM_normalize(SEXP xSEXP) {
+RcppExport SEXP _TESSERA_normalize(SEXP xSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -37,7 +37,7 @@ END_RCPP
 }
 // calc_moran
 NumericVector calc_moran(NumericVector x, NumericVector c1, NumericVector c2);
-RcppExport SEXP _poisECM_calc_moran(SEXP xSEXP, SEXP c1SEXP, SEXP c2SEXP) {
+RcppExport SEXP _TESSERA_calc_moran(SEXP xSEXP, SEXP c1SEXP, SEXP c2SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -50,13 +50,13 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_poisECM_distanceCalculate", (DL_FUNC) &_poisECM_distanceCalculate, 4},
-    {"_poisECM_normalize", (DL_FUNC) &_poisECM_normalize, 1},
-    {"_poisECM_calc_moran", (DL_FUNC) &_poisECM_calc_moran, 3},
+    {"_TESSERA_distanceCalculate", (DL_FUNC) &_TESSERA_distanceCalculate, 4},
+    {"_TESSERA_normalize", (DL_FUNC) &_TESSERA_normalize, 1},
+    {"_TESSERA_calc_moran", (DL_FUNC) &_TESSERA_calc_moran, 3},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_poisECM(DllInfo *dll) {
+RcppExport void R_init_TESSERA(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }

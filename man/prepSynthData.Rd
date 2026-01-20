@@ -2,10 +2,10 @@
 % Please edit documentation in R/data_gen.R
 \name{prepSynthData}
 \alias{prepSynthData}
-\title{Prepare synthetic data for the PoisECM method.}
+\title{Prepare synthetic data for the TESSERA method.}
 \usage{
 prepSynthData(
-  poisECMData_obj,
+  TESSERAData_obj,
   gene_list,
   data_gen_model,
   tau2_true = NULL,
@@ -17,12 +17,12 @@ prepSynthData(
 )
 }
 \arguments{
-\item{poisECMData_obj}{Object containing data.
+\item{TESSERAData_obj}{Object containing data.
 Created by the prepData method.}
 
 \item{gene_list}{Which gene/measurement to fit.
 I.e., Which row in the count data matrix to fit.
-Rownames of \code{poisECMData_obj$counts_list[[idx]]}.
+Rownames of \code{TESSERAData_obj$counts_list[[idx]]}.
 A string (single gene) or a vector of strings (multiple genes).}
 
 \item{data_gen_model}{Which model to fit for the random effects.
@@ -59,8 +59,8 @@ A vector (single gene) or a matrix (genes x covariates, rows are genes).}
 \value{
 A list comprised of the following.
 
-new_poisECMData_obj Object containing data.
-Has all of the same information and values as poisECMData_obj,
+new_TESSERAData_obj Object containing data.
+Has all of the same information and values as TESSERAData_obj,
 except for new counts_list values.
 
 synthetic_count_summary: A dataframe summarizing statistics of the
@@ -68,7 +68,7 @@ generated counts and computing various similarity statistics between the
 generated and original counts.
 }
 \description{
-Prepare synthetic data for the PoisECM method.
+Prepare synthetic data for the TESSERA method.
 }
 \author{
 Florica J Constantine, florica AT berkeley.edu

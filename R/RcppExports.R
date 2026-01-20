@@ -12,7 +12,7 @@
 #'
 #' @returns Euclidean distance between (x1, y1) and (x2, y2).
 distanceCalculate <- function(x1, y1, x2, y2) {
-    .Call('_poisECM_distanceCalculate', PACKAGE = 'poisECM', x1, y1, x2, y2)
+    .Call('_TESSERA_distanceCalculate', PACKAGE = 'TESSERA', x1, y1, x2, y2)
 }
 
 #' Helper function for Moran's I: Center a vector.
@@ -23,7 +23,7 @@ distanceCalculate <- function(x1, y1, x2, y2) {
 #'
 #' @returns x - mean(x).
 normalize <- function(x) {
-    .Call('_poisECM_normalize', PACKAGE = 'poisECM', x)
+    .Call('_TESSERA_normalize', PACKAGE = 'TESSERA', x)
 }
 
 #' Fast computation of Moran's I.
@@ -41,6 +41,6 @@ normalize <- function(x) {
 #'
 #' @export
 calc_moran <- function(x, c1, c2) {
-    .Call('_poisECM_calc_moran', PACKAGE = 'poisECM', x, c1, c2)
+    .Call('_TESSERA_calc_moran', PACKAGE = 'TESSERA', x, c1, c2)
 }
 

@@ -11,7 +11,7 @@
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param poisECMData_obj Object containing data.
+#' @param TESSERAData_obj Object containing data.
 #'  Created by the prepData method.
 #' @param gene_name Which gene/measurement to fit.
 #'  I.e., Which row in the count data matrix to fit.
@@ -101,7 +101,7 @@
 #'    Vector of values.
 #' @returns run_settings: A list with the parameter settings used to run the algorithm.
 #' @returns performanceSummary: A dataframe with summary statistics for each sample.
-#'  See [summarizePoisECMPerformance()] for more details.
+#'  See [summarizeTESSERAPerformance()] for more details.
 #'
 #' @references Meng, Xiao-Li, and Donald B. Rubin.
 #'                "Maximum likelihood estimation via the ECM algorithm: A general framework."
@@ -123,10 +123,10 @@
 #' @importFrom stats var
 #' @importFrom Rcpp sourceCpp
 #' @importFrom Rcpp evalCpp
-#' @useDynLib poisECM
+#' @useDynLib TESSERA
 #'
 #' @export
-poisECM_lattice <- function(poisECMData_obj,
+TESSERA_lattice <- function(TESSERAData_obj,
                             gene_name,
                             model_type = "CAR",
                             em_iters = 200,
@@ -143,11 +143,11 @@ poisECM_lattice <- function(poisECMData_obj,
   t0_EM = Sys.time()
 
   # Check inputs
-  checkInputsPoisECM(poisECMData_obj)
+  checkInputsTESSERA(TESSERAData_obj)
 
   # Extract gene of interest and associated counts
-  gene_idx <- which(rownames(poisECMData_obj$counts_list[[1]]) == gene_name)
-  z_list <- lapply(poisECMData_obj$counts_list, function (x) {
+  gene_idx <- which(rownames(TESSERAData_obj$counts_list[[1]]) == gene_name)
+  z_list <- lapply(TESSERAData_obj$counts_list, function (x) {
     x[gene_idx, ]
   })
 
@@ -174,13 +174,13 @@ poisECM_lattice <- function(poisECMData_obj,
   }
 
   # Number of areas
-  n_areas <- length(poisECMData_obj$W_list)
+  n_areas <- length(TESSERAData_obj$W_list)
   # Total number of points
   n_total_points <- 0
   # Starting points in larger matrices
   start_idx_list <- rep(NA, length(z_list))
-  for (idx in 1:length(poisECMData_obj$X_list)) {
-    n_total_points <- n_total_points + nrow(poisECMData_obj$X_list[[idx]])
+  for (idx in 1:length(TESSERAData_obj$X_list)) {
+    n_total_points <- n_total_points + nrow(TESSERAData_obj$X_list[[idx]])
     if (1 == idx) {
       start_idx_list[idx] <- 1
     } else {
@@ -188,25 +188,25 @@ poisECM_lattice <- function(poisECMData_obj,
     }
   }
   # Dimension of coefficient vector
-  beta_dim = ncol(poisECMData_obj$X_list[[1]])
+  beta_dim = ncol(TESSERAData_obj$X_list[[1]])
 
   # Compute eigenvalues if needed
-  if (is.null(poisECMData_obj$eig_CS_list) &&
-      is.null(poisECMData_obj$eig_L_list)) {
+  if (is.null(TESSERAData_obj$eig_CS_list) &&
+      is.null(TESSERAData_obj$eig_L_list)) {
     cat("Eigenvalues not supplied: Computing now.")
     eig_val_list <- list()
     for (area_idx in 1:n_areas) {
       # D^{-1} W for CAR and SAR, D - W for Leroux
       if (("CAR" == model_type) || ("SAR" == model_type)) {
         eig_val_list[[area_idx]] <- Re(eigen(
-          Matrix::solve(poisECMData_obj$D_list[[area_idx]], poisECMData_obj$W_list[[area_idx]]),
+          Matrix::solve(TESSERAData_obj$D_list[[area_idx]], TESSERAData_obj$W_list[[area_idx]]),
           FALSE,
           only.values = TRUE
         )$values)
       } else if ("Leroux" == model_type) {
         eig_val_list[[area_idx]] <- Re(
           eigen(
-            poisECMData_obj$D_list[[area_idx]] - poisECMData_obj$W_list[[area_idx]],
+            TESSERAData_obj$D_list[[area_idx]] - TESSERAData_obj$W_list[[area_idx]],
             TRUE,
             only.values = TRUE
           )$values
@@ -216,9 +216,9 @@ poisECM_lattice <- function(poisECMData_obj,
   } else {
     # Eigenvalues
     if ((model_type == "CAR") || (model_type == "SAR")) {
-      eig_val_list <- poisECMData_obj$eig_CS_list
+      eig_val_list <- TESSERAData_obj$eig_CS_list
     } else if (model_type == "Leroux") {
-      eig_val_list <- poisECMData_obj$eig_L_list
+      eig_val_list <- TESSERAData_obj$eig_L_list
     }
   }
 
@@ -269,8 +269,8 @@ poisECM_lattice <- function(poisECMData_obj,
 
     # Stack into a single vector/matrix
     z_vec <- Reduce(c, z_list)
-    lib_vec <- Reduce(c, poisECMData_obj$library_size_list)
-    X_mat <- Reduce(rbind, poisECMData_obj$X_list)
+    lib_vec <- Reduce(c, TESSERAData_obj$library_size_list)
+    X_mat <- Reduce(rbind, TESSERAData_obj$X_list)
     # Fit GLM
     beta_tmp <- as.vector(stats::coef(
       # stats::glm(z_vec / lib_vec ~ 0 + X_mat, family = stats::poisson())
@@ -306,8 +306,8 @@ poisECM_lattice <- function(poisECMData_obj,
   # Initialize parameters: gamma
   if (is.character(gamma_init) && ("moran" == gamma_init)) {
     for (area_idx in 1:n_areas) {
-      tmp_z <- log((0.5 + z_list[[area_idx]]) / poisECMData_obj$library_size_list[[area_idx]]) - poisECMData_obj$X_list[[area_idx]] %*% beta_tracker[, 1]
-      gamma_tracker[area_idx, 1] <- abs(moran_I_nb(tmp_z, poisECMData_obj$W_list[[area_idx]]))
+      tmp_z <- log((0.5 + z_list[[area_idx]]) / TESSERAData_obj$library_size_list[[area_idx]]) - TESSERAData_obj$X_list[[area_idx]] %*% beta_tracker[, 1]
+      gamma_tracker[area_idx, 1] <- abs(moran_I_nb(tmp_z, TESSERAData_obj$W_list[[area_idx]]))
     }
     cat("Moran initialization for gamma", "\n")
   } else if (is.character(gamma_init) && ("random" == gamma_init)) {
@@ -330,13 +330,13 @@ poisECM_lattice <- function(poisECMData_obj,
   # Initialize parameters: tau^2
   if (is.character(tau2_init) && ("lognormal" == tau2_init)) {
     for (area_idx in 1:n_areas) {
-      glm_out <- stats::glm((z_list[[area_idx]] / poisECMData_obj$library_size_list[[area_idx]]) ~ 0 + poisECMData_obj$X_list[[area_idx]],
+      glm_out <- stats::glm((z_list[[area_idx]] / TESSERAData_obj$library_size_list[[area_idx]]) ~ 0 + TESSERAData_obj$X_list[[area_idx]],
                             family = stats::poisson()
       )
       tau2_tracker[area_idx, 1] <- max(
         1e-6,
         2 * log(mean(
-          (z_list[[area_idx]] / poisECMData_obj$library_size_list[[area_idx]])
+          (z_list[[area_idx]] / TESSERAData_obj$library_size_list[[area_idx]])
           / stats::predict(glm_out, type = "response")
         )) #- 2
       )
@@ -344,7 +344,7 @@ poisECM_lattice <- function(poisECMData_obj,
     cat("Log-Normal initialization for tau^2", "\n")
   } else if (is.character(tau2_init) && ("var" == tau2_init)) {
     for (area_idx in 1:n_areas) {
-      tmp_z <- log((0.5 + z_list[[area_idx]]) / poisECMData_obj$library_size_list[[area_idx]]) - poisECMData_obj$X_list[[area_idx]] %*% beta_tracker[, 1]
+      tmp_z <- log((0.5 + z_list[[area_idx]]) / TESSERAData_obj$library_size_list[[area_idx]]) - TESSERAData_obj$X_list[[area_idx]] %*% beta_tracker[, 1]
       tau2_tracker[area_idx, 1] <- stats::var(tmp_z)
     }
     cat("Variance initialization for tau^2", "\n")
@@ -366,8 +366,8 @@ poisECM_lattice <- function(poisECMData_obj,
   # Also initialize dependency Q as a function of W, D, and gamma
   Q_hat_list <- list()
   for (area_idx in 1:n_areas) {
-    Q_hat_list[[area_idx]] <- Q_fcn(poisECMData_obj$W_list[[area_idx]],
-                                    poisECMData_obj$D_list[[area_idx]],
+    Q_hat_list[[area_idx]] <- Q_fcn(TESSERAData_obj$W_list[[area_idx]],
+                                    TESSERAData_obj$D_list[[area_idx]],
                                     gamma_tracker[area_idx, 1])
   }
 
@@ -405,13 +405,13 @@ poisECM_lattice <- function(poisECMData_obj,
         Q_hat_list[[area_idx]],
         tau2_tracker[area_idx, em_idx],
         beta_tracker[, em_idx],
-        poisECMData_obj$X_list[[area_idx]],
+        TESSERAData_obj$X_list[[area_idx]],
         z_list[[area_idx]],
-        poisECMData_obj$library_size_list[[area_idx]]
+        TESSERAData_obj$library_size_list[[area_idx]]
       )
       # Get a few more things out of the E-step: theta and predictions
       theta_hat <- as.numeric(E_step_thetahat(Vhat_list[[area_idx]], eta_hat_list[[area_idx]]))
-      z_hat <- as.numeric(E_step_predict(theta_hat, poisECMData_obj$library_size_list[[area_idx]]))
+      z_hat <- as.numeric(E_step_predict(theta_hat, TESSERAData_obj$library_size_list[[area_idx]]))
 
       # Store stuff
       fit_tracker[start_idx_list[area_idx]:(start_idx_list[area_idx] + length(z_hat) - 1), em_idx] <- z_hat
@@ -423,23 +423,23 @@ poisECM_lattice <- function(poisECMData_obj,
       MSE_tracker[area_idx, em_idx] <- mean(abs(z_hat - z_list[[area_idx]])^2)
       # Observed, expected, sd
       if (!(
-        is.null(poisECMData_obj$coords_list[[area_idx]][, 1]) ||
-        is.null(poisECMData_obj$coords_list[[area_idx]][, 2])
+        is.null(TESSERAData_obj$coords_list[[area_idx]][, 1]) ||
+        is.null(TESSERAData_obj$coords_list[[area_idx]][, 2])
       )) {
         resid_moran[area_idx, em_idx, ] <- calc_moran(
           z_hat - z_list[[area_idx]],
-          poisECMData_obj$coords_list[[area_idx]][, 1],
-          poisECMData_obj$coords_list[[area_idx]][, 2]
+          TESSERAData_obj$coords_list[[area_idx]][, 1],
+          TESSERAData_obj$coords_list[[area_idx]][, 2]
         )
       }
-      resid_moran_nb[area_idx, em_idx] <- moran_I_nb(z_hat - z_list[[area_idx]], poisECMData_obj$W_list[[area_idx]])
+      resid_moran_nb[area_idx, em_idx] <- moran_I_nb(z_hat - z_list[[area_idx]], TESSERAData_obj$W_list[[area_idx]])
 
       # Data log likelihood
       # data_log_like_tracker[area_idx, em_idx] <- poisson_loglike(z_list[[area_idx]], theta_hat * library_size_list[[area_idx]])
       data_log_like_tracker[area_idx, em_idx] <- sum(
         stats::dpois(
           round(z_list[[area_idx]]),
-          theta_hat * poisECMData_obj$library_size_list[[area_idx]],
+          theta_hat * TESSERAData_obj$library_size_list[[area_idx]],
           log = TRUE
         ),
         na.rm = TRUE
@@ -453,9 +453,9 @@ poisECM_lattice <- function(poisECMData_obj,
         gamma_tracker[area_idx, em_idx],
         tau2_tracker[area_idx, em_idx],
         beta_tracker[, em_idx],
-        poisECMData_obj$X_list[[area_idx]],
-        poisECMData_obj$W_list[[area_idx]],
-        poisECMData_obj$D_list[[area_idx]],
+        TESSERAData_obj$X_list[[area_idx]],
+        TESSERAData_obj$W_list[[area_idx]],
+        TESSERAData_obj$D_list[[area_idx]],
         eig_val_list[[area_idx]],
         model_type
       )
@@ -477,7 +477,7 @@ poisECM_lattice <- function(poisECMData_obj,
           eta_hat_list[[area_idx]],
           Q_hat_list[[area_idx]],
           beta_tracker[, 1 + em_idx],
-          poisECMData_obj$X_list[[area_idx]]
+          TESSERAData_obj$X_list[[area_idx]]
         )
 
         # Optimize in gamma
@@ -486,9 +486,9 @@ poisECM_lattice <- function(poisECMData_obj,
           eta_hat_list[[area_idx]],
           tau2_tracker[area_idx, 1 + em_idx],
           beta_tracker[, 1 + em_idx],
-          poisECMData_obj$X_list[[area_idx]],
-          poisECMData_obj$W_list[[area_idx]],
-          poisECMData_obj$D_list[[area_idx]],
+          TESSERAData_obj$X_list[[area_idx]],
+          TESSERAData_obj$W_list[[area_idx]],
+          TESSERAData_obj$D_list[[area_idx]],
           eig_val_list[[area_idx]],
           gamma_tracker[area_idx, 1 + em_idx]
         )
@@ -555,8 +555,8 @@ poisECM_lattice <- function(poisECMData_obj,
         gamma_tracker[area_idx, 1 + em_idx] <- gamma_out$gamma_hat
 
         # Update precision matrix Q
-        Q_hat_list[[area_idx]] <- Q_fcn(poisECMData_obj$W_list[[area_idx]],
-                                        poisECMData_obj$D_list[[area_idx]],
+        Q_hat_list[[area_idx]] <- Q_fcn(TESSERAData_obj$W_list[[area_idx]],
+                                        TESSERAData_obj$D_list[[area_idx]],
                                         gamma_tracker[area_idx, em_idx + 1])
       }
 
@@ -564,7 +564,7 @@ poisECM_lattice <- function(poisECMData_obj,
       beta_tracker[, 1 + em_idx] <- M_step_beta(eta_hat_list,
                                                 Q_hat_list,
                                                 tau2_tracker[, 1 + em_idx],
-                                                poisECMData_obj$X_list)[, 1]
+                                                TESSERAData_obj$X_list)[, 1]
     }
 
     if (verbose || (0 == (em_idx %% 100))) {
@@ -667,7 +667,7 @@ poisECM_lattice <- function(poisECMData_obj,
   cat("Time", t1_EM - t0_EM, "\n")
 
   # Compute Negative Hessians
-  beta_neghessian <- neg_hessian_beta(Q_hat_list, tau2_tracker[, em_idx + 1], poisECMData_obj$X_list)
+  beta_neghessian <- neg_hessian_beta(Q_hat_list, tau2_tracker[, em_idx + 1], TESSERAData_obj$X_list)
   tau2_neghessian <- rep(NA, n_areas)
   gamma_neghessian <- rep(NA, n_areas)
   for (area_idx in 1:n_areas) {
@@ -677,7 +677,7 @@ poisECM_lattice <- function(poisECMData_obj,
       Q_hat_list[[area_idx]],
       tau2_tracker[area_idx, em_idx + 1],
       beta_tracker[, em_idx + 1],
-      poisECMData_obj$X_list[[area_idx]]
+      TESSERAData_obj$X_list[[area_idx]]
     )
 
     if ("CAR" == model_type) {
@@ -690,9 +690,9 @@ poisECM_lattice <- function(poisECMData_obj,
         gamma_tracker[area_idx, em_idx + 1],
         tau2_tracker[area_idx, em_idx + 1],
         beta_tracker[, em_idx + 1],
-        poisECMData_obj$X_list[[area_idx]],
-        poisECMData_obj$W_list[[area_idx]],
-        poisECMData_obj$D_list[[area_idx]],
+        TESSERAData_obj$X_list[[area_idx]],
+        TESSERAData_obj$W_list[[area_idx]],
+        TESSERAData_obj$D_list[[area_idx]],
         eig_val_list[[area_idx]]
       )
     }
@@ -703,36 +703,36 @@ poisECM_lattice <- function(poisECMData_obj,
 
   ## Name stuff
 
-  rownames(beta_tracker) <- colnames(poisECMData_obj$X_list[[1]])
-  rownames(gamma_tracker) <- names(poisECMData_obj$W_list)
-  rownames(tau2_tracker) <- names(poisECMData_obj$W_list)
+  rownames(beta_tracker) <- colnames(TESSERAData_obj$X_list[[1]])
+  rownames(gamma_tracker) <- names(TESSERAData_obj$W_list)
+  rownames(tau2_tracker) <- names(TESSERAData_obj$W_list)
 
-  rownames(R2_tracker) <- names(poisECMData_obj$W_list)
-  rownames(MSE_tracker) <- names(poisECMData_obj$W_list)
-  rownames(data_log_like_tracker) <- names(poisECMData_obj$W_list)
-  rownames(expected_log_like_tracker) <- names(poisECMData_obj$W_list)
-  rownames(resid_moran_nb) <- names(poisECMData_obj$W_list)
+  rownames(R2_tracker) <- names(TESSERAData_obj$W_list)
+  rownames(MSE_tracker) <- names(TESSERAData_obj$W_list)
+  rownames(data_log_like_tracker) <- names(TESSERAData_obj$W_list)
+  rownames(expected_log_like_tracker) <- names(TESSERAData_obj$W_list)
+  rownames(resid_moran_nb) <- names(TESSERAData_obj$W_list)
   dimnames(resid_moran) <- list(
-    names(poisECMData_obj$W_list),
+    names(TESSERAData_obj$W_list),
     1:dim(resid_moran)[2],
     c("Moran_I", "ExpectedMoran_I", "PValue")
   )
 
-  names(start_idx_list) <- names(poisECMData_obj$W_list)
-  names(eig_val_list) <- names(poisECMData_obj$W_list)
+  names(start_idx_list) <- names(TESSERAData_obj$W_list)
+  names(eig_val_list) <- names(TESSERAData_obj$W_list)
 
-  names(tau2_neghessian) <- names(poisECMData_obj$W_list)
-  names(gamma_neghessian) <- names(poisECMData_obj$W_list)
-  rownames(beta_neghessian) <- colnames(poisECMData_obj$X_list[[1]])
-  colnames(beta_neghessian) <- colnames(poisECMData_obj$X_list[[1]])
+  names(tau2_neghessian) <- names(TESSERAData_obj$W_list)
+  names(gamma_neghessian) <- names(TESSERAData_obj$W_list)
+  rownames(beta_neghessian) <- colnames(TESSERAData_obj$X_list[[1]])
+  colnames(beta_neghessian) <- colnames(TESSERAData_obj$X_list[[1]])
 
-  rownames(fit_tracker) <- Reduce(c, lapply(poisECMData_obj$counts_list, colnames))
+  rownames(fit_tracker) <- Reduce(c, lapply(TESSERAData_obj$counts_list, colnames))
   rownames(eta_tracker) <- rownames(fit_tracker)
   rownames(theta_tracker) <- rownames(fit_tracker)
 
   # If eigenvalues supplied, don't bother returning them to save space
-  eigs_supplied <- (!is.null(poisECMData_obj$eig_CS_list) ||
-                      !is.null(poisECMData_obj$eig_L_list))
+  eigs_supplied <- (!is.null(TESSERAData_obj$eig_CS_list) ||
+                      !is.null(TESSERAData_obj$eig_L_list))
   if (eigs_supplied) {
     eig_val_list <- list()
   }
@@ -749,7 +749,7 @@ poisECM_lattice <- function(poisECMData_obj,
       residuals = Reduce(c, z_list) - fit_tracker[, em_idx],
       eta_hat = eta_tracker[, em_idx],
       theta_hat = theta_tracker[, em_idx],
-      phi_hat = eta_tracker[, em_idx] - Reduce(rbind, poisECMData_obj$X_list) %*% beta_tracker[, (em_idx + 1)],
+      phi_hat = eta_tracker[, em_idx] - Reduce(rbind, TESSERAData_obj$X_list) %*% beta_tracker[, (em_idx + 1)],
 
       # Full paths of coefficients, spatial parameters
       gamma_tracker = gamma_tracker[, 1:(em_idx + 1)],
@@ -793,19 +793,19 @@ poisECM_lattice <- function(poisECMData_obj,
         eigs_supplied = eigs_supplied
       )
     ),
-    class = "poisECMOutput"
+    class = "TESSERAOutput"
   ))
 
-  out$performanceSummary <- summarizePoisECMPerformance(poisECMData_obj, out)
+  out$performanceSummary <- summarizeTESSERAPerformance(TESSERAData_obj, out)
   return(out)
 }
 
-#' Check inputs for the poisECM method.
+#' Check inputs for the TESSERA method.
 #'  Make sure that the input object has everything needed to run without error.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param poisECMData_obj Object containing data.
+#' @param TESSERAData_obj Object containing data.
 #'  Created by the prepData method.
 #'
 #' @note Does not return anything.
@@ -816,133 +816,133 @@ poisECM_lattice <- function(poisECMData_obj,
 #'
 #' @import Matrix
 #' @export
-checkInputsPoisECM <- function (poisECMData_obj) {
+checkInputsTESSERA <- function (TESSERAData_obj) {
   # Check that the bare minimum is present
-  stopifnot(!is.null(poisECMData_obj$counts_list))
-  stopifnot(!is.null(poisECMData_obj$W_list))
-  stopifnot(!is.null(poisECMData_obj$D_list))
-  stopifnot(!is.null(poisECMData_obj$X_list))
-  stopifnot(!is.null(poisECMData_obj$library_size_list))
+  stopifnot(!is.null(TESSERAData_obj$counts_list))
+  stopifnot(!is.null(TESSERAData_obj$W_list))
+  stopifnot(!is.null(TESSERAData_obj$D_list))
+  stopifnot(!is.null(TESSERAData_obj$X_list))
+  stopifnot(!is.null(TESSERAData_obj$library_size_list))
 
   # Check for optional components
-  if (is.null(poisECMData_obj$coords_list)) {
+  if (is.null(TESSERAData_obj$coords_list)) {
     warning("Coordinates are not present.")
   }
-  if (is.null(poisECMData_obj$eig_CS_list) &&
-      is.null(poisECMData_obj$eig_L_list)) {
+  if (is.null(TESSERAData_obj$eig_CS_list) &&
+      is.null(TESSERAData_obj$eig_L_list)) {
     warning(
-      "Eigenvalues are not present; initial computation will be performed when running poisECM (slow)."
+      "Eigenvalues are not present; initial computation will be performed when running TESSERA (slow)."
     )
   }
 
   # Counts-specific checks
   # Check that there is at least one gene, really that it's a matrix.
-  stopifnot(1 <= min(sapply(poisECMData_obj$counts_list, nrow)))
+  stopifnot(1 <= min(sapply(TESSERAData_obj$counts_list, nrow)))
   # Check that same number of genes present
   stopifnot(1 == length(unique(
-    lapply(poisECMData_obj$counts_list, nrow)
+    lapply(TESSERAData_obj$counts_list, nrow)
   )))
   # Check ordering by rownames (gene names)
   stopifnot(all(sapply(
-    lapply(poisECMData_obj$counts_list, rownames),
+    lapply(TESSERAData_obj$counts_list, rownames),
     identical,
-    rownames(poisECMData_obj$counts_list[[1]])
+    rownames(TESSERAData_obj$counts_list[[1]])
   )))
 
   # Coordinates-specific checks
-  if (!is.null(poisECMData_obj$coords_list)) {
+  if (!is.null(TESSERAData_obj$coords_list)) {
     # Need at least 2 coordinates
-    stopifnot(1 < min(sapply(poisECMData_obj$coords_list, ncol)))
+    stopifnot(1 < min(sapply(TESSERAData_obj$coords_list, ncol)))
   }
 
   # Check that the number of measurements/cells is the same across lists
   # Implicit check that the number of entries in list is the same (number of samples)
   stopifnot(identical(
-    sapply(poisECMData_obj$counts_list, ncol),
-    sapply(poisECMData_obj$W_list, nrow)
+    sapply(TESSERAData_obj$counts_list, ncol),
+    sapply(TESSERAData_obj$W_list, nrow)
   ))
   stopifnot(identical(
-    sapply(poisECMData_obj$counts_list, ncol),
-    sapply(poisECMData_obj$D_list, nrow)
+    sapply(TESSERAData_obj$counts_list, ncol),
+    sapply(TESSERAData_obj$D_list, nrow)
   ))
   stopifnot(identical(
-    sapply(poisECMData_obj$counts_list, ncol),
-    sapply(poisECMData_obj$X_list, nrow)
+    sapply(TESSERAData_obj$counts_list, ncol),
+    sapply(TESSERAData_obj$X_list, nrow)
   ))
   stopifnot(identical(
-    sapply(poisECMData_obj$counts_list, ncol),
-    sapply(poisECMData_obj$library_size_list, length)
+    sapply(TESSERAData_obj$counts_list, ncol),
+    sapply(TESSERAData_obj$library_size_list, length)
   ))
-  if (!is.null(poisECMData_obj$coords_list)) {
+  if (!is.null(TESSERAData_obj$coords_list)) {
     stopifnot(identical(
-      sapply(poisECMData_obj$counts_list, ncol),
-      sapply(poisECMData_obj$coords_list, nrow)
+      sapply(TESSERAData_obj$counts_list, ncol),
+      sapply(TESSERAData_obj$coords_list, nrow)
     ))
   }
-  if (!is.null(poisECMData_obj$eig_CS_list)) {
+  if (!is.null(TESSERAData_obj$eig_CS_list)) {
     stopifnot(identical(
-      sapply(poisECMData_obj$counts_list, ncol),
-      sapply(poisECMData_obj$eig_CS_list, length)
+      sapply(TESSERAData_obj$counts_list, ncol),
+      sapply(TESSERAData_obj$eig_CS_list, length)
     ))
   }
-  if (!is.null(poisECMData_obj$eig_L_list)) {
+  if (!is.null(TESSERAData_obj$eig_L_list)) {
     stopifnot(identical(
-      sapply(poisECMData_obj$counts_list, ncol),
-      sapply(poisECMData_obj$eig_L_list, length)
+      sapply(TESSERAData_obj$counts_list, ncol),
+      sapply(TESSERAData_obj$eig_L_list, length)
     ))
   }
 
   # Check that the names of measurements match
-  for (idx in 1:length(poisECMData_obj$counts_list)) {
+  for (idx in 1:length(TESSERAData_obj$counts_list)) {
     stopifnot(identical(
-      colnames(poisECMData_obj$counts_list[[idx]]),
-      rownames(poisECMData_obj$X_list[[idx]])
+      colnames(TESSERAData_obj$counts_list[[idx]]),
+      rownames(TESSERAData_obj$X_list[[idx]])
     ))
     stopifnot(identical(
-      colnames(poisECMData_obj$counts_list[[idx]]),
-      names(poisECMData_obj$library_size_list[[idx]])
+      colnames(TESSERAData_obj$counts_list[[idx]]),
+      names(TESSERAData_obj$library_size_list[[idx]])
     ))
-    if (!is.null(poisECMData_obj$coords_list)) {
+    if (!is.null(TESSERAData_obj$coords_list)) {
       stopifnot(identical(
-        colnames(poisECMData_obj$counts_list[[idx]]),
-        rownames(poisECMData_obj$coords_list[[idx]])
+        colnames(TESSERAData_obj$counts_list[[idx]]),
+        rownames(TESSERAData_obj$coords_list[[idx]])
       ))
     }
   }
 
   # Check ordering of lists (sample IDs)
   stopifnot(identical(
-    names(poisECMData_obj$counts_list),
-    names(poisECMData_obj$W_list)
+    names(TESSERAData_obj$counts_list),
+    names(TESSERAData_obj$W_list)
   ))
   stopifnot(identical(
-    names(poisECMData_obj$counts_list),
-    names(poisECMData_obj$D_list)
+    names(TESSERAData_obj$counts_list),
+    names(TESSERAData_obj$D_list)
   ))
   stopifnot(identical(
-    names(poisECMData_obj$counts_list),
-    names(poisECMData_obj$X_list)
+    names(TESSERAData_obj$counts_list),
+    names(TESSERAData_obj$X_list)
   ))
   stopifnot(identical(
-    names(poisECMData_obj$counts_list),
-    names(poisECMData_obj$library_size_list)
+    names(TESSERAData_obj$counts_list),
+    names(TESSERAData_obj$library_size_list)
   ))
-  if (!is.null(poisECMData_obj$coords_list)) {
+  if (!is.null(TESSERAData_obj$coords_list)) {
     stopifnot(identical(
-      names(poisECMData_obj$counts_list),
-      names(poisECMData_obj$coords_list)
+      names(TESSERAData_obj$counts_list),
+      names(TESSERAData_obj$coords_list)
     ))
   }
-  if (!is.null(poisECMData_obj$eig_CS_list)) {
+  if (!is.null(TESSERAData_obj$eig_CS_list)) {
     stopifnot(identical(
-      names(poisECMData_obj$counts_list),
-      names(poisECMData_obj$eig_CS_list)
+      names(TESSERAData_obj$counts_list),
+      names(TESSERAData_obj$eig_CS_list)
     ))
   }
-  if (!is.null(poisECMData_obj$eig_L_list)) {
+  if (!is.null(TESSERAData_obj$eig_L_list)) {
     stopifnot(identical(
-      names(poisECMData_obj$counts_list),
-      names(poisECMData_obj$eig_L_list)
+      names(TESSERAData_obj$counts_list),
+      names(TESSERAData_obj$eig_L_list)
     ))
   }
 }

@@ -1,4 +1,4 @@
-Package: poisECM
+Package: TESSERA
 Title: Poisson generalized spatial linear model for analyzing multi-sample count data
 Version: 0.99.1
 Authors@R: 
@@ -14,7 +14,7 @@ Description: Fit a Poisson generalized spatial linear model for analyzing
   different conditions---this model will enable estimating fixed effects for 
   conditions while accounting for the heterogeneity in spatial correlation 
   structures across tissue samples. 
-License: Apache License (>= 2)
+License: Artistic-2.0
 Imports: Matrix, gstat, sp, pracma, MASS, 
   BRISC, CARBayes, brms, mgcv, INLA,
   spatstat.geom, dplyr, ggplot2, reshape2, Rfast, tibble,

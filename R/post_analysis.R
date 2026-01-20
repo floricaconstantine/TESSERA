@@ -3,14 +3,14 @@
 # Rcpp dependencies: calc_moran.cpp.
 
 
-#' Summarizes the results of the poisECM algorithms for a single gene.
+#' Summarizes the results of the TESSERA algorithms for a single gene.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param poisECMData_obj Object containing data.
+#' @param TESSERAData_obj Object containing data.
 #'  Created by the prepData method.
-#'  Input to the poisECM algorithms.
-#' @param poisECMOutput_obj Output of the poisECM algorithms.
+#'  Input to the TESSERA algorithms.
+#' @param TESSERAOutput_obj Output of the TESSERA algorithms.
 #'
 #' @returns A dataframe with MSE, spatial parameters, and Moran's I values.
 #'  Key (General):
@@ -37,38 +37,38 @@
 #' @importFrom dplyr bind_rows
 #' @importFrom Rcpp sourceCpp
 #' @importFrom Rcpp evalCpp
-#' @useDynLib poisECM
+#' @useDynLib TESSERA
 #'
 #' @export
-summarizePoisECMPerformance <- function(poisECMData_obj, poisECMOutput_obj) {
+summarizeTESSERAPerformance <- function(TESSERAData_obj, TESSERAOutput_obj) {
   # Loop over samples to aggregate metrics
   inner_MSE_df <- list()
-  for (s_idx in 1:length(poisECMData_obj$coords_list)) {
+  for (s_idx in 1:length(TESSERAData_obj$coords_list)) {
     # How to index the various vectors
-    start_idx <- poisECMOutput_obj$start_idx_list[s_idx]
-    if (s_idx < length(poisECMData_obj$coords_list)) {
-      end_idx <- poisECMOutput_obj$start_idx_list[1 + s_idx] - 1
+    start_idx <- TESSERAOutput_obj$start_idx_list[s_idx]
+    if (s_idx < length(TESSERAData_obj$coords_list)) {
+      end_idx <- TESSERAOutput_obj$start_idx_list[1 + s_idx] - 1
     } else {
-      end_idx <- length(poisECMOutput_obj$phi_hat)
+      end_idx <- length(TESSERAOutput_obj$phi_hat)
     }
     start_idx <- as.numeric(start_idx)
     end_idx <- as.numeric(end_idx)
 
     # Extract the relevant vectors
     # Predictions, residuals, random effects, X beta + phi (eta), X beta, theta
-    counts <- poisECMData_obj$counts_list[[s_idx]][poisECMOutput_obj$run_settings$gene_idx, ]
-    preds <- poisECMOutput_obj$predictions[start_idx:end_idx]
-    resids <- poisECMOutput_obj$residuals[start_idx:end_idx]
-    phis <- poisECMOutput_obj$phi_hat[start_idx:end_idx]
-    etas <- poisECMOutput_obj$eta_hat[start_idx:end_idx]
+    counts <- TESSERAData_obj$counts_list[[s_idx]][TESSERAOutput_obj$run_settings$gene_idx, ]
+    preds <- TESSERAOutput_obj$predictions[start_idx:end_idx]
+    resids <- TESSERAOutput_obj$residuals[start_idx:end_idx]
+    phis <- TESSERAOutput_obj$phi_hat[start_idx:end_idx]
+    etas <- TESSERAOutput_obj$eta_hat[start_idx:end_idx]
     Xbs <- etas - phis
-    thetas <- poisECMOutput_obj$theta_hat[start_idx:end_idx]
-    library_sizes <- poisECMData_obj$library_size_list[[s_idx]]
+    thetas <- TESSERAOutput_obj$theta_hat[start_idx:end_idx]
+    library_sizes <- TESSERAData_obj$library_size_list[[s_idx]]
 
-    fit_model <- poisECMOutput_obj$run_settings$model_type
+    fit_model <- TESSERAOutput_obj$run_settings$model_type
     if ("spNNGP" != fit_model) {
-      gamma_hat <- poisECMOutput_obj$gamma_hat[s_idx]
-      tau2_hat <- poisECMOutput_obj$tau2_hat[s_idx]
+      gamma_hat <- TESSERAOutput_obj$gamma_hat[s_idx]
+      tau2_hat <- TESSERAOutput_obj$tau2_hat[s_idx]
       kernel_type <- NA
       nugget_hat <- NA
       sill_hat <- NA
@@ -79,17 +79,17 @@ summarizePoisECMPerformance <- function(poisECMData_obj, poisECMOutput_obj) {
         gamma_hat <- NA
         tau2_hat <- NA
 
-        kernel_type <- poisECMOutput_obj$run_settings$cov_type
-        if (1 == length(poisECMData_obj$coords_list)) {
-          nugget_hat <- poisECMOutput_obj$cov_param_hat[1]
-          sill_hat <- poisECMOutput_obj$cov_param_hat[2]
-          range_hat <- poisECMOutput_obj$cov_param_hat[3]
-          smoothness_hat <- poisECMOutput_obj$cov_param_hat[4]
+        kernel_type <- TESSERAOutput_obj$run_settings$cov_type
+        if (1 == length(TESSERAData_obj$coords_list)) {
+          nugget_hat <- TESSERAOutput_obj$cov_param_hat[1]
+          sill_hat <- TESSERAOutput_obj$cov_param_hat[2]
+          range_hat <- TESSERAOutput_obj$cov_param_hat[3]
+          smoothness_hat <- TESSERAOutput_obj$cov_param_hat[4]
         } else {
-          nugget_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 1]
-          sill_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 2]
-          range_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 3]
-          smoothness_hat <- poisECMOutput_obj$cov_param_hat[s_idx, 4]
+          nugget_hat <- TESSERAOutput_obj$cov_param_hat[s_idx, 1]
+          sill_hat <- TESSERAOutput_obj$cov_param_hat[s_idx, 2]
+          range_hat <- TESSERAOutput_obj$cov_param_hat[s_idx, 3]
+          smoothness_hat <- TESSERAOutput_obj$cov_param_hat[s_idx, 4]
         }
       }
     }
@@ -97,58 +97,58 @@ summarizePoisECMPerformance <- function(poisECMData_obj, poisECMOutput_obj) {
     # Only compute it if we have coordinates
     MI_vec <- rep(NA, 8)
     if (!(
-      is.null(poisECMData_obj$coords_list[[s_idx]][, 1]) ||
-      is.null(poisECMData_obj$coords_list[[s_idx]][, 2])
+      is.null(TESSERAData_obj$coords_list[[s_idx]][, 1]) ||
+      is.null(TESSERAData_obj$coords_list[[s_idx]][, 2])
     )) {
       MI_vec <- c(
         calc_moran(
           counts,
-          poisECMData_obj$coords_list[[s_idx]][, 1],
-          poisECMData_obj$coords_list[[s_idx]][, 2]
+          TESSERAData_obj$coords_list[[s_idx]][, 1],
+          TESSERAData_obj$coords_list[[s_idx]][, 2]
         )[1],
         calc_moran(
           preds,
-          poisECMData_obj$coords_list[[s_idx]][, 1],
-          poisECMData_obj$coords_list[[s_idx]][, 2]
+          TESSERAData_obj$coords_list[[s_idx]][, 1],
+          TESSERAData_obj$coords_list[[s_idx]][, 2]
         )[1],
         calc_moran(
           resids,
-          poisECMData_obj$coords_list[[s_idx]][, 1],
-          poisECMData_obj$coords_list[[s_idx]][, 2]
+          TESSERAData_obj$coords_list[[s_idx]][, 1],
+          TESSERAData_obj$coords_list[[s_idx]][, 2]
         )[1],
         calc_moran(
           phis,
-          poisECMData_obj$coords_list[[s_idx]][, 1],
-          poisECMData_obj$coords_list[[s_idx]][, 2]
+          TESSERAData_obj$coords_list[[s_idx]][, 1],
+          TESSERAData_obj$coords_list[[s_idx]][, 2]
         )[1],
         calc_moran(
           etas,
-          poisECMData_obj$coords_list[[s_idx]][, 1],
-          poisECMData_obj$coords_list[[s_idx]][, 2]
+          TESSERAData_obj$coords_list[[s_idx]][, 1],
+          TESSERAData_obj$coords_list[[s_idx]][, 2]
         )[1],
         calc_moran(
           Xbs,
-          poisECMData_obj$coords_list[[s_idx]][, 1],
-          poisECMData_obj$coords_list[[s_idx]][, 2]
+          TESSERAData_obj$coords_list[[s_idx]][, 1],
+          TESSERAData_obj$coords_list[[s_idx]][, 2]
         )[1],
         calc_moran(
           thetas,
-          poisECMData_obj$coords_list[[s_idx]][, 1],
-          poisECMData_obj$coords_list[[s_idx]][, 2]
+          TESSERAData_obj$coords_list[[s_idx]][, 1],
+          TESSERAData_obj$coords_list[[s_idx]][, 2]
         )[1],
         calc_moran(
           library_sizes,
-          poisECMData_obj$coords_list[[s_idx]][, 1],
-          poisECMData_obj$coords_list[[s_idx]][, 2]
+          TESSERAData_obj$coords_list[[s_idx]][, 1],
+          TESSERAData_obj$coords_list[[s_idx]][, 2]
         )[1]
       )
     }
 
     inner_MSE_df[[s_idx]] <- data.frame(
       # Basic parameters
-      gene = poisECMOutput_obj$run_settings$gene_name,
+      gene = TESSERAOutput_obj$run_settings$gene_name,
       fit_model = fit_model,
-      sample = names(poisECMData_obj$coords_list)[s_idx],
+      sample = names(TESSERAData_obj$coords_list)[s_idx],
       n_cells = (end_idx - start_idx + 1),
       # Spatial parameters
       gamma_hat = gamma_hat,
@@ -190,35 +190,35 @@ summarizePoisECMPerformance <- function(poisECMData_obj, poisECMOutput_obj) {
 }
 
 
-#' Given the output of the poisECM algorithms and a contrast matrix, compute
+#' Given the output of the TESSERA algorithms and a contrast matrix, compute
 #'  Wald T-statistics.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param poisECMOutput_obj Output of the poisECM algorithms.
+#' @param TESSERAOutput_obj Output of the TESSERA algorithms.
 #' @param contrast_mat Matrix with contrasts of the estimated coeficients.
 #'  Rows are contrasts, columns correspond to columns in beta_hat (covariates).
-#'  beta_hat is the vector of estimated coefficients, stored in poisECMOutput_obj.
+#'  beta_hat is the vector of estimated coefficients, stored in TESSERAOutput_obj.
 #'
 #' @returns A dataframe of Wald t-statistics. Square these to get F-statistics.
 #'
 #' @importFrom dplyr bind_rows
 #'
 #' @export
-waldTestStastics <- function (poisECMOutput_obj, contrast_mat) {
+waldTestStastics <- function (TESSERAOutput_obj, contrast_mat) {
   # Extract coefficients and negative hessian and check dimensions
-  beta_hat <- poisECMOutput_obj$beta_hat
+  beta_hat <- TESSERAOutput_obj$beta_hat
   beta_names <- names(beta_hat)
-  beta_hat_prec <- poisECMOutput_obj$beta_neghessian
+  beta_hat_prec <- TESSERAOutput_obj$beta_neghessian
   stopifnot(ncol(contrast_mat) == length(beta_hat))
 
   # Some overarching metadata
-  fit_model <- poisECMOutput_obj$run_settings$model_type
+  fit_model <- TESSERAOutput_obj$run_settings$model_type
   if ("spNNGP" != fit_model) {
     kernel_type <- NA
   } else {
     if ("spNNGP" == fit_model) {
-      kernel_type <- poisECMOutput_obj$run_settings$cov_type
+      kernel_type <- TESSERAOutput_obj$run_settings$cov_type
       if (is.null(kernel_type)) {
         kernel_type <- NA
       }
@@ -229,12 +229,12 @@ waldTestStastics <- function (poisECMOutput_obj, contrast_mat) {
       }
     }
   }
-  gene <- poisECMOutput_obj$run_settings$gene_name
+  gene <- TESSERAOutput_obj$run_settings$gene_name
   if (is.null(gene)) {
     gene <- NA
   }
 
-  V_hat <- inversePrecisionMatrixWald(poisECMOutput_obj$beta_neghessian)
+  V_hat <- inversePrecisionMatrixWald(TESSERAOutput_obj$beta_neghessian)
   wald_contrast_df <- list()
   for (c_idx in 1:nrow(contrast_mat)) {
     # Find indices involved in contrast and subset
@@ -246,7 +246,7 @@ waldTestStastics <- function (poisECMOutput_obj, contrast_mat) {
     Rbeta <- sum(R * beta_hat)
 
     # Contrast SE
-    # V_hat <- inversePrecisionMatrixWald(poisECMOutput_obj$beta_neghessian[subset_idx, subset_idx])
+    # V_hat <- inversePrecisionMatrixWald(TESSERAOutput_obj$beta_neghessian[subset_idx, subset_idx])
     RVR_inv <- sqrt(as.numeric(R %*% V_hat %*% R))
 
     wald_contrast_df[[1 + length(wald_contrast_df)]] <-
@@ -357,7 +357,7 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, trimfrac = NULL) {
 
 #' Given Wald statistics, compute p-values.
 #'
-#' In the poisECM algorithm, and in generalized linear mixed models in general,
+#' In the TESSERA algorithm, and in generalized linear mixed models in general,
 #' the exact distribution of p-values for Wald statistics under the null hypothesis
 #' is unknown.
 #' We know that the standard errors are, for finite samples, likely biased
@@ -439,7 +439,7 @@ waldStatisticPValuesThreshold <- function(wald_stats, threshold, conditional =
 
 #' Given Wald statistics, compute an optimal threshold.
 #'
-#' In the poisECM algorithm, and in generalized linear mixed models in general,
+#' In the TESSERA algorithm, and in generalized linear mixed models in general,
 #' the exact distribution of p-values for Wald statistics under the null hypothesis
 #' is unknown.
 #' We know that the standard errors are, for finite samples, likely biased
