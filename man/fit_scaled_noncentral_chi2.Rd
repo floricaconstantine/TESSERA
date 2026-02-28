@@ -22,6 +22,7 @@ Vector of (scaling, shift).
 \description{
 We use the method of moments with the mean and variance to estimate parameters
 of a scaled non-central chi squared distribution with one degree of freedom.
+This fitting is NOT conditional.
 }
 \note{
 Consider using the trimfrac parameter if the data have outliers as

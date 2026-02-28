@@ -330,6 +330,7 @@ inversePrecisionMatrixWald <- function(A) {
 #'  this function is sensitive to the presence of large values/outliers.
 #'
 #' @importFrom stats var
+#' @importFrom stats quantile
 #' @export
 #'
 #' @examples
@@ -341,8 +342,8 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, trimfrac = NULL) {
 
   # Trim the vector of statistics
   if (!is.null(trimfrac)) {
-    q_l <- quantile(wald_stats, trimfrac[1])
-    q_u <- quantile(wald_stats, 1 - trimfrac[2])
+    q_l <- stats::quantile(wald_stats, trimfrac[1])
+    q_u <- stats::quantile(wald_stats, 1 - trimfrac[2])
     wald_stats <- wald_stats[wald_stats >= q_l]
     wald_stats <- wald_stats[wald_stats <= q_u]
   }
@@ -355,6 +356,7 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, trimfrac = NULL) {
 
   return(c(scaling, shift))
 }
+
 
 #' Fit a scaled non-central chi^2_1 distribution to a vector of statistics.
 #' The fit is conditional, below a threshold.
@@ -374,6 +376,7 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, trimfrac = NULL) {
 #'  this function is sensitive to the presence of large values/outliers.
 #'
 #' @importFrom DEoptim DEoptim DEoptim.control
+#' @importFrom stats dchisq
 #' @export
 #'
 #' @examples
@@ -395,7 +398,8 @@ fit_scaled_noncentral_chi2_DEoptim <- function(wald_stats, wald_thresh) {
     ncp <- params[2]
 
     # Protective boundary checks (DEoptim handles bounds, but this is a safety net)
-    if (scale <= 1e-10 || ncp < 0) return(1e10)
+    if (scale <= 1e-10 || ncp < 0)
+      return(1e10)
 
     x[x == 0] <- 1e-8
 
@@ -413,7 +417,10 @@ fit_scaled_noncentral_chi2_DEoptim <- function(wald_stats, wald_thresh) {
 
     val <- -(sum(dens) - length(x) * log_F_thresh)
 
-    return(if (is.finite(val)) val else 1e10)
+    return(if (is.finite(val))
+      val
+      else
+        1e10)
   }
 
   # 3. Define Global Search Bounds
@@ -443,7 +450,8 @@ fit_scaled_noncentral_chi2_DEoptim <- function(wald_stats, wald_thresh) {
     return(NULL)
   })
 
-  if (is.null(fit_result)) return(c(scaling = NA, shift = NA))
+  if (is.null(fit_result))
+    return(c(scaling = NA, shift = NA))
 
   # 5. Return the 'bestmem' (best member of the population)
   res <- fit_result$optim$bestmem
@@ -451,372 +459,6 @@ fit_scaled_noncentral_chi2_DEoptim <- function(wald_stats, wald_thresh) {
   return(res)
 }
 
-
-#' Fit a scaled non-central chi^2_1 distribution to a vector of statistics.
-#' The fit is conditional, below a threshold.
-#'
-#' We numerically maximize the likelihood.
-#'
-#' @author Florica J Constantine, florica AT berkeley.edu
-#'
-#' @param wald_stats Vector of Wald statistics: non-negative F-statistics.
-#'  Square t-statistics to obtain F-statistics.
-#' @param wald_thresh Threshold below which we fit.
-#'
-#' @returns Vector of (scaling, shift).
-#'  (scaling) chi_1^2(shift).
-#'
-#' @note Consider using the trimfrac parameter if the data have outliers as
-#'  this function is sensitive to the presence of large values/outliers.
-#'
-#' @importFrom stats var
-#' @importFrom stats optim
-#' @export
-#'
-#' @examples
-#' fit_scaled_noncentral_chi2_MLE(5 * stats::rchisq(10000, 1, ncp=10), 20)
-fit_scaled_noncentral_chi2_MLE_mom <- function(wald_stats, wald_thresh) {
-  # Clean and subset data
-  wald_stats <- wald_stats[is.finite(wald_stats)]
-  wald_stats <- wald_stats[wald_stats < wald_thresh]
-
-  if (length(wald_stats) < 10) {
-    warning("Insufficient data points below threshold.")
-    return(c(scaling = NA, shift = NA))
-  }
-
-  # Method of Moments
-  v_w <- stats::var(wald_stats, na.rm = TRUE)
-  m_w <- mean(wald_stats, na.rm = TRUE)
-
-  # MoM estimates
-  # mom_scale <- (1.0 / 2.0) * (2 * m_w - sqrt(2.0) * sqrt(max(0, 2.0 * m_w^2 - v_w)))
-  # mom_shift <- sqrt(2.0) * sqrt(max(0, 2.0 * m_w^2 - v_w)) / (2.0 * max(1e-6, mom_scale))
-  # Ensure MoM guess is within reasonable bounds
-  # initial_guess <- c(scale = pmax(mom_scale, 0.1), ncp = pmax(mom_shift, 0.1))
-  initial_guess <- fit_scaled_noncentral_chi2_mom(wald_stats, wald_thresh)
-
-  # Internal Truncated NLL
-  trunc_nll <- function(params, x, thresh) {
-    scale <- params[1]
-    ncp <- params[2]
-    if (scale <= 1e-10 || ncp < 0)
-      return(1e10)
-
-    x[x == 0] <- 1e-8
-    dens <- stats::dchisq(x / scale,
-                          df = 1,
-                          ncp = ncp,
-                          log = TRUE) - log(scale)
-    log_F_thresh <- stats::pchisq(thresh / scale,
-                                  df = 1,
-                                  ncp = ncp,
-                                  log.p = TRUE)
-
-    val <- -(sum(dens) - length(x) * log_F_thresh)
-    return(if (is.finite(val)) val else 1e10)
-  }
-
-  # Optimization with Dynamic Bounds
-  fit_result <- tryCatch({
-    stats::optim(
-      par = initial_guess,
-      fn = trunc_nll,
-      x = wald_stats,
-      thresh = wald_thresh,
-      method = "L-BFGS-B",
-      lower = c(1e-10, 0),
-      upper = c(max(100, max(wald_stats) * 2), max(50, max(wald_stats))),
-      control = list(
-        factr = 1e5,
-        pgtol = 1e-5
-      )
-    )
-  }, error = function(e) {
-    warning("Optimization failed: ", e$message)
-    return(NULL)
-  })
-
-  if (is.null(fit_result))
-    return(c(scaling = NA, shift = NA))
-
-  res <- fit_result$par
-  names(res) <- c("scaling", "shift")
-  return(res)
-}
-
-#' Fit a scaled non-central chi^2_1 distribution to a vector of statistics.
-#' The fit is conditional, below a threshold.
-#'
-#' We numerically maximize the likelihood.
-#'
-#' @author Florica J Constantine, florica AT berkeley.edu
-#'
-#' @param wald_stats Vector of Wald statistics: non-negative F-statistics.
-#'  Square t-statistics to obtain F-statistics.
-#' @param wald_thresh Threshold below which we fit.
-#'
-#' @returns Vector of (scaling, shift).
-#'  (scaling) chi_1^2(shift).
-#'
-#' @note Consider using the trimfrac parameter if the data have outliers as
-#'  this function is sensitive to the presence of large values/outliers.
-#'
-#' @importFrom stats var
-#' @importFrom stats optim
-#' @export
-#'
-#' @examples
-#' fit_scaled_noncentral_chi2_MLE(5 * stats::rchisq(10000, 1, ncp=10), 20)
-fit_scaled_noncentral_chi2_MLE <- function(wald_stats, wald_thresh) {
-  # Clean and subset data
-  wald_stats <- wald_stats[is.finite(wald_stats)]
-  wald_stats <- wald_stats[wald_stats < wald_thresh]
-
-  if (length(wald_stats) < 10) {
-    warning("Insufficient data points below threshold.")
-    return(c(scaling = NA, shift = NA))
-  }
-
-  # Scale should not exceed the max observed value significantly
-  max_val <- max(wald_stats)
-  upper_scale <- max(100, max_val * 2)
-
-  # NCP is usually smaller than the max value on the chi-sq scale
-  upper_ncp <- max(50, max_val)
-
-  # Internal Truncated NLL
-  trunc_nll <- function(params, x, thresh) {
-    scale <- params[1]
-    ncp <- params[2]
-    if (scale <= 1e-6 || ncp < 0)
-      return(1e10)
-
-    x[x == 0] <- 1e-8
-    dens <- stats::dchisq(x / scale,
-                          df = 1,
-                          ncp = ncp,
-                          log = TRUE) - log(scale)
-    log_F_thresh <- stats::pchisq(thresh / scale,
-                                  df = 1,
-                                  ncp = ncp,
-                                  log.p = TRUE)
-
-    val <- -(sum(dens) - length(x) * log_F_thresh)
-    return(if (is.finite(val))
-      val
-      else
-        1e10)
-  }
-
-  # Initial Guess
-  initial_guess <- c(scale = pmax(mean(wald_stats), 1), ncp = 0.1)
-
-  # Optimization with Dynamic Bounds
-  fit_result <- tryCatch({
-    stats::optim(
-      par = initial_guess,
-      fn = trunc_nll,
-      x = wald_stats,
-      thresh = wald_thresh,
-      method = "L-BFGS-B",
-      lower = c(1e-10, 0),
-      upper = c(upper_scale, upper_ncp),
-      control = list(
-        factr = 1e5,
-        # Stricter than default (1e7)
-        pgtol = 1e-5  # Much stricter than default (1e-5)
-      )
-    )
-  }, error = function(e) {
-    warning("Optimization failed: ", e$message)
-    return(NULL)
-  })
-
-  if (is.null(fit_result))
-    return(c(scaling = NA, shift = NA))
-
-  res <- fit_result$par
-  names(res) <- c("scaling", "shift")
-  return(res)
-}
-
-#' Fit a scaled non-central chi^2_1 distribution to a vector of statistics.
-#' The fit is conditional, below a threshold.
-#'
-#' @author Florica J Constantine, florica AT berkeley.edu
-#'
-#' @param wald_stats Vector of Wald statistics: non-negative F-statistics.
-#' @param wald_thresh Threshold below which we fit.
-#'
-#' @returns Vector of (scaling, shift).
-#'
-#' @importFrom stats var optim dchisq pchisq
-#' @export
-fit_scaled_noncentral_chi2_MLE_multi <- function(wald_stats, wald_thresh) {
-  # 1. Clean and subset data
-  wald_stats <- wald_stats[is.finite(wald_stats)]
-  wald_stats <- wald_stats[wald_stats < wald_thresh]
-
-  if (length(wald_stats) < 15) { # Increased slightly for multi-start stability
-    warning("Insufficient data points below threshold.")
-    return(c(scaling = NA, shift = NA))
-  }
-
-  # 2. Dynamic Bounds Calculation
-  max_val <- max(wald_stats)
-  upper_scale <- max(100, max_val * 2)
-  upper_ncp <- max(50, max_val)
-
-  # 3. Internal Truncated NLL
-  trunc_nll <- function(params, x, thresh) {
-    scale <- params[1]
-    ncp <- params[2]
-    if (scale <= 1e-10 || ncp < 0) return(1e10)
-
-    # Jitter zeros to prevent Inf density at df=1
-    x[x == 0] <- 1e-8
-
-    dens <- stats::dchisq(x / scale, df = 1, ncp = ncp, log = TRUE) - log(scale)
-    log_F_thresh <- stats::pchisq(thresh / scale, df = 1, ncp = ncp, log.p = TRUE)
-
-    val <- -(sum(dens) - length(x) * log_F_thresh)
-    return(if (is.finite(val)) val else 1e10)
-  }
-
-  # 4. Diverse Starting Points (Seeds)
-  # These cover neutral, data-driven, and high-ncp scenarios to map the 'valley'
-  seeds <- list(
-    c(scale = 1, ncp = 0.1),                           # Standard neutral
-    c(scale = pmax(mean(wald_stats), 0.5), ncp = 0.1), # Data-driven scale
-    c(scale = 0.5, ncp = pmax(mean(wald_stats), 1))    # High-shift/Low-scale
-  )
-
-  # 5. Multi-start Optimization
-  best_fit <- NULL
-  best_nll <- Inf
-
-  for (initial_guess in seeds) {
-    fit_result <- tryCatch({
-      stats::optim(
-        par = initial_guess,
-        fn = trunc_nll,
-        x = wald_stats,
-        thresh = wald_thresh,
-        method = "L-BFGS-B",
-        lower = c(1e-10, 0),
-        upper = c(upper_scale, upper_ncp),
-        control = list(
-          factr = 1e5,   # Stricter stopping criterion
-          pgtol = 1e-5  # Stricter gradient tolerance
-        )
-      )
-    }, error = function(e) {
-      return(NULL)
-    })
-
-    # Compare results and keep the global minimum NLL
-    if (!is.null(fit_result) && fit_result$value < best_nll) {
-      best_nll <- fit_result$value
-      best_fit <- fit_result$par
-    }
-  }
-
-  if (is.null(best_fit)) {
-    warning("All optimization attempts failed.")
-    return(c(scaling = NA, shift = NA))
-  }
-
-  names(best_fit) <- c("scaling", "shift")
-  return(best_fit)
-}
-
-#' Fit a scaled non-central chi^2_1 distribution to a vector of statistics.
-#' The fit is conditional, below a threshold.
-#'
-#' @author Florica J Constantine, florica AT berkeley.edu
-#'
-#' @param wald_stats Vector of Wald statistics: non-negative F-statistics.
-#' @param wald_thresh Threshold below which we fit.
-#'
-#' @returns Vector of (scaling, shift).
-#'
-#' @importFrom stats var
-#' @export
-#'
-#' @examples
-#' fit_scaled_noncentral_chi2_mom(5 * stats::rchisq(10000, 1, ncp=10), 200)
-fit_scaled_noncentral_chi2_mom <- function(wald_stats, wald_thresh) {
-  # 1. Observed Sample Moments
-  m1_obs <- mean(wald_stats, na.rm = TRUE)
-  v_obs  <- stats::var(wald_stats, na.rm = TRUE)
-  m2_obs <- mean(wald_stats^2, na.rm = TRUE)
-  sd_obs <- stats::sd(wald_stats, na.rm = TRUE)
-
-  # 2. Heuristic for "Infinite" Threshold (No truncation needed)
-  if (wald_thresh > (m1_obs + 6 * sd_obs)) {
-    disc <- max(0, 2.0 * m1_obs^2 - v_obs)
-    scaling <- (1.0 / 2.0) * (2 * m1_obs - sqrt(2.0) * sqrt(disc))
-    shift <- sqrt(2.0) * sqrt(disc) / (2.0 * max(1e-6, scaling))
-    return(c(scaling = scaling, shift = shift))
-  }
-
-  # 3. Dynamic Bounds and Initial Guess
-  # scale_upper: Allow scaling to go up to 10x the observed mean
-  # ncp_upper: Allow shift to go significantly higher to prevent "ceiling" hits
-  scale_upper <- max(100, m1_obs * 10)
-  ncp_upper   <- max(200, (m1_obs / max(1e-6, sd_obs))^2 * 2)
-
-  # Use analytical MoM as a seed, even if biased by truncation
-  disc_init  <- max(0, 2.0 * m1_obs^2 - v_obs)
-  init_scale <- (1.0 / 2.0) * (2 * m1_obs - sqrt(2.0) * sqrt(disc_init))
-  init_ncp   <- sqrt(2.0) * sqrt(disc_init) / (2.0 * max(1e-6, init_scale))
-
-  initial_guess <- c(
-    scale = pmax(init_scale, 0.1),
-    ncp   = pmax(init_ncp, 0.1)
-  )
-
-  # 4. Numerical Truncated MoM
-  mom_obj <- function(params) {
-    scale <- params[1]
-    ncp   <- params[2]
-    if (scale <= 1e-10 || ncp < 0) return(1e10)
-
-    # Calculate CDF at threshold
-    denom <- stats::pchisq(wald_thresh / scale, df = 1, ncp = ncp)
-
-    # SAFETY: If the parameters make the data "impossible" (CDF < 1e-15)
-    # return a high penalty instead of NA
-    if (denom < 1e-15) return(1e15)
-
-    exp_m1 <- stats::integrate(function(x) {
-      x * stats::dchisq(x / scale, df = 1, ncp = ncp) / scale
-    }, lower = 0, upper = wald_thresh, subdivisions = 1000L)$value / denom
-
-    exp_m2 <- stats::integrate(function(x) {
-      (x^2) * stats::dchisq(x / scale, df = 1, ncp = ncp) / scale
-    }, lower = 0, upper = wald_thresh, subdivisions = 1000L)$value / denom
-
-    return(((exp_m1 - m1_obs) / m1_obs)^2 + ((exp_m2 - m2_obs) / m2_obs)^2)
-  }
-
-  fit_result <- tryCatch({
-    stats::optim(
-      par = initial_guess,
-      fn = mom_obj,
-      method = "L-BFGS-B",
-      lower = c(1e-10, 0),
-      upper = c(scale_upper, ncp_upper)
-    )
-  }, error = function(e) NULL)
-
-  if (is.null(fit_result)) return(c(scaling = NA, shift = NA))
-
-  res <- fit_result$par
-  names(res) <- c("scaling", "shift")
-  return(res)
-}
 
 
 #' Given Wald statistics, compute p-values.
@@ -861,44 +503,58 @@ fit_scaled_noncentral_chi2_mom <- function(wald_stats, wald_thresh) {
 #'  ), 200)
 waldStatisticPValuesThreshold <- function(wald_stats, threshold, conditional =
                                             TRUE) {
-  chi2_params <- fit_scaled_noncentral_chi2(wald_stats, threshold) #fit_scaled_noncentral_chi2_DEoptim
-
+  # Fit scaled, non-central chi-square distribution with one degree of freedom
   if (!conditional) {
-    return(stats::pchisq(
-      wald_stats / chi2_params[1],
-      1,
-      ncp = chi2_params[2],
-      lower.tail = FALSE
-    ))
+    chi2_params <- fit_scaled_noncentral_chi2(wald_stats[wald_stats < threshold])
   } else {
-    # Event A: P{X > observed}
-    # Event B: P{X < threshold}
-    # A intersect B: P{observed < X < threshold}
-    #   = P{X < threshold} - P{X < observed}
-    # P{A | B} = P{A intersect B} / P{B}
-
-    # P{B} = P{X < threshold}: Need to scale by chi2_params[1], as in
-    # Wald statistics to match scaling
-    p_B <- stats::pchisq(threshold / chi2_params[1],
-                         1,
-                         ncp = chi2_params[2],
-                         lower.tail = TRUE)
-
-    # P{A intersect B} = P{observed < X < threshold}
-    # First compute P{X < observed}
-    p_A_B <- stats::pchisq(wald_stats / chi2_params[1],
-                           1,
-                           ncp = chi2_params[2],
-                           lower.tail = TRUE)
-    # Now take difference
-    p_A_B <- p_B - p_A_B
-    # Just in case, never needed
-    p_A_B <- pmax(0, p_A_B)
-    # Observed > threshold has probability zero under conditional
-    p_A_B[wald_stats > threshold] <- 0
-
-    return(pmin(p_A_B / p_B, 1.0))
+    chi2_params <- fit_scaled_noncentral_chi2_DEoptim(wald_stats, threshold)
   }
+
+  # RETURN UNCONDITIONAL P-VALUES
+  return(stats::pchisq(
+    wald_stats / chi2_params[1],
+    1,
+    ncp = chi2_params[2],
+    lower.tail = FALSE
+  ))
+
+  ## THIS CODE IS NEVER RUN (IGNORE)
+  # if (!conditional) {
+  #   return(stats::pchisq(
+  #     wald_stats / chi2_params[1],
+  #     1,
+  #     ncp = chi2_params[2],
+  #     lower.tail = FALSE
+  #   ))
+  # } else {
+  #   # Event A: P{X > observed}
+  #   # Event B: P{X < threshold}
+  #   # A intersect B: P{observed < X < threshold}
+  #   #   = P{X < threshold} - P{X < observed}
+  #   # P{A | B} = P{A intersect B} / P{B}
+  #
+  #   # P{B} = P{X < threshold}: Need to scale by chi2_params[1], as in
+  #   # Wald statistics to match scaling
+  #   p_B <- stats::pchisq(threshold / chi2_params[1],
+  #                        1,
+  #                        ncp = chi2_params[2],
+  #                        lower.tail = TRUE)
+  #
+  #   # P{A intersect B} = P{observed < X < threshold}
+  #   # First compute P{X < observed}
+  #   p_A_B <- stats::pchisq(wald_stats / chi2_params[1],
+  #                          1,
+  #                          ncp = chi2_params[2],
+  #                          lower.tail = TRUE)
+  #   # Now take difference
+  #   p_A_B <- p_B - p_A_B
+  #   # Just in case, never needed
+  #   p_A_B <- pmax(0, p_A_B)
+  #   # Observed > threshold has probability zero under conditional
+  #   p_A_B[wald_stats > threshold] <- 0
+  #
+  #   return(pmin(p_A_B / p_B, 1.0))
+  # }
 }
 
 #' Given Wald statistics, compute an optimal threshold.
@@ -944,8 +600,9 @@ waldStatisticPValuesThreshold <- function(wald_stats, threshold, conditional =
 #'  This function is sensitive to the presence of large values/outliers.
 #'
 #' @importFrom stats pchisq
-#' @importFrom stats quantile
+#' @importFrom stats ppoints
 #' @importFrom stats optimize
+#' @importFrom stats quantile
 #'
 #' @export
 #'
@@ -962,8 +619,8 @@ selectWaldStatisticThreshold <- function(wald_stats,
 
   # Trim the vector of statistics
   if (!is.null(trimfrac)) {
-    q_l <- quantile(wald_stats, trimfrac[1])
-    q_u <- quantile(wald_stats, 1 - trimfrac[2])
+    q_l <- stats::quantile(wald_stats, trimfrac[1])
+    q_u <- stats::quantile(wald_stats, 1 - trimfrac[2])
     wald_stats <- wald_stats[wald_stats >= q_l]
     wald_stats <- wald_stats[wald_stats <= q_u]
   }
@@ -971,19 +628,28 @@ selectWaldStatisticThreshold <- function(wald_stats,
   wrapper_optimization <- function(threshold) {
     # Subset to Wald statistics under threshold
     wald_subset <- wald_stats[wald_stats < threshold]
+
+    # Guard against too-few statistics to actually fit anything
+    if (length(wald_subset) < 5)
+      return(1e10)
+
     # Calculate p-values
     wald_subset_p <- waldStatisticPValuesThreshold(wald_subset, threshold, conditional)
+
     # Obtain quantiles of the p-values
-    p_quantile <- stats::quantile(wald_subset_p, seq(0.0, 1.0, 1.0 / length(wald_subset_p)))
+    # p_quantile <- stats::quantile(wald_subset_p, seq(0.0, 1.0, 1.0 / length(wald_subset_p)))
+
+    theoretical <- stats::ppoints(length(wald_subset_p))
+    mse <- mean((sort(wald_subset_p) - theoretical)^2)
+
+    # Log MSE
+    eps <- 1e-10
+    mse_log <- mean((-log10(sort(wald_subset_p) + eps) --log10(theoretical + eps))^2)
 
     # MSE between observed quantiles and the Uniform[0, 1] distribution quantiles
-    return(mean((
-      p_quantile - seq(0.0, 1.0, 1.0 / length(wald_subset_p))
-    )^2))
+    return(mse_log)
   }
 
-  # optim_out <- stats::optim(median(wald_stats), wrapper_optimization)
-  # return(optim_out$par)
   optim_out <- stats::optimize(wrapper_optimization, c(min(wald_stats), max(wald_stats)))
   return(optim_out$minimum)
 }
