@@ -424,9 +424,11 @@ fit_scaled_noncentral_chi2_DEoptim <- function(wald_stats, wald_thresh) {
   }
 
   # 3. Define Global Search Bounds
-  # Using your data characteristics: Scale ~670, NCP ~10-50
-  lower_bounds <- c(1e-10, 0)
-  upper_bounds <- c(max(1000, max(wald_stats) * 5), max(100, max(wald_stats)))
+  upper_scale <- min(10, quantile(wald_stats, 0.75) * 3)
+  upper_ncp   <- min(20, median(wald_stats) * 3)
+
+  lower_bounds <- c(0.01, 0) # Avoid 1e-10 to prevent division-by-zero jitters
+  upper_bounds <- c(max(1, upper_scale), max(1, upper_ncp))
 
   # 4. Global Optimization
   fit_result <- tryCatch({
@@ -440,8 +442,10 @@ fit_scaled_noncentral_chi2_DEoptim <- function(wald_stats, wald_thresh) {
       # NP: Population size (usually 10 * length(params))
       # itermax: Number of generations
       control = DEoptim::DEoptim.control(
-        NP = 20,
-        itermax = 200,
+        NP = 100,
+        itermax = 500,
+        CR = 0.9,
+        F = 0.8,
         trace = FALSE # Set to TRUE if you want to see the "evolution"
       )
     )
