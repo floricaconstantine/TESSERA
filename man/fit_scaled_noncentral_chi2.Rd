@@ -29,7 +29,7 @@ Consider using the trimfrac parameter if the data have outliers as
 this function is sensitive to the presence of large values/outliers.
 }
 \examples{
-fit_scaled_noncentral_chi2(5 * stats::rchisq(10000, 1, ncp=10))
+fit_scaled_noncentral_chi2(5 * stats::rchisq(1000, 1, ncp=10))
 }
 \author{
 Florica J Constantine, florica AT berkeley.edu

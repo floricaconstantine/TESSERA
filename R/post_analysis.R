@@ -334,7 +334,7 @@ inversePrecisionMatrixWald <- function(A) {
 #' @export
 #'
 #' @examples
-#' fit_scaled_noncentral_chi2(5 * stats::rchisq(10000, 1, ncp=10))
+#' fit_scaled_noncentral_chi2(5 * stats::rchisq(1000, 1, ncp=10))
 fit_scaled_noncentral_chi2 <- function(wald_stats, trimfrac = NULL) {
   # Toss out nan and inf
   wald_stats <- wald_stats[!is.nan(wald_stats)]
@@ -355,6 +355,113 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, trimfrac = NULL) {
   shift <- sqrt(2.0) * sqrt(max(0, 2.0 * m_w^2 - v_w)) / (2.0 * scaling)
 
   return(c(scaling, shift))
+}
+
+
+#' Fit a scaled non-central chi^2_1 distribution using BOBYQA
+#'
+#' @description
+#' Numerically maximizes the likelihood of a scaled non-central chi-square
+#' distribution (df=1) truncated above a specific threshold.
+#'
+#' @param wald_stats Vector of Wald statistics (non-negative).
+#' @param wald_thresh Threshold below which data is included in the fit.
+#'
+#' @importFrom optimx optimx
+#' @importFrom stats dchisq pchisq quantile median
+#' @export
+#'
+#' @examples
+#' fit_scaled_noncentral_chi2_optimx(5 * stats::rchisq(1000, 1, ncp=10), 20)
+fit_scaled_noncentral_chi2_optimx <- function(wald_stats, wald_thresh) {
+
+  # Data Cleaning
+  wald_stats <- wald_stats[is.finite(wald_stats)]
+  wald_stats <- wald_stats[wald_stats < wald_thresh]
+
+  if (length(wald_stats) < 10) {
+    warning("Insufficient data points below threshold.")
+    return(c(scaling = NA, shift = NA))
+  }
+
+  # Truncated Negative Log-Likelihood (Objective Function)
+  # optimx expects the first argument to be the parameter vector
+  trunc_nll <- function(params, x, thresh) {
+    scale <- params[1]
+    ncp   <- params[2]
+
+    # Safety check for log calculations
+    x[x <= 0] <- 1e-8
+
+    # Log-density: f(x; scale, ncp) = (1/scale) * f_chi2(x/scale; ncp)
+    # log(f) = log_chi2_dens - log(scale)
+    dens <- stats::dchisq(x / scale,
+                          df = 1,
+                          ncp = ncp,
+                          log = TRUE) - log(scale)
+
+    # Truncation correction: log(P(X < thresh))
+    log_F_thresh <- stats::pchisq(thresh / scale,
+                                  df = 1,
+                                  ncp = ncp,
+                                  log.p = TRUE)
+
+    # Negative log-likelihood
+    val <- -(sum(dens) - length(x) * log_F_thresh)
+
+    return(if (is.finite(val)) val else 1e10)
+  }
+
+  # Method of Moments (MoM) Initialization
+  v_w <- stats::var(wald_stats)
+  m_w <- mean(wald_stats)
+
+  # Your MoM logic
+  term <- sqrt(max(0, 2.0 * m_w^2 - v_w))
+  mom_scaling <- (2 * m_w - sqrt(2.0) * term) / 2.0
+  mom_shift   <- (sqrt(2.0) * term) / (2.0 * max(1e-5, mom_scaling))
+
+  # Define Bounds and Starting Values
+  # Scale: 90% quantile of chi_1^2 is ~2.7.
+  # We estimate upper scale by comparing observed 90th percentile to theoretical.
+  upper_scale <- stats::quantile(wald_stats, 0.9) * (3.0 / 2.7)
+  upper_ncp   <- min(10, stats::median(wald_stats))
+
+  lower_bounds <- c(0.01, 0)
+  upper_bounds <- c(max(2, upper_scale), max(2, upper_ncp))
+
+  # Finalize Starting Parameters
+  # Ensure MoM estimates aren't outside the box constraints
+  start_params <- c(
+    scaling = pmin(pmax(mom_scaling, lower_bounds[1]), upper_bounds[1]),
+    shift   = pmin(pmax(mom_shift,   lower_bounds[2]), upper_bounds[2])
+  )
+
+  # Optimization via optimx (bobyqa)
+  fit_result <- tryCatch({
+    optimx::optimx(
+      par     = start_params,
+      fn      = trunc_nll,
+      lower   = lower_bounds,
+      upper   = upper_bounds,
+      method  = "bobyqa",
+      x       = wald_stats,
+      thresh  = wald_thresh,
+      control = list(dowarn = FALSE)
+    )
+  }, error = function(e) {
+    warning("optimx (bobyqa) failed: ", e$message)
+    return(NULL)
+  })
+
+  if (is.null(fit_result)) return(c(scaling = NA, shift = NA))
+
+  # Extract results
+  # optimx returns a data frame; we want the parameters from the first row
+  res <- c(scaling = fit_result$scaling[1],
+           shift   = fit_result$shift[1])
+
+  return(res)
 }
 
 
@@ -380,7 +487,7 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, trimfrac = NULL) {
 #' @export
 #'
 #' @examples
-#' fit_scaled_noncentral_chi2_DEoptim(5 * stats::rchisq(10000, 1, ncp=10), 20)
+#' fit_scaled_noncentral_chi2_DEoptim(5 * stats::rchisq(1000, 1, ncp=10), 20)
 fit_scaled_noncentral_chi2_DEoptim <- function(wald_stats, wald_thresh) {
   # 1. Clean and subset data as before
   wald_stats <- wald_stats[is.finite(wald_stats)]
@@ -424,8 +531,12 @@ fit_scaled_noncentral_chi2_DEoptim <- function(wald_stats, wald_thresh) {
   }
 
   # 3. Define Global Search Bounds
-  upper_scale <- min(10, quantile(wald_stats, 0.75) * 3)
-  upper_ncp   <- min(20, median(wald_stats) * 3)
+  # upper_scale <- min(10, quantile(wald_stats, 0.75) * 3)
+  # upper_ncp   <- min(20, median(wald_stats) * 3)
+  # The the 90% quantile of a chi_1^2 is 2.7; search three times observed inflation
+  upper_scale <- stats::quantile(wald_stats, 0.9) * (3.0 / 2.7)
+  # Don't search past median for a shift (with inflation accounted for this could be smaller...)
+  upper_ncp <- min(10, median(wald_stats))
 
   lower_bounds <- c(0.01, 0) # Avoid 1e-10 to prevent division-by-zero jitters
   upper_bounds <- c(max(1, upper_scale), max(1, upper_ncp))
@@ -443,7 +554,7 @@ fit_scaled_noncentral_chi2_DEoptim <- function(wald_stats, wald_thresh) {
       # itermax: Number of generations
       control = DEoptim::DEoptim.control(
         NP = 100,
-        itermax = 500,
+        itermax = 200,
         CR = 0.9,
         F = 0.8,
         trace = FALSE # Set to TRUE if you want to see the "evolution"
