@@ -21,7 +21,7 @@ generate_data_one_area(
 \item{n_points}{Number of points in the area.}
 
 \item{nb_dist}{Distance threshold for determining if two points are neighbors.
-Coordinates are samples in (0, 1)^2 so 0.03 is a reasonable value.}
+Coordinates are samples in (0, 1)^2 so 0.03 is a reasonable value for ~1000 points.}
 
 \item{model_type}{"CAR", "SAR", or "Leroux"---model for random effects.}
 
@@ -84,6 +84,9 @@ Generate data for one area.
 Requires the Matrix library.
 
 Calls the various Q_matrix creation functions.
+}
+\examples{
+generate_data_one_area(1000, 0.03, "Leroux", c(1, 0, -1), 0.5, 1.0, "rand_bern")
 }
 \author{
 Florica J Constantine, florica AT berkeley.edu

@@ -15,7 +15,7 @@ Description: Fit a Poisson generalized spatial linear model for analyzing
   conditions while accounting for the heterogeneity in spatial correlation 
   structures across tissue samples. 
 License: Artistic-2.0
-Imports: Matrix, gstat, sp, pracma, MASS, DEoptim,
+Imports: Matrix, gstat, sp, pracma, MASS, optimx,
   BRISC, CARBayes, brms, mgcv, INLA,
   spatstat.geom, dplyr, ggplot2, reshape2, Rfast, tibble,
   stats, Rcpp

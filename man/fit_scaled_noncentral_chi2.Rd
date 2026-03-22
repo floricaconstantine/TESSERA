@@ -2,35 +2,23 @@
 % Please edit documentation in R/post_analysis.R
 \name{fit_scaled_noncentral_chi2}
 \alias{fit_scaled_noncentral_chi2}
-\title{Fit a scaled non-central chi^2_1 distribution to a vector of statistics.}
+\title{Fit a scaled non-central chi^2_1 distribution using BOBYQA}
 \usage{
-fit_scaled_noncentral_chi2(wald_stats, trimfrac = NULL)
+fit_scaled_noncentral_chi2(wald_stats, wald_thresh)
 }
 \arguments{
-\item{wald_stats}{Vector of Wald statistics: non-negative F-statistics.
-Square t-statistics to obtain F-statistics.}
+\item{wald_stats}{Vector of Wald statistics (non-negative).}
 
-\item{trimfrac}{NULL if ignored, c(LOWER, UPPER) if not.
-What fraction to trim from the left and right tails, e.g., c(0, 1e-4)
-clips nothing from the left tail and the top 1e-4 fraction from the right tail,
-i.e., everything above the 1 - 1e-4 quantile is trimmed.}
+\item{wald_thresh}{Threshold below which data is included in the fit.}
 }
 \value{
-Vector of (scaling, shift).
-(scaling) chi_1^2(shift).
+Vector of c(scale, shift).
 }
 \description{
-We use the method of moments with the mean and variance to estimate parameters
-of a scaled non-central chi squared distribution with one degree of freedom.
-This fitting is NOT conditional.
-}
-\note{
-Consider using the trimfrac parameter if the data have outliers as
-this function is sensitive to the presence of large values/outliers.
+Numerically maximizes the likelihood of a scaled non-central chi-square
+distribution (df=1) truncated above a specific threshold.
+The fit is conditional on the threshold.
 }
 \examples{
-fit_scaled_noncentral_chi2(5 * stats::rchisq(1000, 1, ncp=10))
-}
-\author{
-Florica J Constantine, florica AT berkeley.edu
+fit_scaled_noncentral_chi2(5 * stats::rchisq(1000, 1, ncp=10), 20)
 }

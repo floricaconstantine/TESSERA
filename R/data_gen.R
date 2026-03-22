@@ -8,7 +8,7 @@
 #'
 #' @param n_points Number of points in the area.
 #' @param nb_dist Distance threshold for determining if two points are neighbors.
-#'  Coordinates are samples in (0, 1)^2 so 0.03 is a reasonable value.
+#'  Coordinates are samples in (0, 1)^2 so 0.03 is a reasonable value for ~1000 points.
 #' @param model_type "CAR", "SAR", or "Leroux"---model for random effects.
 #' @param beta_true True fixed effects.
 #' @param gamma_true True correlation parameter.
@@ -59,6 +59,9 @@
 #' @importFrom stats runif
 #'
 #' @export
+#'
+#' @examples
+#' generate_data_one_area(1000, 0.03, "Leroux", c(1, 0, -1), 0.5, 1.0, "rand_bern")
 generate_data_one_area <- function(n_points,
                                    nb_dist,
                                    model_type,
@@ -68,8 +71,7 @@ generate_data_one_area <- function(n_points,
                                    X_type = "rand_bern",
                                    ar_gamma = 0.75,
                                    X = NULL,
-                                   library_size = NULL
-                                   ) {
+                                   library_size = NULL) {
   # Model covariance function
   if ("CAR" == model_type) {
     Q_fcn = Q_matrix_CAR
@@ -80,7 +82,7 @@ generate_data_one_area <- function(n_points,
   } else {
     stop("Invalid model_type")
   }
-
+  
   # Covariate matrix
   if (is.null(X)) {
     if ("rand_bern" == X_type) {
@@ -96,7 +98,7 @@ generate_data_one_area <- function(n_points,
       for (col_idx in 1:ncol(X)) {
         X[, col_idx] <- stats::arima.sim(list(ar = ar_gamma), n_points)
       }
-
+      
       if ("ar1_bern" == X_type) {
         X <- (sign(X) + 1) / 2
       }
@@ -104,25 +106,25 @@ generate_data_one_area <- function(n_points,
       X <- matrix(data = 1, nrow = n_points)
     }
   }
-
+  
   # Expected value/offset for each point
   if (is.null(library_size)) {
     library_size <- rep(1.0, n_points)
   }
-
+  
   # Sample x and y coordinates for locations
   x_coords <- stats::runif(n_points)
   y_coords <- stats::runif(n_points)
   coords <- cbind(x_coords, y_coords)
   # Sort by x then y for easier/faster indexing
   coords <- coords[order(coords[, 1], coords[, 2]), ]
-
+  
   # Compute distance matrix
   d_mat <- as.matrix(stats::dist(coords))
   # Adjacency matrix
   W <- 1 * (d_mat < nb_dist)
   W <- W - diag(diag(W))
-
+  
   # Assign neighbors to isolated points
   zero_indices <- as.numeric(which(rowSums(W) == 0))
   for (idx in 1:length(zero_indices)) {
@@ -130,14 +132,14 @@ generate_data_one_area <- function(n_points,
     W[zero_indices[idx], set_idx] <- 1
     W[set_idx, zero_indices[idx]] <- 1
   }
-
+  
   # Degree matrix
   D <- diag(rowSums(W))
-
+  
   # Make sparse
   D <- Matrix::Matrix(D, sparse = TRUE)
   W <- Matrix::Matrix(W, sparse = TRUE)
-
+  
   # D^\{-1\} W for CAR and SAR, D - W for Leroux
   if (("CAR" == model_type) || ("SAR" == model_type)) {
     eig_list <-
@@ -146,14 +148,14 @@ generate_data_one_area <- function(n_points,
     eig_list <-
       Re(eigen(D - W, TRUE, only.values = TRUE)$values)
   }
-
+  
   # Check that W is symmetric and has no isolated points
   stopifnot(0 == sum(abs(W - Matrix::t(W))))
   stopifnot(0 == sum(Matrix::rowSums(W) == 0))
-
+  
   # Generate inverse precision (unscaled) of random effects
   Q <- Q_fcn(W, D, gamma_true)
-
+  
   # Spatial random effects
   phi_true <- as.numeric(sqrt(tau2_true)
                          * Matrix::solve(Matrix::chol(Q), stats::rnorm(n_points)))
@@ -163,7 +165,7 @@ generate_data_one_area <- function(n_points,
   theta_true <- exp(eta_true)
   # Generate data
   z <- stats::rpois(n_points, theta_true * library_size)
-
+  
   return(
     list(
       X = X,
@@ -189,7 +191,7 @@ generate_data_one_area <- function(n_points,
 #'
 #' @param n_points Number of points in the area.
 #' @param nb_dist Distance threshold for determining if two points are neighbors.
-#'  Coordinates are samples in (0, 1)^2 so 0.03 is a reasonable value.
+#'  Coordinates are samples in (0, 1)^2 so 0.03 is a reasonable value for ~1000 points.
 #' @param cov_type Which model for the Gaussian process covariance.
 #'    "Exp", "Mat", "Gau", and "Sph" are the valid options, for
 #'    Exponential, Matern, Gaussian, and Spherical, respectively.
@@ -245,6 +247,9 @@ generate_data_one_area <- function(n_points,
 #' @importFrom stats runif
 #'
 #' @export
+#'
+#' @examples
+#' generate_data_one_area_spNNGP(1000, 0.03, "Mat", c(1.0, 1.0, 10, 2), 20, c(1, 0, -1))
 generate_data_one_area_spNNGP <- function(n_points,
                                           nb_dist,
                                           cov_type,
@@ -254,8 +259,7 @@ generate_data_one_area_spNNGP <- function(n_points,
                                           X_type = "rand_bern",
                                           ar_gamma = 0.75,
                                           X = NULL,
-                                          library_size = NULL
-                                          ) {
+                                          library_size = NULL) {
   # Covariate matrix
   # Covariate matrix
   if (is.null(X)) {
@@ -272,7 +276,7 @@ generate_data_one_area_spNNGP <- function(n_points,
       for (col_idx in 1:ncol(X)) {
         X[, col_idx] <- stats::arima.sim(list(ar = ar_gamma), n_points)
       }
-
+      
       if ("ar1_bern" == X_type) {
         X <- (sign(X) + 1) / 2
       }
@@ -280,25 +284,25 @@ generate_data_one_area_spNNGP <- function(n_points,
       X <- matrix(data = 1, nrow = n_points)
     }
   }
-
+  
   # Expected value/offset for each point
   if (is.null(library_size)) {
     library_size <- rep(1.0, n_points)
   }
-
+  
   # Sample x and y coordinates for locations
   x_coords <- stats::runif(n_points)
   y_coords <- stats::runif(n_points)
   coords <- cbind(x_coords, y_coords)
   # Sort by x then y for easier/faster indexing
   coords <- coords[order(coords[, 1], coords[, 2]), ]
-
+  
   # Compute distance matrix
   d_mat <- as.matrix(stats::dist(coords))
   # Adjacency matrix
   W <- 1 * (d_mat < nb_dist)
   W <- W - diag(diag(W))
-
+  
   # Assign neighbors to isolated points
   zero_indices <- as.numeric(which(rowSums(W) == 0))
   for (idx in 1:length(zero_indices)) {
@@ -306,25 +310,25 @@ generate_data_one_area_spNNGP <- function(n_points,
     W[zero_indices[idx], set_idx] <- 1
     W[set_idx, zero_indices[idx]] <- 1
   }
-
+  
   # Degree matrix
   D <- diag(rowSums(W))
-
+  
   # Make sparse
   D <- Matrix::Matrix(D, sparse = TRUE)
   W <- Matrix::Matrix(W, sparse = TRUE)
-
+  
   # Check that W is symmetric and has no isolated points
   stopifnot(0 == sum(abs(W - Matrix::t(W))))
   stopifnot(0 == sum(Matrix::rowSums(W) == 0))
-
+  
   # Generate inverse precision (unscaled) of random effects
   sp_dist <- sparseDist_LT(coords, nngp_k)
   close_to_zero_const <- 2.0 * .Machine$double.eps
   if ((close_to_zero_const >= cov_params[1]) &&
       (close_to_zero_const >= cov_params[2])) {
     warning("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO. FAILSAFE: Q IS ZERO AND NOT USED")
-
+    
     Q <- Matrix::Diagonal(n_points, 0)
     A <- Matrix::Diagonal(n_points, 0)
     Dinv <- Matrix::Diagonal(n_points, 0)
@@ -334,7 +338,7 @@ generate_data_one_area_spNNGP <- function(n_points,
     A <- param_est$A
     Dinv <- param_est$Dinv
   }
-
+  
   # Spatial random effects
   close_to_zero_const <- 2.0 * .Machine$double.eps
   if ((close_to_zero_const >= cov_params[1]) &&
@@ -347,12 +351,12 @@ generate_data_one_area_spNNGP <- function(n_points,
     # Add in covariate effect
     eta_true <- as.numeric(X %*% beta_true) + phi_true
   }
-
+  
   # Get Poisson parameter
   theta_true <- exp(eta_true)
   # Generate data
   z <- stats::rpois(n_points, theta_true * library_size)
-
+  
   return(
     list(
       X = X,
@@ -420,13 +424,13 @@ sample_Poisson_lattice <- function(model_type,
   } else {
     stop("Invalid model_type")
   }
-
+  
   # Generate inverse precision (unscaled) of random effects
   Q <- Q_fcn(W, D, gamma_true)
-
+  
   # Spatial random effects
   phi_true <- sqrt(tau2_true) * as.numeric(Matrix::solve(Matrix::chol(Q), stats::rnorm(dim(Q)[1])))
-
+  
   # Log Poisson Parameter
   # Add in covariate effect
   eta_true <- as.numeric(X %*% beta_true) + phi_true
@@ -434,7 +438,7 @@ sample_Poisson_lattice <- function(model_type,
   theta_true <- exp(eta_true)
   # Generate data
   z <- stats::rpois(dim(W)[1], theta_true * library_size)
-
+  
   return(list(
     z = z,
     phi_true = phi_true,
@@ -490,13 +494,13 @@ sample_Poisson_spNNGP <- function(cov_type,
   if ((close_to_zero_const >= cov_params[1]) &&
       (close_to_zero_const >= cov_params[2])) {
     warning("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO. FAILSAFE: Q IS ZERO AND NOT USED")
-
+    
     Q <- Matrix::Diagonal(nrow(coords), 0)
   } else {
     param_est <- nngp_prec_mat(sp_dist, coords, cov_type, cov_params)
     Q <- param_est$Q
   }
-
+  
   # Spatial random effects
   close_to_zero_const <- 2.0 * .Machine$double.eps
   if ((close_to_zero_const >= cov_params[1]) &&
@@ -509,12 +513,12 @@ sample_Poisson_spNNGP <- function(cov_type,
     # Add in covariate effect
     eta_true <- as.numeric(X %*% beta_true) + phi_true
   }
-
+  
   # Get Poisson parameter
   theta_true <- exp(eta_true)
   # Generate data
   z <- stats::rpois(nrow(coords), theta_true * library_size)
-
+  
   return(list(
     z = z,
     phi_true = phi_true,
@@ -588,8 +592,8 @@ prepSynthData <- function(TESSERAData_obj,
   } else {
     stop("Invalid data_gen_model.")
   }
-
-
+  
+  
   # Handle case of only one gene
   if (!is.vector(gene_list) && !is.list(gene_list)) {
     gene_list <- c(gene_list)
@@ -597,10 +601,10 @@ prepSynthData <- function(TESSERAData_obj,
   if (is.list(gene_list)) {
     gene_list <- c(unlist(gene_list))
   }
-
+  
   # Convert inputs to one-row matrices (Lattice models) or arrays
   # Also check dimensions
-
+  
   # Check beta
   if (!is.matrix(beta_true)) {
     beta_true <- matrix(data = beta_true,
@@ -609,7 +613,7 @@ prepSynthData <- function(TESSERAData_obj,
   }
   stopifnot(length(gene_list) == nrow(beta_true))
   stopifnot(ncol(TESSERAData_obj$X_list[[1]]) == ncol(beta_true))
-
+  
   # Check gamma, tau^2 for Lattice models
   if (("CAR" == data_gen_model) ||
       ("SAR" == data_gen_model) || ("Leroux" == data_gen_model)) {
@@ -623,7 +627,7 @@ prepSynthData <- function(TESSERAData_obj,
                            nrow = 1,
                            ncol = length(gamma_true))
     }
-
+    
     # Check dimensions of inputs
     stopifnot(length(gene_list) == nrow(tau2_true))
     stopifnot(length(gene_list) == nrow(gamma_true))
@@ -658,7 +662,7 @@ prepSynthData <- function(TESSERAData_obj,
     stopifnot(length(TESSERAData_obj$counts_list) == dim(cov_params)[2])
     stopifnot(3 == length(dim(cov_params)))
   }
-
+  
   # Synthetic counts list
   synth_counts_list <- list()
   # Initialize synthetic counts list with matrices for each sample
@@ -670,12 +674,12 @@ prepSynthData <- function(TESSERAData_obj,
     colnames(synth_counts_list[[s_idx]]) <- colnames(TESSERAData_obj$counts_list[[s_idx]])
   }
   names(synth_counts_list) <- names(TESSERAData_obj$counts_list)
-
+  
   # Sample from a Poisson lattice model to obtain new count matrices for each sample
   summary_df <- list()
   for (g_idx in 1:length(gene_list)) {
     gene <- gene_list[g_idx]
-
+    
     for (s_idx in 1:length(TESSERAData_obj$counts_list)) {
       if (("CAR" == data_gen_model) ||
           ("SAR" == data_gen_model) ||
@@ -702,12 +706,12 @@ prepSynthData <- function(TESSERAData_obj,
         )$z
       }
     }
-
+    
     # Store summary about the generated counts/comparison with real data
     synth_summary <- sapply(1:length(TESSERAData_obj$counts_list), function (x) {
       x_tmp <- as.vector(synth_counts_list[[x]][g_idx, ])
       y_tmp <- as.vector(TESSERAData_obj$counts_list[[x]][g_idx, ])
-
+      
       # Create PMFs for both real/synthetic data
       tX = as.data.frame(table(x_tmp))
       colnames(tX) <- c("Val", "X")
@@ -717,7 +721,7 @@ prepSynthData <- function(TESSERAData_obj,
       tXY[is.na(tXY)] <- 0
       tXY$X <- tXY$X / sum(tXY$X)
       tXY$Y <- tXY$Y / sum(tXY$Y)
-
+      
       # Summary information
       s_X <- summary(as.vector(synth_counts_list[[x]][g_idx, ]))
       names(s_X) <- paste0("synth_", names(s_X))
@@ -749,11 +753,11 @@ prepSynthData <- function(TESSERAData_obj,
   else {
     summary_df <- summary_df[[1]]
   }
-
+  
   # Create new TESSERAData object
   new_TESSERAData_obj <- TESSERAData_obj
   new_TESSERAData_obj$counts_list <- synth_counts_list
-
+  
   return(
     list(
       new_TESSERAData_obj = new_TESSERAData_obj,

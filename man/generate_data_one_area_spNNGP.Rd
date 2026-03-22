@@ -21,7 +21,7 @@ generate_data_one_area_spNNGP(
 \item{n_points}{Number of points in the area.}
 
 \item{nb_dist}{Distance threshold for determining if two points are neighbors.
-Coordinates are samples in (0, 1)^2 so 0.03 is a reasonable value.}
+Coordinates are samples in (0, 1)^2 so 0.03 is a reasonable value for ~1000 points.}
 
 \item{cov_type}{Which model for the Gaussian process covariance.
 "Exp", "Mat", "Gau", and "Sph" are the valid options, for
@@ -90,6 +90,9 @@ Generate data for one area from the spNNGP model.
 Requires the Matrix library.
 
 Calls the nngp_prec_mat creation functions.
+}
+\examples{
+generate_data_one_area_spNNGP(1000, 0.03, "Mat", c(1.0, 1.0, 10, 2), 20, c(1, 0, -1))
 }
 \author{
 Florica J Constantine, florica AT berkeley.edu

@@ -81,7 +81,6 @@ variables_from_list <- function(lst, target_environ = parent.frame()) {
 #' @returns 2 k x n points matrix.
 #'  First k rows are distances, last k are indices of nearest neighbors.
 #'  Only Upper Triangular part is formed.
-#' @export
 sparseDist <- function(coords, k) {
   # Transpose coordinates so that columns are samples
   coords <- t(coords)
@@ -110,7 +109,6 @@ sparseDist <- function(coords, k) {
 #' @returns 2 k x n points matrix.
 #'  First k rows are distances, last k are indices of nearest neighbors.
 #'  Only Lower Triangular part is formed.
-#' @export
 sparseDist_LT <- function(coords, k) {
   # Transpose coordinates so that columns are samples
   coords <- t(coords)

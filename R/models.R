@@ -14,7 +14,6 @@
 #' @param gamma_val Correlation parameter.
 #'
 #' @returns Unscaled precision matrix.
-#' @export
 Q_matrix_CAR <- function(W, D, gamma_val) {
   return(D - gamma_val * W)
 }
@@ -36,8 +35,6 @@ Q_matrix_CAR <- function(W, D, gamma_val) {
 #' @import Matrix
 #' @importFrom Matrix Diagonal
 #' @importFrom Matrix diag
-#'
-#' @export
 Q_matrix_SAR <- function(W, D, gamma_val) {
   # D^\{-1\}
   D_inv <-
@@ -67,8 +64,6 @@ Q_matrix_SAR <- function(W, D, gamma_val) {
 #'
 #' @import Matrix
 #' @importFrom Matrix Diagonal
-#'
-#' @export
 Q_matrix_Leroux <- function(W, D, gamma_val) {
   # Identity matrix
   id_mat <- Matrix::Diagonal(dim(W)[1], 1)
@@ -453,7 +448,6 @@ kernel.sph <- function(d, sigma2, rho) {
 #' @importFrom Matrix Diagonal
 #' @importFrom Matrix sparseMatrix
 #' @importFrom Matrix solve
-#' @export
 nngp_prec_mat <- function(sp_dist, coords, cov_type, cov_params) {
   # Assumed format of sp_dist
   nngp_k <- nrow(sp_dist) / 2

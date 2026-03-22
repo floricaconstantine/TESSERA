@@ -4,24 +4,34 @@
 \alias{selectWaldStatisticThreshold}
 \title{Given Wald statistics, compute an optimal threshold.}
 \usage{
-selectWaldStatisticThreshold(wald_stats, trimfrac = NULL, conditional = TRUE)
+selectWaldStatisticThreshold(
+  wald_stats,
+  quantile_spacing = 0.01,
+  metric = "Raw_MSE"
+)
 }
 \arguments{
 \item{wald_stats}{Vector of Wald statistics: non-negative F-statistics.
 Square t-statistics to obtain F-statistics.}
 
-\item{trimfrac}{NULL if ignored, c(LOWER, UPPER) if not.
-What fraction to trim from the left and right tails, e.g., c(0, 1e-4)
-clips nothing from the left tail and the top 1e-4 fraction from the right tail,
-i.e., everything above the 1 - 1e-4 quantile is trimmed.
-In general, for this application, we recommend setting the lower/left value
-to 0 and the right value to something small to drop outliers.}
+\item{quantile_spacing}{How finely to search for a threshold.
+Default is 0.01, for 0.01, 0.02, ..., 0.99 quantiles.}
 
-\item{conditional}{TRUE: p-values are conditional on X | X < Threshold;
-FALSE: p-values are not conditional.}
+\item{metric}{What metric to use for selecting the optimal threshold.
+Options are "Raw_" or "Log_" plus "MSE", "MAE", "MedAE", or "MaxAE",
+for the Mean-Square Error (L2), the Mean Absolute Error (L1), the Median
+Absolute Error, and the Maximum Absolute Error (L-infinity/KS).}
 }
 \value{
-Threshold value.
+A list with the following entries
+
+threshold The optimal threshold (lowest error).
+
+chi2params A vector of the shift and scale parameters corresponding
+to the optimal threshold.
+
+threshold_results A dataframe with all metrics and fitted parameters
+for all thresholds/quantiles.
 }
 \description{
 In the TESSERA algorithm, and in generalized linear mixed models in general,
@@ -42,18 +52,13 @@ null distributed statistics and smaller than most of the non-null distributed
 statistics.
 The threshold is estimated by noting that under the null hypothesis,
 the p-values should be approximately Uniform(0, 1)
-distributed; for each threshold value, we compute the mean-squared error
+distributed; for each threshold value, we compute the error
 between the quantiles of the p-values and those of the Uniform(0, 1) distribution
-and choose the threshold with the lowest mean-squared error.
-}
-\note{
-Consider using the trimfrac parameter if the data have outliers:
-This function is sensitive to the presence of large values/outliers.
+and choose the threshold with the lowest error.
 }
 \examples{
 selectWaldStatisticThreshold(c(5 * stats::rchisq(2000, 1, ncp = 10),
- 200 + 5 * stats::rchisq(2000, 1, ncp = 10)))
-selectWaldStatisticThreshold(5 * stats::rchisq(2000, 1, ncp = 10))
+ 200 + 5 * stats::rchisq(2000, 1, ncp = 10)), 0.05)
 }
 \author{
 Florica J Constantine, florica AT berkeley.edu
