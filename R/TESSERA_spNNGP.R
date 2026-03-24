@@ -130,16 +130,16 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
 {
   # Start clock
   t0_EM = Sys.time()
-
+  
   # Check inputs
   checkInputsTESSERAspNNGP(TESSERAData_obj)
-
+  
   # Extract gene of interest and associated counts
   gene_idx <- which(rownames(TESSERAData_obj$counts_list[[1]]) == gene_name)
   z_list <- lapply(TESSERAData_obj$counts_list, function (x) {
     x[gene_idx, ]
   })
-
+  
   # Number of areas
   n_areas <- length(z_list)
   # Total number of points
@@ -156,13 +156,13 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
   }
   # Dimension of coefficient vector
   beta_dim = ncol(TESSERAData_obj$X_list[[1]])
-
+  
   # Set up nearest neighbor tracker and associated distances
   sp_dist_list <- list()
   for (idx in 1:length(TESSERAData_obj$coords_list)) {
     sp_dist_list[[idx]] <- sparseDist(TESSERAData_obj$coords_list[[idx]], nngp_k)
   }
-
+  
   # Store parameter estimates and track
   cov_param_tracker <- array(data = NA, dim = c(n_areas, 1 + em_iters, 4))
   beta_tracker <- matrix(data = NA,
@@ -177,7 +177,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
   theta_tracker <- matrix(data = NA,
                           nrow = n_total_points,
                           ncol = em_iters)
-
+  
   # Track performance
   R2_tracker <- matrix(data = NA,
                        nrow = n_areas,
@@ -192,14 +192,14 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
                                       nrow = n_areas,
                                       ncol = em_iters)
   resid_moran <- array(data = NA, dim = c(n_areas, em_iters, 3))
-
+  
   # Initialize parameters: beta
   if (is.character(beta_init) && ("random" == beta_init)) {
     beta_tracker[, 1] <- stats::rnorm(beta_dim)
-    cat("Random initialization for beta.", "\n")
+    message("Random initialization for beta.", "\n")
   } else if (is.character(beta_init) && ("glm" == beta_init)) {
     # Reasonable initialization: a basic GLM
-
+    
     # Stack into a single vector/matrix
     z_vec <- Reduce(c, z_list)
     lib_vec <- Reduce(c, TESSERAData_obj$library_size_list)
@@ -216,26 +216,26 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     beta_tmp[is.nan(beta_tmp)] <- 0
     beta_tmp[is.infinite(beta_tmp)] <- 0
     beta_tracker[, 1] <- beta_tmp
-
+    
     # Memory
     rm(z_vec)
     rm(X_mat)
-
-    cat("GLM initialization for beta.", "\n")
+    
+    message("GLM initialization for beta.", "\n")
   } else if (is.numeric(beta_init) &&
              (is.vector(beta_init) || is.matrix(beta_init))) {
     # Pass in a value
     beta_tracker[, 1] <- as.vector(beta_init)
-
-    cat("Pre-defined initialization for beta.", "\n")
+    
+    message("Pre-defined initialization for beta.", "\n")
   } else {
     stop("Invalid initialization for beta.")
   }
   # Handle NA
   beta_tracker[is.nan(beta_tracker[, 1]), 1] <- 0.0
   beta_tracker[is.na(beta_tracker[, 1]), 1] <- 0.0
-  cat("Initial beta", beta_tracker[, 1], "\n")
-
+  message("Initial beta ", paste(beta_tracker[, 1], collapse = " "), "\n")
+  
   # Initialize parameters: covariance structure
   if (is.character(cov_init) && ("BRISC" == cov_init)) {
     for (area_idx in 1:n_areas) {
@@ -249,7 +249,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
       )
       cov_param_tracker[area_idx, 1, 1:length(param_est)] <- param_est
     }
-    cat("BRISC initialization for covariances.", "\n")
+    message("BRISC initialization for covariances.", "\n")
   } else if (is.character(cov_init) && ("variogram" == cov_init)) {
     for (area_idx in 1:n_areas) {
       param_est <- M_step_variogram(
@@ -261,22 +261,24 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
       )
       cov_param_tracker[area_idx, 1, 1:length(param_est)] <- param_est
     }
-    cat("Variogram initialization for covariances.", "\n")
+    message("Variogram initialization for covariances.", "\n")
   } else if (is.vector(cov_init)) {
     for (area_idx in 1:n_areas) {
       cov_param_tracker[area_idx, 1, 1:length(cov_init)] <- cov_init
     }
-    cat("Predefined initialization for covariances: Common.", "\n")
+    message("Predefined initialization for covariances: Common.", "\n")
   } else if (is.matrix(cov_init)) {
     cov_param_tracker[, 1, 1:ncol(cov_init)] <- cov_init
-    cat("Predefined initialization for covariances: Individual.",
-        "\n")
+    message("Predefined initialization for covariances: Individual.",
+            "\n")
   } else {
     stop("Invalid initialization for parameters.")
   }
-  cat("Initial covariance parameters", cov_param_tracker[, 1, ], "\n")
-
-
+  message("Initial covariance parameters ",
+          paste(cov_param_tracker[, 1, ], collapse = " "),
+          "\n")
+  
+  
   # Also initialize dependency Q as a function of the variogram parameters
   Q_hat_list <- list()
   Dinv_list <- list()
@@ -290,24 +292,24 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     Dinv_list[[area_idx]] <- param_est$Dinv
     A_hat_list[[area_idx]] <- param_est$A
   }
-
+  
   # Loop over EM iterations
   for (em_idx in 1:em_iters) {
     if (verbose || (0 == (em_idx %% 100))) {
-      cat(
+      message(
         paste(
-          "Start of EM Iteration",
+          "Start of EM Iteration ",
           em_idx,
-          "of",
+          " of ",
           em_iters,
-          ";",
+          "; ",
           Sys.time() - t0_EM,
-          "Elapsed"
+          " Elapsed"
         ),
         "\n"
       )
     }
-
+    
     # Run E-Step: Get covariance and mean of eta
     Vhat_list <- list()
     eta_hat_list <- list()
@@ -317,7 +319,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
       } else {
         Vhat_list[[area_idx]] <- E_step_Vhat(Q_hat_list[[area_idx]], 1.0, z_list[[area_idx]])
       }
-
+      
       eta_hat_list[[area_idx]] <- E_step_etahat(
         Vhat_list[[area_idx]],
         Q_hat_list[[area_idx]],
@@ -330,12 +332,12 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
       # Get a few more things out of the E-step: theta and predictions
       theta_hat <- as.numeric(E_step_thetahat(Vhat_list[[area_idx]], eta_hat_list[[area_idx]]))
       z_hat <- as.numeric(E_step_predict(theta_hat, TESSERAData_obj$library_size_list[[area_idx]]))
-
+      
       # Store stuff
       fit_tracker[start_idx_list[area_idx]:(start_idx_list[area_idx] + length(z_hat) - 1), em_idx] <- z_hat
       eta_tracker[start_idx_list[area_idx]:(start_idx_list[area_idx] + length(eta_hat_list[[area_idx]]) - 1), em_idx] <- as.numeric(eta_hat_list[[area_idx]])
       theta_tracker[start_idx_list[area_idx]:(start_idx_list[area_idx] + length(theta_hat) - 1), em_idx] <- theta_hat
-
+      
       # Performance
       R2_tracker[area_idx, em_idx] <- stats::cor(z_hat, z_list[[area_idx]])^2
       MSE_tracker[area_idx, em_idx] <- mean(abs(z_hat - z_list[[area_idx]])^2)
@@ -345,8 +347,8 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         TESSERAData_obj$coords_list[[area_idx]][, 1],
         TESSERAData_obj$coords_list[[area_idx]][, 2]
       )
-
-
+      
+      
       # Data log likelihood
       # data_log_like_tracker[area_idx, em_idx] <- poisson_loglike(z_list[[area_idx]], theta_hat * library_size_list[[area_idx]])
       data_log_like_tracker[area_idx, em_idx] <- sum(
@@ -357,7 +359,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         ),
         na.rm = TRUE
       )
-
+      
       # Expected log likelihood
       expected_log_like_tracker[area_idx, em_idx] <- expected_loglike(
         Vhat_list[[area_idx]],
@@ -378,7 +380,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         "spNNGP"
       )
     }
-
+    
     # Run (C)M-Step: Optimize
     for (opt_idx in 1:opt_iters) {
       # Initialize with current values
@@ -386,7 +388,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         cov_param_tracker[area_idx, 1 + em_idx, ] <- cov_param_tracker[area_idx, em_idx, ]
         beta_tracker[, 1 + em_idx] <- beta_tracker[, em_idx]
       }
-
+      
       for (area_idx in 1:n_areas) {
         # Optimize in covariance parameters
         if ("variogram" == cov_fit_method) {
@@ -409,10 +411,10 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         } else {
           stop("Invalid cov_fit_method: 'BRISC' or 'variogram'")
         }
-
-
+        
+        
         cov_param_tracker[area_idx, 1 + em_idx, 1:length(param_est)] <- param_est
-
+        
         # Update precision matrix Q and associated quantities
         param_est <- nngp_prec_mat(sp_dist_list[[area_idx]],
                                    TESSERAData_obj$coords_list[[area_idx]],
@@ -431,26 +433,30 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         TESSERAData_obj$X_list
       )[, 1]
     }
-
+    
     if (verbose || (0 == (em_idx %% 100))) {
-      cat("beta", beta_tracker[, 1 + em_idx], "\n")
-      cat("covariance parameters", cov_param_tracker[, 1 + em_idx, ], "\n")
-      cat("log-lik", data_log_like_tracker[, em_idx], "\n")
-
-      cat(
+      message("beta ", paste(beta_tracker[, 1 + em_idx], collapse = " "), "\n")
+      message("covariance parameters ",
+              paste(cov_param_tracker[, 1 + em_idx, ], collapse = " "),
+              "\n")
+      message("log-lik ",
+              paste(data_log_like_tracker[, em_idx], collapse = " "),
+              "\n")
+      
+      message(
         paste(
-          "Wrapping up of EM Iteration",
+          "Wrapping up of EM Iteration ",
           em_idx,
-          "of",
+          " of ",
           em_iters,
-          ";",
+          "; ",
           Sys.time() - t0_EM,
-          "Elapsed"
+          " Elapsed"
         ),
         "\n"
       )
     }
-
+    
     # Early stopping:
     #    NULL: Don't stop early.
     #    "abs_loglike": Difference in absolute data log likelihood, |old - new|.
@@ -466,25 +472,25 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
       beta_old_norm <- sqrt(sum(beta_tracker[, em_idx]^2))
       if ("abs_loglike" == em_stopping) {
         if (abs(ll_new - ll_old) < em_tol) {
-          cat("Ending early", "\n")
+          message("Ending early", "\n")
           break
         }
       }
       else if ("rel_loglike" == em_stopping) {
         if (abs(ll_new - ll_old) / abs(ll_old) < em_tol) {
-          cat("Ending early", "\n")
+          message("Ending early", "\n")
           break
         }
       }
       else if ("abs_beta_norm" == em_stopping) {
         if (beta_diff_norm < em_tol) {
-          cat("Ending early", "\n")
+          message("Ending early", "\n")
           break
         }
       }
       else if ("rel_beta_norm" == em_stopping) {
         if (beta_diff_norm / beta_old_norm < em_tol) {
-          cat("Ending early", "\n")
+          message("Ending early", "\n")
           break
         }
       }
@@ -494,13 +500,13 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     }
   }
   t1_EM = Sys.time()
-  cat("Time", t1_EM - t0_EM, "\n")
-
+  message("Time ", t1_EM - t0_EM, "\n")
+  
   # Compute Negative Hessians
   beta_neghessian <- neg_hessian_beta(Q_hat_list, rep(1, n_areas), TESSERAData_obj$X_list) # tau^2 is 1
-
+  
   ## Name stuff
-
+  
   rownames(beta_tracker) <- colnames(TESSERAData_obj$X_list[[1]])
   dimnames(cov_param_tracker) <- list(
     names(TESSERAData_obj$X_list),
@@ -516,47 +522,47 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     1:dim(resid_moran)[2],
     c("Moran_I", "ExpectedMoran_I", "PValue")
   )
-
+  
   names(start_idx_list) <- names(TESSERAData_obj$X_list)
-
+  
   rownames(beta_neghessian) <- colnames(TESSERAData_obj$X_list[[1]])
   colnames(beta_neghessian) <- colnames(TESSERAData_obj$X_list[[1]])
-
+  
   rownames(fit_tracker) <- Reduce(c, lapply(TESSERAData_obj$counts_list, colnames))
   rownames(eta_tracker) <- rownames(fit_tracker)
   rownames(theta_tracker) <- rownames(fit_tracker)
-
+  
   out <- (structure(
     list(
       # Coefficients, spatial parameters
       beta_hat = beta_tracker[, (em_idx + 1)],
       cov_param_hat = cov_param_tracker[, (em_idx + 1), ],
-
+      
       # Fitted values and residuals, fitted Poisson parameters, estimated random effects
       predictions = fit_tracker[, em_idx],
       residuals = Reduce(c, z_list) - fit_tracker[, em_idx],
       eta_hat = eta_tracker[, em_idx],
       theta_hat = theta_tracker[, em_idx],
       phi_hat = eta_tracker[, em_idx] - Reduce(rbind, TESSERAData_obj$X_list) %*% beta_tracker[, (em_idx + 1)],
-
+      
       # Full paths of coefficients, spatial parameters
       cov_param_tracker = cov_param_tracker[, 1:(em_idx + 1), ],
       beta_tracker = beta_tracker[, 1:(em_idx + 1)],
-
+      
       # Trackers of various fit diagnostics
       R2_tracker = R2_tracker[, 1:em_idx],
       MSE_tracker = MSE_tracker[, 1:em_idx],
       data_log_like_tracker = data_log_like_tracker[, 1:em_idx],
       expected_log_like_tracker = expected_log_like_tracker[, 1:em_idx],
       resid_moran = resid_moran[, 1:em_idx, ],
-
+      
       # Other utilities
       start_idx_list = start_idx_list,
       time = difftime(t1_EM, t0_EM),
-
+      
       # Hessians (for standard errors)
       beta_neghessian = beta_neghessian,
-
+      
       run_settings = list(
         gene_name = as.character(gene_name),
         gene_idx = gene_idx,
@@ -577,7 +583,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     ),
     class = "TESSERAOutput"
   ))
-
+  
   out$performanceSummary <- summarizeTESSERAPerformance(TESSERAData_obj, out)
   return(out)
 }
@@ -603,7 +609,7 @@ checkInputsTESSERAspNNGP <- function (TESSERAData_obj) {
   stopifnot(!is.null(TESSERAData_obj$X_list))
   stopifnot(!is.null(TESSERAData_obj$coords_list))
   stopifnot(!is.null(TESSERAData_obj$library_size_list))
-
+  
   # Counts-specific checks
   # Check that there is at least one gene, really that it's a matrix.
   stopifnot(1 <= min(sapply(TESSERAData_obj$counts_list, nrow)))
@@ -617,11 +623,11 @@ checkInputsTESSERAspNNGP <- function (TESSERAData_obj) {
     identical,
     rownames(TESSERAData_obj$counts_list[[1]])
   )))
-
+  
   # Coordinates-specific checks
   # Need at least 2 coordinates
   stopifnot(1 < min(sapply(TESSERAData_obj$coords_list, ncol)))
-
+  
   # Check that the number of measurements/cells is the same across lists
   # Implicit check that the number of entries in list is the same (number of samples)
   stopifnot(identical(
@@ -636,7 +642,7 @@ checkInputsTESSERAspNNGP <- function (TESSERAData_obj) {
     sapply(TESSERAData_obj$counts_list, ncol),
     sapply(TESSERAData_obj$coords_list, nrow)
   ))
-
+  
   # Check that the names of measurements match
   for (idx in 1:length(TESSERAData_obj$counts_list)) {
     stopifnot(identical(
@@ -652,7 +658,7 @@ checkInputsTESSERAspNNGP <- function (TESSERAData_obj) {
       rownames(TESSERAData_obj$coords_list[[idx]])
     ))
   }
-
+  
   # Check ordering of lists (sample IDs)
   stopifnot(identical(
     names(TESSERAData_obj$counts_list),

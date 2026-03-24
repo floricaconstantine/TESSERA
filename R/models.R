@@ -448,6 +448,7 @@ kernel.sph <- function(d, sigma2, rho) {
 #' @importFrom Matrix Diagonal
 #' @importFrom Matrix sparseMatrix
 #' @importFrom Matrix solve
+#' @importFrom stats dist
 nngp_prec_mat <- function(sp_dist, coords, cov_type, cov_params) {
   # Assumed format of sp_dist
   nngp_k <- nrow(sp_dist) / 2
@@ -469,7 +470,7 @@ nngp_prec_mat <- function(sp_dist, coords, cov_type, cov_params) {
     cov_nb <- sp_dist[keep_idx, idx] # Extract distances
     # C(neighbors, neighbors) matrix
     if (1 < length(keep_idx)) {
-      cov_nb_mat <- as.matrix(dist(coords[sp_dist[nngp_k + keep_idx, idx], ], diag =
+      cov_nb_mat <- as.matrix(stats::dist(coords[sp_dist[nngp_k + keep_idx, idx], ], diag =
                                      TRUE, upper = TRUE))
     } else {
       cov_nb_mat <- as.matrix(0.0)

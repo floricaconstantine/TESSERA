@@ -1,5 +1,5 @@
 ## Functions to run after model fitting (inference).
-# Dependencies in file: Matrix, dplyr, tibble.
+# Dependencies in file: Rcpp, Matrix, dplyr, tibble, optimx, pracma.
 # Rcpp dependencies: calc_moran.cpp.
 
 

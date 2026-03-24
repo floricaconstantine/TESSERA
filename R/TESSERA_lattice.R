@@ -141,16 +141,16 @@ TESSERA_lattice <- function(TESSERAData_obj,
                             dense_matrices = FALSE) {
   # Start clock
   t0_EM = Sys.time()
-
+  
   # Check inputs
   checkInputsTESSERA(TESSERAData_obj)
-
+  
   # Extract gene of interest and associated counts
   gene_idx <- which(rownames(TESSERAData_obj$counts_list[[1]]) == gene_name)
   z_list <- lapply(TESSERAData_obj$counts_list, function (x) {
     x[gene_idx, ]
   })
-
+  
   # Model covariance function
   if ("CAR" == model_type) {
     Q_fcn = Q_matrix_CAR
@@ -161,7 +161,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
   } else {
     stop("Invalid model_type")
   }
-
+  
   # gamma optimization function
   if ("CAR" == model_type) {
     gamma_M_fcn <- M_step_gamma_CAR
@@ -172,7 +172,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
   } else {
     stop("Invalid model_type")
   }
-
+  
   # Number of areas
   n_areas <- length(TESSERAData_obj$W_list)
   # Total number of points
@@ -189,11 +189,11 @@ TESSERA_lattice <- function(TESSERAData_obj,
   }
   # Dimension of coefficient vector
   beta_dim = ncol(TESSERAData_obj$X_list[[1]])
-
+  
   # Compute eigenvalues if needed
   if (is.null(TESSERAData_obj$eig_CS_list) &&
       is.null(TESSERAData_obj$eig_L_list)) {
-    cat("Eigenvalues not supplied: Computing now.")
+    message("Eigenvalues not supplied: Computing now.")
     eig_val_list <- list()
     for (area_idx in 1:n_areas) {
       # D^{-1} W for CAR and SAR, D - W for Leroux
@@ -221,7 +221,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
       eig_val_list <- TESSERAData_obj$eig_L_list
     }
   }
-
+  
   # Store parameter estimates and track
   gamma_tracker <- matrix(data = NA,
                           nrow = n_areas,
@@ -241,7 +241,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
   theta_tracker <- matrix(data = NA,
                           nrow = n_total_points,
                           ncol = em_iters)
-
+  
   # Track performance
   R2_tracker <- matrix(data = NA,
                        nrow = n_areas,
@@ -259,14 +259,14 @@ TESSERA_lattice <- function(TESSERAData_obj,
   resid_moran_nb <- matrix(data = NA,
                            nrow = n_areas,
                            ncol = em_iters)
-
+  
   # Initialize parameters: beta
   if (is.character(beta_init) && ("random" == beta_init)) {
     beta_tracker[, 1] <- stats::rnorm(beta_dim)
-    cat("Random initialization for beta.", "\n")
+    message("Random initialization for beta.", "\n")
   } else if (is.character(beta_init) && ("glm" == beta_init)) {
     # Let's be intelligent: initialize with a basic GLM
-
+    
     # Stack into a single vector/matrix
     z_vec <- Reduce(c, z_list)
     lib_vec <- Reduce(c, TESSERAData_obj$library_size_list)
@@ -283,50 +283,50 @@ TESSERA_lattice <- function(TESSERAData_obj,
     beta_tmp[is.nan(beta_tmp)] <- 0
     beta_tmp[is.infinite(beta_tmp)] <- 0
     beta_tracker[, 1] <- beta_tmp
-
+    
     # Memory
     rm(z_vec)
     rm(X_mat)
-
-    cat("GLM initialization for beta.", "\n")
+    
+    message("GLM initialization for beta.", "\n")
   } else if (is.numeric(beta_init) &&
              (is.vector(beta_init) || is.matrix(beta_init))) {
     # Pass in a value
     beta_tracker[, 1] <- as.vector(beta_init)
-
-    cat("Pre-defined initialization for beta.", "\n")
+    
+    message("Pre-defined initialization for beta.", "\n")
   } else {
     stop("Invalid initialization for beta.")
   }
   # Handle NA
   beta_tracker[is.nan(beta_tracker[, 1]), 1] <- 0.0
   beta_tracker[is.na(beta_tracker[, 1]), 1] <- 0.0
-  cat("Initial beta", beta_tracker[, 1], "\n")
-
+  message("Initial beta ", paste(beta_tracker[, 1], collapse = " "), "\n")
+  
   # Initialize parameters: gamma
   if (is.character(gamma_init) && ("moran" == gamma_init)) {
     for (area_idx in 1:n_areas) {
       tmp_z <- log((0.5 + z_list[[area_idx]]) / TESSERAData_obj$library_size_list[[area_idx]]) - TESSERAData_obj$X_list[[area_idx]] %*% beta_tracker[, 1]
       gamma_tracker[area_idx, 1] <- abs(moran_I_nb(tmp_z, TESSERAData_obj$W_list[[area_idx]]))
     }
-    cat("Moran initialization for gamma", "\n")
+    message("Moran initialization for gamma", "\n")
   } else if (is.character(gamma_init) && ("random" == gamma_init)) {
     gamma_tracker[, 1] <- stats::runif(n_areas)
-    cat("Random initialization for gamma", "\n")
+    message("Random initialization for gamma", "\n")
   } else if (is.numeric(gamma_init)) {
     gamma_tracker[, 1] <- gamma_init
-    cat("Predefined initialization for gamma", "\n")
+    message("Predefined initialization for gamma", "\n")
   } else {
     stop("Invalid initialization for gamma.")
   }
   # Handle zero counts/NaN values
   gamma_tracker[is.nan(gamma_tracker[, 1]), 1] <- 0.0
   gamma_tracker[is.na(gamma_tracker[, 1]), 1] <- 0.0
-
-  cat("Initial gamma", gamma_tracker[, 1], "\n")
-
-
-
+  
+  message("Initial gamma ", paste(gamma_tracker[, 1], collapse = " "), "\n")
+  
+  
+  
   # Initialize parameters: tau^2
   if (is.character(tau2_init) && ("lognormal" == tau2_init)) {
     for (area_idx in 1:n_areas) {
@@ -341,19 +341,19 @@ TESSERA_lattice <- function(TESSERAData_obj,
         )) #- 2
       )
     }
-    cat("Log-Normal initialization for tau^2", "\n")
+    message("Log-Normal initialization for tau^2", "\n")
   } else if (is.character(tau2_init) && ("var" == tau2_init)) {
     for (area_idx in 1:n_areas) {
       tmp_z <- log((0.5 + z_list[[area_idx]]) / TESSERAData_obj$library_size_list[[area_idx]]) - TESSERAData_obj$X_list[[area_idx]] %*% beta_tracker[, 1]
       tau2_tracker[area_idx, 1] <- stats::var(tmp_z)
     }
-    cat("Variance initialization for tau^2", "\n")
+    message("Variance initialization for tau^2", "\n")
   } else if (is.character(tau2_init) && ("random" == tau2_init)) {
     tau2_tracker[, 1] <- abs(stats::rnorm(n_areas))
-    cat("Random initialization for tau^2", "\n")
+    message("Random initialization for tau^2", "\n")
   } else if (is.numeric(tau2_init)) {
     tau2_tracker[, 1] <- tau2_init
-    cat("Predefined initialization for tau^2", "\n")
+    message("Predefined initialization for tau^2", "\n")
   } else {
     stop("Invalid initialization for tau^2.")
   }
@@ -361,8 +361,8 @@ TESSERA_lattice <- function(TESSERAData_obj,
   tau2_tracker[is.nan(tau2_tracker[, 1]), 1] <- 0.0
   tau2_tracker[is.na(tau2_tracker[, 1]), 1] <- 0.0
   tau2_tracker[tau2_tracker[, 1] == 0.0, 1] <- 1e-3
-  cat("Initial tau2", tau2_tracker[, 1], "\n")
-
+  message("Initial tau2 ", paste(tau2_tracker[, 1], collapse = " "), "\n")
+  
   # Also initialize dependency Q as a function of W, D, and gamma
   Q_hat_list <- list()
   for (area_idx in 1:n_areas) {
@@ -370,26 +370,26 @@ TESSERA_lattice <- function(TESSERAData_obj,
                                     TESSERAData_obj$D_list[[area_idx]],
                                     gamma_tracker[area_idx, 1])
   }
-
+  
   # Loop over EM iterations
   for (em_idx in 1:em_iters) {
     if (verbose || (0 == (em_idx %% 100))) {
-      cat(
+      message(
         paste(
-          "Start of EM Iteration",
+          "Start of EM Iteration ",
           em_idx,
-          "of",
+          " of ",
           em_iters,
-          ";",
+          "; ",
           Sys.time() - t0_EM,
-          "Elapsed"
+          " Elapsed"
         ),
         "\n"
       )
     }
-
-
-
+    
+    
+    
     # Run E-Step: Get covariance and mean of eta
     Vhat_list <- list()
     eta_hat_list <- list()
@@ -399,7 +399,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
       } else {
         Vhat_list[[area_idx]] <- E_step_Vhat(Q_hat_list[[area_idx]], tau2_tracker[area_idx, em_idx], z_list[[area_idx]])
       }
-
+      
       eta_hat_list[[area_idx]] <- E_step_etahat(
         Vhat_list[[area_idx]],
         Q_hat_list[[area_idx]],
@@ -412,12 +412,12 @@ TESSERA_lattice <- function(TESSERAData_obj,
       # Get a few more things out of the E-step: theta and predictions
       theta_hat <- as.numeric(E_step_thetahat(Vhat_list[[area_idx]], eta_hat_list[[area_idx]]))
       z_hat <- as.numeric(E_step_predict(theta_hat, TESSERAData_obj$library_size_list[[area_idx]]))
-
+      
       # Store stuff
       fit_tracker[start_idx_list[area_idx]:(start_idx_list[area_idx] + length(z_hat) - 1), em_idx] <- z_hat
       eta_tracker[start_idx_list[area_idx]:(start_idx_list[area_idx] + length(eta_hat_list[[area_idx]]) - 1), em_idx] <- as.numeric(eta_hat_list[[area_idx]])
       theta_tracker[start_idx_list[area_idx]:(start_idx_list[area_idx] + length(theta_hat) - 1), em_idx] <- theta_hat
-
+      
       # Performance
       R2_tracker[area_idx, em_idx] <- stats::cor(z_hat, z_list[[area_idx]])^2
       MSE_tracker[area_idx, em_idx] <- mean(abs(z_hat - z_list[[area_idx]])^2)
@@ -433,7 +433,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
         )
       }
       resid_moran_nb[area_idx, em_idx] <- moran_I_nb(z_hat - z_list[[area_idx]], TESSERAData_obj$W_list[[area_idx]])
-
+      
       # Data log likelihood
       # data_log_like_tracker[area_idx, em_idx] <- poisson_loglike(z_list[[area_idx]], theta_hat * library_size_list[[area_idx]])
       data_log_like_tracker[area_idx, em_idx] <- sum(
@@ -444,7 +444,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
         ),
         na.rm = TRUE
       )
-
+      
       # Expected log likelihood
       expected_log_like_tracker[area_idx, em_idx] <- expected_loglike(
         Vhat_list[[area_idx]],
@@ -460,7 +460,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
         model_type
       )
     }
-
+    
     # Run (C)M-Step: Optimize
     for (opt_idx in 1:opt_iters) {
       # Initialize with current values
@@ -469,7 +469,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
         tau2_tracker[, 1 + em_idx] <- tau2_tracker[, em_idx]
         beta_tracker[, 1 + em_idx] <- beta_tracker[, em_idx]
       }
-
+      
       for (area_idx in 1:n_areas) {
         # Optimize in tau^2
         tau2_tracker[area_idx, 1 + em_idx] <- M_step_tau2(
@@ -479,7 +479,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
           beta_tracker[, 1 + em_idx],
           TESSERAData_obj$X_list[[area_idx]]
         )
-
+        
         # Optimize in gamma
         gamma_out <- gamma_M_fcn(
           Vhat_list[[area_idx]],
@@ -553,41 +553,42 @@ TESSERA_lattice <- function(TESSERAData_obj,
           }
         }
         gamma_tracker[area_idx, 1 + em_idx] <- gamma_out$gamma_hat
-
+        
         # Update precision matrix Q
         Q_hat_list[[area_idx]] <- Q_fcn(TESSERAData_obj$W_list[[area_idx]],
                                         TESSERAData_obj$D_list[[area_idx]],
                                         gamma_tracker[area_idx, em_idx + 1])
       }
-
+      
       # Optimize in beta
       beta_tracker[, 1 + em_idx] <- M_step_beta(eta_hat_list,
                                                 Q_hat_list,
                                                 tau2_tracker[, 1 + em_idx],
                                                 TESSERAData_obj$X_list)[, 1]
     }
-
+    
     if (verbose || (0 == (em_idx %% 100))) {
-      cat("beta", beta_tracker[, 1 + em_idx], "\n")
-      cat("tau2, gamma",
-          cbind(tau2_tracker[, 1 + em_idx], gamma_tracker[, 1 + em_idx]),
-          "\n")
-      cat("log-lik", data_log_like_tracker[, em_idx], "\n")
-
-      cat(
+      message("beta ", paste(beta_tracker[, 1 + em_idx], collapse = " "), "\n")
+      message("tau2 ", paste(tau2_tracker[, 1 + em_idx], collapse = " "), "\n")
+      message("gamma ", paste(gamma_tracker[, 1 + em_idx], collapse = " "), "\n")
+      message("log-lik ",
+              paste(data_log_like_tracker[, em_idx], collapse = " "),
+              "\n")
+      
+      message(
         paste(
-          "Wrapping up of EM Iteration",
+          "Wrapping up of EM Iteration ",
           em_idx,
-          "of",
+          " of ",
           em_iters,
-          ";",
+          "; ",
           Sys.time() - t0_EM,
-          "Elapsed"
+          " Elapsed"
         ),
         "\n"
       )
     }
-
+    
     # Early stopping:
     #    NULL: Don't stop early.
     #    "abs_loglike": Difference in absolute data log likelihood, |old - new|.
@@ -602,18 +603,18 @@ TESSERA_lattice <- function(TESSERAData_obj,
       ll_new <- sum(data_log_like_tracker[, em_idx], na.rm = TRUE)
       ll_diff <- (ll_new - ll_old)
       ll_rel_diff <- ll_diff / ll_old
-
+      
       # Beta
       beta_diff_norm <- sqrt(sum((beta_tracker[, em_idx + 1] - beta_tracker[, em_idx])^2))
       beta_old_norm <- sqrt(sum(beta_tracker[, em_idx]^2))
-
+      
       # Expected
       e_ll_old <- sum(expected_log_like_tracker[, em_idx - 1], na.rm = TRUE)
       e_ll_new <- sum(expected_log_like_tracker[, em_idx], na.rm = TRUE)
       e_ll_diff <- (e_ll_new - e_ll_old)
       e_ll_rel_diff <- e_ll_diff / e_ll_old
       if (verbose || (0 == (em_idx %% 100))) {
-        cat(
+        message(
           paste0(
             "End of iteration ",
             em_idx,
@@ -633,28 +634,28 @@ TESSERA_lattice <- function(TESSERAData_obj,
           "\n"
         )
       }
-
+      
       if ("abs_loglike" == em_stopping) {
         if (abs(ll_diff) < em_tol) {
-          cat("Ending early", "\n")
+          message("Ending early", "\n")
           break
         }
       }
       else if ("rel_loglike" == em_stopping) {
         if (abs(ll_rel_diff) < em_tol) {
-          cat("Ending early", "\n")
+          message("Ending early", "\n")
           break
         }
       }
       else if ("abs_beta_norm" == em_stopping) {
         if (beta_diff_norm < em_tol) {
-          cat("Ending early", "\n")
+          message("Ending early", "\n")
           break
         }
       }
       else if ("rel_beta_norm" == em_stopping) {
         if (beta_diff_norm / beta_old_norm < em_tol) {
-          cat("Ending early", "\n")
+          message("Ending early", "\n")
           break
         }
       }
@@ -664,8 +665,8 @@ TESSERA_lattice <- function(TESSERAData_obj,
     }
   }
   t1_EM = Sys.time()
-  cat("Time", t1_EM - t0_EM, "\n")
-
+  message("Time ", t1_EM - t0_EM, "\n")
+  
   # Compute Negative Hessians
   beta_neghessian <- neg_hessian_beta(Q_hat_list, tau2_tracker[, em_idx + 1], TESSERAData_obj$X_list)
   tau2_neghessian <- rep(NA, n_areas)
@@ -679,7 +680,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
       beta_tracker[, em_idx + 1],
       TESSERAData_obj$X_list[[area_idx]]
     )
-
+    
     if ("CAR" == model_type) {
       gamma_neghessian[area_idx] <- neg_hessian_gamma_CAR(gamma_tracker[area_idx, em_idx + 1], eig_val_list[[area_idx]])
     }
@@ -700,13 +701,13 @@ TESSERA_lattice <- function(TESSERAData_obj,
       gamma_neghessian[area_idx] <- neg_hessian_gamma_Leroux(gamma_tracker[area_idx, em_idx + 1], eig_val_list[[area_idx]])
     }
   }
-
+  
   ## Name stuff
-
+  
   rownames(beta_tracker) <- colnames(TESSERAData_obj$X_list[[1]])
   rownames(gamma_tracker) <- names(TESSERAData_obj$W_list)
   rownames(tau2_tracker) <- names(TESSERAData_obj$W_list)
-
+  
   rownames(R2_tracker) <- names(TESSERAData_obj$W_list)
   rownames(MSE_tracker) <- names(TESSERAData_obj$W_list)
   rownames(data_log_like_tracker) <- names(TESSERAData_obj$W_list)
@@ -717,45 +718,45 @@ TESSERA_lattice <- function(TESSERAData_obj,
     1:dim(resid_moran)[2],
     c("Moran_I", "ExpectedMoran_I", "PValue")
   )
-
+  
   names(start_idx_list) <- names(TESSERAData_obj$W_list)
   names(eig_val_list) <- names(TESSERAData_obj$W_list)
-
+  
   names(tau2_neghessian) <- names(TESSERAData_obj$W_list)
   names(gamma_neghessian) <- names(TESSERAData_obj$W_list)
   rownames(beta_neghessian) <- colnames(TESSERAData_obj$X_list[[1]])
   colnames(beta_neghessian) <- colnames(TESSERAData_obj$X_list[[1]])
-
+  
   rownames(fit_tracker) <- Reduce(c, lapply(TESSERAData_obj$counts_list, colnames))
   rownames(eta_tracker) <- rownames(fit_tracker)
   rownames(theta_tracker) <- rownames(fit_tracker)
-
+  
   # If eigenvalues supplied, don't bother returning them to save space
   eigs_supplied <- (!is.null(TESSERAData_obj$eig_CS_list) ||
                       !is.null(TESSERAData_obj$eig_L_list))
   if (eigs_supplied) {
     eig_val_list <- list()
   }
-
+  
   out <- (structure(
     list(
       # Coefficients, spatial parameters
       beta_hat = beta_tracker[, (em_idx + 1)],
       gamma_hat = gamma_tracker[, (em_idx + 1)],
       tau2_hat = tau2_tracker[, (em_idx + 1)],
-
+      
       # Fitted values and residuals, fitted Poisson parameters, estimated random effects
       predictions = fit_tracker[, em_idx],
       residuals = Reduce(c, z_list) - fit_tracker[, em_idx],
       eta_hat = eta_tracker[, em_idx],
       theta_hat = theta_tracker[, em_idx],
       phi_hat = eta_tracker[, em_idx] - Reduce(rbind, TESSERAData_obj$X_list) %*% beta_tracker[, (em_idx + 1)],
-
+      
       # Full paths of coefficients, spatial parameters
       gamma_tracker = gamma_tracker[, 1:(em_idx + 1)],
       tau2_tracker = tau2_tracker[, 1:(em_idx + 1)],
       beta_tracker = beta_tracker[, 1:(em_idx + 1)],
-
+      
       # Trackers of various fit diagnostics
       R2_tracker = R2_tracker[, 1:em_idx],
       MSE_tracker = MSE_tracker[, 1:em_idx],
@@ -763,19 +764,19 @@ TESSERA_lattice <- function(TESSERAData_obj,
       expected_log_like_tracker = expected_log_like_tracker[, 1:em_idx],
       resid_moran = resid_moran[, 1:em_idx, ],
       resid_moran_nb = resid_moran_nb[, 1:em_idx],
-
+      
       # Utilities, just in case we want to reconstruct stuff
       start_idx_list = start_idx_list,
       eig_val_list = eig_val_list,
-
+      
       # Fit time
       time = difftime(t1_EM, t0_EM),
-
+      
       # Hessians (for standard errors)
       beta_neghessian = beta_neghessian,
       tau2_neghessian = tau2_neghessian,
       gamma_neghessian = gamma_neghessian,
-
+      
       run_settings = list(
         gene_name = as.character(gene_name),
         gene_idx = gene_idx,
@@ -795,7 +796,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
     ),
     class = "TESSERAOutput"
   ))
-
+  
   out$performanceSummary <- summarizeTESSERAPerformance(TESSERAData_obj, out)
   return(out)
 }
@@ -823,7 +824,7 @@ checkInputsTESSERA <- function (TESSERAData_obj) {
   stopifnot(!is.null(TESSERAData_obj$D_list))
   stopifnot(!is.null(TESSERAData_obj$X_list))
   stopifnot(!is.null(TESSERAData_obj$library_size_list))
-
+  
   # Check for optional components
   if (is.null(TESSERAData_obj$coords_list)) {
     warning("Coordinates are not present.")
@@ -834,7 +835,7 @@ checkInputsTESSERA <- function (TESSERAData_obj) {
       "Eigenvalues are not present; initial computation will be performed when running TESSERA (slow)."
     )
   }
-
+  
   # Counts-specific checks
   # Check that there is at least one gene, really that it's a matrix.
   stopifnot(1 <= min(sapply(TESSERAData_obj$counts_list, nrow)))
@@ -848,13 +849,13 @@ checkInputsTESSERA <- function (TESSERAData_obj) {
     identical,
     rownames(TESSERAData_obj$counts_list[[1]])
   )))
-
+  
   # Coordinates-specific checks
   if (!is.null(TESSERAData_obj$coords_list)) {
     # Need at least 2 coordinates
     stopifnot(1 < min(sapply(TESSERAData_obj$coords_list, ncol)))
   }
-
+  
   # Check that the number of measurements/cells is the same across lists
   # Implicit check that the number of entries in list is the same (number of samples)
   stopifnot(identical(
@@ -891,7 +892,7 @@ checkInputsTESSERA <- function (TESSERAData_obj) {
       sapply(TESSERAData_obj$eig_L_list, length)
     ))
   }
-
+  
   # Check that the names of measurements match
   for (idx in 1:length(TESSERAData_obj$counts_list)) {
     stopifnot(identical(
@@ -909,7 +910,7 @@ checkInputsTESSERA <- function (TESSERAData_obj) {
       ))
     }
   }
-
+  
   # Check ordering of lists (sample IDs)
   stopifnot(identical(
     names(TESSERAData_obj$counts_list),

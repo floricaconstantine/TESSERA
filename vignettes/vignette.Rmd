@@ -1,7 +1,10 @@
 ---
-title: "TESSSERA Vignette"
-output: html_document
-date: "2026-03-22"
+title: "Introduction to TESSERA"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to TESSERA}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include=FALSE}
@@ -19,6 +22,9 @@ library(TESSERA)
 library(WeberDivechaLCdata)
 
 # Data Processing and Objects
+# BiocManager::install("SummarizedExperiment")
+# BiocManager::install("SingleCellExperiment")
+# BiocManager::install("SpatialExperiment")
 library(SummarizedExperiment)
 library(SingleCellExperiment)
 library(SpatialExperiment)
@@ -28,10 +34,6 @@ library(dplyr)
 library(reshape2)
 library(Matrix)
 library(MatrixGenerics)
-
-# Parallel Processing
-library(foreach)
-library(doParallel)
 
 # Visualization
 library(ggplot2)
@@ -53,22 +55,6 @@ dim(spe)
 ```{r}
 # Number of cells per sample
 sort(table(SummarizedExperiment::colData(spe)$sample_part_id))
-```
-
-```{r}
-# Select sample IDs for example
-samples_keep <- c("Br2701_LC_round2_top",
-                  "Br8153_LC_round2_right",
-                  "Br6522_LC_round3_right")
-
-# Subset SpatialExperiment object to keep only these samples
-# spe <- spe[, SummarizedExperiment::colData(spe)$sample_part_id %in% samples_keep]
-
-# Check
-dim(spe)
-
-# Number of cells per sample
-table(SummarizedExperiment::colData(spe)$sample_part_id)
 
 # Keep only spots over tissue
 spe <- spe[, SummarizedExperiment::colData(spe)$in_tissue == 1]
@@ -76,10 +62,18 @@ dim(spe)
 ```
 
 ```{r}
+# Add the spatial coordinates into the metadata (convenience)
+SummarizedExperiment::colData(spe) <- cbind(SummarizedExperiment::colData(spe), 
+                                            SpatialExperiment::spatialCoords(spe))
+# Make sure rownames match 
+rownames(SpatialExperiment::spatialCoords(spe)) <- rownames(SummarizedExperiment::colData(spe))
+```
+
+```{r}
 # Create the spatial plot
 p <- ggplot2::ggplot(
   data = as.data.frame(SummarizedExperiment::colData(spe)),
-  mapping = ggplot2::aes(x = array_col, y = array_row, color = annot_region)
+  mapping = ggplot2::aes(x = pxl_col_in_fullres, y = pxl_row_in_fullres, color = annot_region)
 )
 p <- p + ggplot2::geom_point(size = 1)
 p <- p + ggplot2::facet_wrap( ~ sample_part_id)
@@ -133,14 +127,14 @@ print(marker_gene_idx)
 nb_data <- TESSERA::visualizeNeighborDistances(
   meta_data = SummarizedExperiment::colData(spe),
   sample_col = "sample_part_id",
-  coord_data = data.frame(SummarizedExperiment::colData(spe)[, c("array_row", "array_col")])
+  coord_data = SpatialExperiment::spatialCoords(spe)
 )
 
-# Per the plot, it looks like each cell has 8 neighbors
-# So, we use the mid point of the average of the 8th/9th furthest neighbor distances
+# Per the plot, it looks like each cell has 6 neighbors
+# So, we use the mid point of the average of the 6th/7th furthest neighbor distances
 # as a threshold for determining neighbors
 
-nb_thresh <- mean(colMeans(nb_data$mean_nb_dist[, 8:9]))
+nb_thresh <- mean(colMeans(nb_data$mean_nb_dist[, 6:7]))
 
 p <- nb_data$distances_plot
 p <- p + ggplot2::geom_hline(yintercept = nb_thresh, color = "red")
@@ -151,16 +145,12 @@ p
 ```{r}
 # Prepare data for the TESSERA package
 # Simple design: Look at annotated region in v. out
-
-TESSERA_data <- TESSERA::prepData(
-  count_matrix = SingleCellExperiment::counts(spe),
-  meta_data = data.frame(SummarizedExperiment::colData(spe)),
-  sample_col = "sample_part_id",
-  design_formula = as.formula( ~ annot_region),
-  coord_data = data.frame(SummarizedExperiment::colData(spe)[, c("array_row", "array_col")]),
-  D_THRESH = nb_thresh,
-  compute_eigs = "L"
-)
+TESSERA_data <- prepDataSpatialExperiment(spDataObject = spe, 
+                                          sample_col = "sample_part_id",
+                                          design_formula = as.formula( ~ annot_region),
+                                          model_type = "Leroux",
+                                          expected_num_neighbors = 6
+                                          )
 ```
 
 ## Running TESSERA on a single gene
@@ -173,6 +163,29 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
   TESSERAData_obj = TESSERA_data,
   gene_name = rownames(spe)[gene_idx],
   model_type = "Leroux",
+  em_iters = 50,
+  # How many ECM iterations to run
+  opt_iters = 5,
+  # How many CM steps to run per E-Step
+  em_min_iters = 15,
+  # Min ECM iterations before early stopping
+  em_tol = 1e-3,
+  # Tolerance for early stopping
+  em_stopping = "rel_loglike",
+  # How to determine early stopping: Relative change in log likelihood
+  verbose = FALSE
+)
+```
+
+
+```{r, warning=FALSE, eval=FALSE}
+# Which gene to run
+gene_idx <- marker_gene_idx[1]
+# Run TESSERA for the top gene
+TESSERA_out <- TESSERA::TESSERA_spNNGP(
+  TESSERAData_obj = TESSERA_data,
+  gene_name = rownames(spe)[gene_idx],
+  cov_type = "Mat",
   em_iters = 50,
   # How many ECM iterations to run
   opt_iters = 5,
@@ -299,6 +312,10 @@ print(length(gene_idx_list))
 ```
 
 ```{r, warning=FALSE, eval=FALSE}
+# Parallel Processing
+library(foreach)
+library(doParallel)
+
 t0 <- Sys.time()
 
 # Set up the parallel backend
@@ -313,7 +330,7 @@ TESSERA_results <- foreach::foreach(idx = 1:length(gene_idx_list),
                                         TESSERAData_obj = TESSERA_data,
                                         gene_name = rownames(spe)[gene_idx_list[idx]],
                                         model_type = "Leroux",
-                                        em_iters = 30,
+                                        em_iters = 50,
                                         # How many ECM iterations to run
                                         opt_iters = 5,
                                         # How many CM steps to run per E-Step
@@ -350,7 +367,7 @@ for (idx in gene_idx_list) {
     TESSERAData_obj = TESSERA_data,
     gene_name = rownames(spe)[idx],
     model_type = "Leroux",
-    em_iters = 30,
+    em_iters = 50,
     # How many ECM iterations to run
     opt_iters = 5,
     # How many CM steps to run per E-Step
@@ -370,7 +387,7 @@ cat("Elapsed time:", difftime(t1, t0, units = "sec"), "\n")
 
 ### Hypothesis testing
 
-```{r}
+```{r, eval=FALSE}
 # Create contrast matrix
 contrast_mat <- matrix(data = c(0, 1),
                        nrow = 1,
@@ -384,7 +401,7 @@ wald_df <- dplyr::bind_rows(lapply(TESSERA_results, function (x) {
 }))
 ```
 
-```{r, warning=FALSE}
+```{r, warning=FALSE, eval=FALSE}
 # Empirical Null Estimation
 # Sweep over thresholds to find the optimal distribution parameters for the empirical null
 wald_thresh_selection <- TESSERA::selectWaldStatisticThreshold(
@@ -402,7 +419,7 @@ cat(
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 plot_data <- reshape2::melt(wald_thresh_selection$threshold_results,
                             id.vars = c("threshold", "quantile"))
 
@@ -414,7 +431,7 @@ p <- p + ggplot2::theme_bw()
 p
 ```
 
-```{r}
+```{r, eval=FALSE}
 p <- ggplot2::ggplot(
   data = plot_data %>% dplyr::filter(variable %in% c("scale", "shift")),
   mapping = ggplot2::aes(x = threshold, y = value)
@@ -426,7 +443,7 @@ p <- p + ggplot2::theme_bw()
 p
 ```
 
-```{r}
+```{r, eval=FALSE}
 p <- ggplot2::ggplot(
   data = plot_data
   %>% dplyr::filter(!(variable %in% c("scale", "shift")))
@@ -441,7 +458,7 @@ p
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 PVAL_THRESH <- 0.05
 
 # Compute p-values

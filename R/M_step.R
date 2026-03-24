@@ -1,6 +1,5 @@
 ## M-Step (Maximization Step) functions.
-# Dependencies in file: Matrix, pracma, stats, sp, gstat.
-# Dependencies: Functions from comparisons.R.
+# Dependencies in file: Matrix, pracma, stats, sp, gstat, BRISC.
 
 #' Maximize the expected likelihood in tau^2, holding other variables constant.
 #' Part of the M-Step in the EM algorithm.
@@ -19,29 +18,29 @@
 M_step_tau2 <- function(Vhat, eta_hat, Q, beta_hat, X) {
   # eta - X beta
   vector_term <- eta_hat - (X %*% beta_hat)
-
+  
   # (eta - X beta)^\top Q (eta - X beta)
   # term1 <- as.numeric((t(vector_term) %*% Q) %*% vector_term)
   # Speed
   term1 <- as.numeric(crossprod(Q %*% vector_term, vector_term))
-
+  
   # Trace[Q V]
   # term2 <- sum(diag(Q %*% Vhat))
   # Trace tricks: Tr(A B) = <vec(A), vec(B^T)>
   # For sparse Q this is actually faster than crossprod?
   term2 <- sum(Q * t(Vhat))
   # term2 <- crossprod(as.vector(Q), as.vector(t(Vhat)))
-
+  
   # tau^2 = (1/n) (term1 + term2)
   tau2_hat <- (term1 + term2) / dim(Q)[1]
-
+  
   # Make sure tau^2 doesn't go off the rails
   close_to_zero_const <- 1e2 * .Machine$double.eps
   if (close_to_zero_const >= tau2_hat) {
     warning("Invalid tau^2, setting to a small positive number")
     tau2_hat = max(tau2_hat, close_to_zero_const)
   }
-
+  
   return(tau2_hat)
 }
 
@@ -74,7 +73,7 @@ M_step_tau2 <- function(Vhat, eta_hat, Q, beta_hat, X) {
 M_step_beta <- function(eta_list, Q_list, tau2_list, X_list) {
   # Dimension of beta
   n_dim <- ncol(X_list[[1]])
-
+  
   # Create empty matrix/vector
   zeta_vec <- matrix(0, nrow = n_dim, ncol = 1)
   B <- matrix(0, nrow = n_dim, ncol = n_dim)
@@ -82,17 +81,17 @@ M_step_beta <- function(eta_list, Q_list, tau2_list, X_list) {
     # X^\top Q
     # term1 <- t(X_list[[idx]]) %*% Q_list[[idx]]
     term1 <- crossprod(X_list[[idx]], Q_list[[idx]])
-
+    
     # Update vector term
     # X^\top (Q / tau^2) eta = (X^\top Q) eta / tau^2
     zeta_vec <-
       zeta_vec + (term1 %*% eta_list[[idx]]) / tau2_list[[idx]]
-
+    
     # Update matrix term
     # X^\top (Q / tau^2) X = (X^\top Q) X / tau^2
     B <- B + (term1 %*% X_list[[idx]]) / tau2_list[[idx]]
   }
-
+  
   # Try basic inversion first
   err_flag <- tryCatch({
     beta_hat <- Matrix::solve(B, zeta_vec)
@@ -162,17 +161,17 @@ M_step_gamma_CAR <- function(Vhat,
   # term1 <- as.numeric((t(vector_term) %*% W) %*% vector_term)
   # Speed
   term1 <- as.numeric(crossprod(W %*% vector_term, vector_term))
-
+  
   # Tr[W V]
   # term2 <- sum(diag(W %*% Vhat))
   # Trace tricks
   # term2 <- crossprod(as.vector(W), as.vector(t(Vhat)))
   # For sparse W this is actually faster
   term2 <- sum(W * t(Vhat))
-
+  
   # (term1 + term2) / (2 tau^2)
   constant_term <- (term1 + term2) * (0.5 / tau2)
-
+  
   # Gradient function
   # Inner function that evaluates the gradient
   grad_fcn <- function(x) {
@@ -180,14 +179,14 @@ M_step_gamma_CAR <- function(Vhat,
     eig_term <- (-0.5) * sum(eig_vals / (1.0 - (x * eig_vals)))
     return (eig_term + constant_term)
   }
-
+  
   # Set upper bound
   if (0 == sum(abs(eig_vals - 1) < 1e-4)) {
     upper <- 1.0 # No eigenvalues of 1.0
   } else {
     upper <- 1.0 - 1e-3
   }
-
+  
   # Try basic uniroot first
   err_flag <- tryCatch({
     # Find root
@@ -198,7 +197,7 @@ M_step_gamma_CAR <- function(Vhat,
       upper = upper,
       extendInt = "yes"
     )
-
+    
     # Return estimate and gradient value
     return(list(gamma_hat = gamma_out$root, grad_val = gamma_out$f.root))
   }, error = function(cond) {
@@ -210,12 +209,12 @@ M_step_gamma_CAR <- function(Vhat,
     # If null, random
     if (is.null(gamma_current)) {
       gamma_current = stats::runif(1)
-      cat("Assigning random gamma", gamma_current, "\n")
+      message("Assigning random gamma ", gamma_current, "\n")
     }
-
+    
     err_flag <- tryCatch({
       gamma_out <- pracma::newtonRaphson(grad_fcn, gamma_current)
-
+      
       # Return estimate and gradient value
       return(list(gamma_hat = gamma_out$root, grad_val = gamma_out$f.root))
     }, error = function(cond) {
@@ -228,12 +227,12 @@ M_step_gamma_CAR <- function(Vhat,
     # If null, random
     if (is.null(gamma_current)) {
       gamma_current = stats::runif(1)
-      cat("Assigning random gamma", gamma_current, "\n")
+      message("Assigning random gamma ", gamma_current, "\n")
     }
-
+    
     err_flag <- tryCatch({
       gamma_out <- pracma::fzero(grad_fcn, gamma_current)
-
+      
       # Return estimate and gradient value
       return(list(gamma_hat = gamma_out$x, grad_val = gamma_out$fval))
     }, error = function(cond) {
@@ -292,26 +291,26 @@ M_step_gamma_SAR <- function(Vhat,
     Matrix::Diagonal(dim(W)[1], 1 / Matrix::diag(D))
   # Z = D^\{-1\} W
   Z <- D_inv %*% W
-
+  
   # eta - X beta
   vector_term <- eta_hat - (X %*% beta_hat)
-
+  
   # (eta - X beta)^\top (2 W) (eta - X beta)
   # zeta1 <- 2.0 * as.numeric((t(vector_term) %*% W) %*% vector_term)
   # Speed
   zeta1 <- 2.0 * as.numeric(crossprod(W %*% vector_term, vector_term))
-
+  
   # (eta - X beta)^\top W Z (eta - X beta)
   # zeta2 <- as.numeric((t(vector_term) %*% W) %*% (Z %*% vector_term))
   zeta2 <- as.numeric(crossprod(W %*% vector_term, Z %*% vector_term))
-
+  
   # Tr[W V]
   # zeta3 <- sum(diag(W %*% Vhat))
   # Trace tricks
   # zeta3 <- crossprod(as.vector(W), as.vector(t(Vhat)))
   # This is faster for sparse W
   zeta3 <- sum(W * t(Vhat))
-
+  
   # Tr[W Z V]
   # zeta4 <- sum(diag((W %*% Z) %*% Vhat))
   # Trace tricks: Tr(A B) = <vec(A), vec(B^T)>
@@ -320,26 +319,26 @@ M_step_gamma_SAR <- function(Vhat,
   zeta4 <- sum(W * t(Z %*% Vhat))
   # An even faster method
   # zeta4 <- crossprod(as.vector(W), as.vector(t(Z %*% Vhat)))
-
+  
   grad_fcn <- function(x) {
     # (-1) sum_i lambda_i / (1 - gamma lambda_i)
     eig_term <- (-1.0) * sum(eig_vals / (1.0 - (x * eig_vals)))
-
+    
     # (-1/2 tau^2) (-zeta1 + 2 gamma zeta2)
     term1 <- (-0.5 / tau2) * (-zeta1 + x * (2.0 * zeta2))
     # (-1/tau^2) (-zeta3 + gamma zeta4)
     term2 <- (-1.0 / tau2) * (-zeta3 + x * zeta4)
-
+    
     return(eig_term + term1 + term2)
   }
-
+  
   # Set upper bound
   if (0 == sum(abs(eig_vals - 1) < 1e-4)) {
     upper <- 1.0 # No eigenvalues of 1.0
   } else {
     upper <- 1.0 - 1e-3
   }
-
+  
   # Try basic uniroot first
   err_flag <- tryCatch({
     # Find root
@@ -350,7 +349,7 @@ M_step_gamma_SAR <- function(Vhat,
       upper = upper,
       extendInt = "yes"
     )
-
+    
     # Return estimate and gradient value
     return(list(gamma_hat = gamma_out$root, grad_val = gamma_out$f.root))
   }, error = function(cond) {
@@ -362,12 +361,12 @@ M_step_gamma_SAR <- function(Vhat,
     # If null, random
     if (is.null(gamma_current)) {
       gamma_current = stats::runif(1)
-      cat("Assigning random gamma", gamma_current, "\n")
+      message("Assigning random gamma ", gamma_current, "\n")
     }
-
+    
     err_flag <- tryCatch({
       gamma_out <- pracma::newtonRaphson(grad_fcn, gamma_current)
-
+      
       # Return estimate and gradient value
       return(list(gamma_hat = gamma_out$root, grad_val = gamma_out$f.root))
     }, error = function(cond) {
@@ -380,12 +379,12 @@ M_step_gamma_SAR <- function(Vhat,
     # If null, random
     if (is.null(gamma_current)) {
       gamma_current = stats::runif(1)
-      cat("Assigning random gamma", gamma_current, "\n")
+      message("Assigning random gamma ", gamma_current, "\n")
     }
-
+    
     err_flag <- tryCatch({
       gamma_out <- pracma::fzero(grad_fcn, gamma_current)
-
+      
       # Return estimate and gradient value
       return(list(gamma_hat = gamma_out$x, grad_val = gamma_out$fval))
     }, error = function(cond) {
@@ -441,34 +440,34 @@ M_step_gamma_Leroux <- function(Vhat,
   id_mat <- Matrix::Diagonal(dim(W)[1], 1)
   # D - W - I
   DWI <- D - W - id_mat
-
+  
   # eta - X beta
   vector_term <- eta_hat - (X %*% beta_hat)
-
+  
   # (eta - X beta)^\top (D - W - I) (eta - X beta)
   # term1 <- as.numeric((t(vector_term) %*% DWI) %*% vector_term)
   # Speed
   term1 <- as.numeric(crossprod(DWI %*% vector_term, vector_term))
-
+  
   # Tr[(D - W - I) V]
   # term2 <- sum(diag(DWI %*% Vhat))
   # Trace tricks
   # term2 <- as.numeric(crossprod(as.vector(DWI), as.vector(t(Vhat))))
   # This is faster for sparse D and W
   term2 <- sum(DWI * t(Vhat))
-
+  
   # (term1 + term2) * (-1/2 tau^2)
   constant_term <- (-0.5 / tau2) * (term1 + term2)
-
+  
   # Cleans up computation
   eig_tmp <- eig_vals - 1
   grad_fcn <- function(x) {
     # (1/2) sum_i (kappa_i - 1) / ((kappa_i - 1) gamma + 1)
     eig_term <- 0.5 * sum(eig_tmp / ((eig_tmp * x) + 1.0))
-
+    
     return(eig_term + constant_term)
   }
-
+  
   # Try basic uniroot first
   err_flag <- tryCatch({
     # Find root
@@ -479,7 +478,7 @@ M_step_gamma_Leroux <- function(Vhat,
       # The zero eigenvalue causes issues
       extendInt = "yes"
     )
-
+    
     # Return estimate and gradient value
     return(list(gamma_hat = gamma_out$root, grad_val = gamma_out$f.root))
   }, error = function(cond) {
@@ -491,12 +490,12 @@ M_step_gamma_Leroux <- function(Vhat,
     # If null, random
     if (is.null(gamma_current)) {
       gamma_current = stats::runif(1)
-      cat("Assigning random gamma", gamma_current, "\n")
+      message("Assigning random gamma ", gamma_current, "\n")
     }
-
+    
     err_flag <- tryCatch({
       gamma_out <- pracma::newtonRaphson(grad_fcn, gamma_current)
-
+      
       # Return estimate and gradient value
       return(list(gamma_hat = gamma_out$root, grad_val = gamma_out$f.root))
     }, error = function(cond) {
@@ -509,12 +508,12 @@ M_step_gamma_Leroux <- function(Vhat,
     # If null, random
     if (is.null(gamma_current)) {
       gamma_current = stats::runif(1)
-      cat("Assigning random gamma", gamma_current, "\n")
+      message("Assigning random gamma ", gamma_current, "\n")
     }
-
+    
     err_flag <- tryCatch({
       gamma_out <- pracma::fzero(grad_fcn, gamma_current)
-
+      
       # Return estimate and gradient value
       return(list(gamma_hat = gamma_out$x, grad_val = gamma_out$fval))
     }, error = function(cond) {
@@ -565,22 +564,22 @@ M_step_gamma_Leroux <- function(Vhat,
 M_step_variogram <- function(eta_hat, beta_hat, X, coords, cov_type = "Exp") {
   # close_to_zero_const <- 1e4 * .Machine$double.eps
   close_to_zero_const <- max(min(1e-6, 1 / nrow(X)^2), 1e4 * .Machine$double.eps)
-
+  
   # Create data frame for spatial packages
   sp_dat <- cbind(coords, as.numeric(eta_hat - X %*% beta_hat))
   colnames(sp_dat) <- c("x", "y", "z")
   sp_dat <- as.data.frame(sp_dat)
-
+  
   # Identify coordinates for spatial packages
   sp::coordinates(sp_dat) <- ~ x + y
-
+  
   # Empirical variogram
   # Cutoff is maximum distance: Values are weighted in the fitting
   cutoff <- sqrt(diff(range(sp::coordinates(sp_dat)[, 1]))^2
                  + diff(range(sp::coordinates(sp_dat)[, 2]))^2)
   # Create variogram
   vg_emp <- gstat::variogram(z ~ 1, data = sp_dat, cutoff = cutoff)
-
+  
   # Define variogram model
   vg_model <- gstat::vgm(
     nugget = min(vg_emp$gamma),
@@ -588,20 +587,20 @@ M_step_variogram <- function(eta_hat, beta_hat, X, coords, cov_type = "Exp") {
     range = stats::median(vg_emp$dist),
     model = cov_type
   )
-
+  
   err_flag <- tryCatch({
     # Fit model
     vg_fit <- gstat::fit.variogram(vg_emp,
                                    vg_model,
                                    fit.kappa = TRUE,
                                    fit.method = 7)
-
+    
     # Nugget variance, Spatial variance, Range, Smoothness (if Matern)
     vg_params <- c(vg_fit[vg_fit$model == "Nug", ]$psill, vg_fit[vg_fit$model == cov_type, ]$psill, vg_fit[vg_fit$model == cov_type, ]$range)
     if ("Mat" == cov_type) {
       vg_params <- c(vg_params, vg_fit[vg_fit$model == cov_type, ]$kappa)
     }
-
+    
     vg_params[is.na(vg_params)] <- close_to_zero_const
     vg_params[is.nan(vg_params)] <- close_to_zero_const
     if ((close_to_zero_const >= vg_params[1]) &&
@@ -610,11 +609,11 @@ M_step_variogram <- function(eta_hat, beta_hat, X, coords, cov_type = "Exp") {
         "BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO. FAILSAFE: Setting nugget to observed variance."
       )
       vg_params[1] <- max(close_to_zero_const, stats::var(sp_dat$z))
-      cat("Assigning nugget", vg_params[1], "\n")
+      message("Assigning nugget ", vg_params[1], "\n")
     }
     if (close_to_zero_const >= vg_params[3]) {
       warning("WARNING: INVALID RANGE; FAILSAFE: Setting range to 95% of p-sill distance.")
-
+      
       # Compute 95% of sill
       sill_95 <- 0.95 * vg_params[2]
       # Find distances corresponding to a value at least 95% of sill
@@ -628,7 +627,7 @@ M_step_variogram <- function(eta_hat, beta_hat, X, coords, cov_type = "Exp") {
       }
       vg_params[3] <- range_hat
     }
-
+    
     return(vg_params)
   }, error = function(cond) {
     warning("FIT.VARIOGRAM FAILED; WILL DEFAULT TO A FAILSAFE")
@@ -639,10 +638,10 @@ M_step_variogram <- function(eta_hat, beta_hat, X, coords, cov_type = "Exp") {
     vg_params <- c(close_to_zero_const,
                    close_to_zero_const,
                    close_to_zero_const)
-
+    
     # Assigning all variance to non-spatial
     vg_params[1] <- max(close_to_zero_const, stats::var(sp_dat$z))
-
+    
     # Compute 95% of sill
     sill_95 <- 0.95 * vg_params[2]
     # Find distances corresponding to a value at least 95% of sill
@@ -655,12 +654,12 @@ M_step_variogram <- function(eta_hat, beta_hat, X, coords, cov_type = "Exp") {
       range_hat <- max(vg_emp$dist)
     }
     vg_params[3] <- range_hat
-
+    
     # Use a default 3/2 value for kappa
     if ("Mat" == cov_type) {
       vg_params <- c(vg_params, 1.5)
     }
-
+    
     return(vg_params)
   }
 }
@@ -698,10 +697,10 @@ M_step_BRISC <- function(eta_hat,
                          k = 15) {
   # close_to_zero_const <- 1e4 * .Machine$double.eps
   close_to_zero_const <- max(min(1e-6, 1 / nrow(X)^2), 1e4 * .Machine$double.eps)
-
+  
   # Get phi_hat = eta - X beta
   phi_hat <- as.numeric(eta_hat - X %*% beta_hat)
-
+  
   # Call BRISC
   err_flag <- FALSE
   err_flag <- tryCatch({
@@ -718,7 +717,7 @@ M_step_BRISC <- function(eta_hat,
       # Covariance type
       transform_z = FALSE # Don't log values
     )
-
+    
     if (b_out$Theta[1] + b_out$Theta[2] < close_to_zero_const) {
       warning("Variances are low/unstable; FAILSAFE--Everything is non-spatial")
       b_out$Theta[1] <- max(close_to_zero_const, stats::var(phi_hat))
@@ -735,12 +734,89 @@ M_step_BRISC <- function(eta_hat,
   })
   if (err_flag) {
     warning("Initiating FAILSAFE SINCE BRISC FAILED: Fitting via a variogram.")
-
+    
     # Return zeros for the variances, and default values for the rest
     # close_to_zero_const <- 2.0 * .Machine$double.eps
     # return( c(max(close_to_zero_const, stats::var(phi_hat)), close_to_zero_const, 1, 1.5) )
-
+    
     vg_out <- M_step_variogram(eta_hat, beta_hat, X, coords, cov_type)
     return(vg_out)
   }
+}
+
+#'  Wrapper to fit sparse NN GP model via BRISC.
+#'
+#'  This function theoretically works for multiple areas by stacking everything
+#'  together and ignoring differences in coordinates.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param z_list List of vectors of observed counts---one vector per area.
+#' @param X_list List of design or covariate matrices---one matrix per area.
+#'    Same length and ordering as z_list.
+#'    Matrices with number of rows equal to length of corresponding vector in
+#'    z_list.
+#' @param coords_list List of coordinate matrices (x, y)---one matrix per area.
+#'    Same length and ordering as z_list.
+#'    Matrices with number of rows equal to length of corresponding vector in
+#'    z_list.
+#' @param k Number of neighbors.
+#' @param cov_type String for covariance model type.
+#'    "Exp", "Sph", "Gau", and "Mat" are supported.
+#' @param transform_z Boolean: log-transform z or not.
+#' @param z_offset If transform_z, the counts z are transformed as
+#'    log(z + z_offset).
+#' @param verbose Whether to print output as BRISC runs.
+#'
+#' @returns The output list from BRISC, plus a time field for how long the
+#'    function ran for.
+#'
+#' @note Requires the BRISC library.
+#'
+#' @importFrom BRISC BRISC_estimation
+BRISC_wrapper <- function(z_list,
+                          X_list,
+                          coords_list,
+                          k = 15,
+                          cov_type = "Exp",
+                          transform_z = TRUE,
+                          z_offset = 0.5,
+                          verbose = FALSE) {
+  # Start clock
+  t0_glm <- Sys.time()
+  
+  # Stack into a single vector/matrix
+  z_vec <- as.vector(Reduce(c, z_list))
+  X_mat <- as.matrix(Reduce(rbind, X_list))
+  coords <- as.matrix(Reduce(rbind, coords_list))
+  
+  # Transform z
+  if (transform_z) {
+    z_vec <- log(z_vec + z_offset)
+  }
+  
+  if ("Exp" == cov_type) {
+    brisc_cov = "exponential"
+  } else if ("Sph" == cov_type) {
+    brisc_cov = "spherical"
+  } else if ("Mat" == cov_type) {
+    brisc_cov = "matern"
+  } else if ("Gau" == cov_type) {
+    brisc_cov = "gaussian"
+  }
+  # Fit LM
+  b_out <- BRISC::BRISC_estimation(
+    coords,
+    z_vec,
+    X_mat,
+    n.neighbors = k,
+    cov.model = brisc_cov,
+    verbose = verbose
+  )
+  
+  # Stop clock
+  t1_glm <- Sys.time()
+  b_out[["time"]] <- difftime(t1_glm, t0_glm)
+  
+  return(b_out)
 }

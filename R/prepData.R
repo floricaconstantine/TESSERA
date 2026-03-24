@@ -2,7 +2,7 @@
 # Create various lists containing, respectively,
 # coordinate matrices, covariate matrices, count matrices, library sizes, etc.
 # with a list element for each sample
-## Florica Constantine (florica AT berkeley DOT edu)
+# Dependencies in file: Matrix, dplyr, spatstat, reshape2, Rfast, ggplot2, spatstat.geom.
 
 #' Prepare data for the TESSERA method.
 #'
@@ -92,7 +92,7 @@ prepData <- function(count_matrix,
   if (is.null(compute_eigs)) {
     compute_eigs <- "NONE"
   }
-
+  
   # Check dimensions and names
   stopifnot(ncol(count_matrix) == nrow(meta_data))
   stopifnot(identical(colnames(count_matrix), rownames(meta_data)))
@@ -105,18 +105,18 @@ prepData <- function(count_matrix,
     stopifnot(identical(rownames(design_mat), rownames(meta_data)))
   }
   if (!is.null(adj_mat)) {
-    cat("Using supplied adjacency matrix.", "\n")
+    message("Using supplied adjacency matrix.", "\n")
     stopifnot(ncol(adj_mat) == nrow(adj_mat)) # Square
     stopifnot(ncol(adj_mat) == nrow(meta_data)) # Matching dimensions
     stopifnot(identical(rownames(adj_mat), colnames(adj_mat))) # Symmetry
     stopifnot(identical(rownames(adj_mat), rownames(meta_data))) # Names
   }
-
+  
   # Sample names
   sample_names <- unique(meta_data[, sample_col])
   # Gene names
   gene_names <- rownames(count_matrix)
-
+  
   # Lists to create for output
   # List of coordinate matrices
   coords_list <- list()
@@ -134,27 +134,27 @@ prepData <- function(count_matrix,
   eig_CS_list <- list()
   # Eigenvalues for Leroux
   eig_L_list <- list()
-
+  
   # Preprocess design_mat, if supplied
   if (!is.null(design_mat)) {
     cs_tmp <- colSums(design_mat)
     if (0 < sum(cs_tmp == 0)) {
       warning("There are all-zero columns in the design matrix.")
-      cat("Which columns are all zero:", colnames(design_mat)[cs_tmp == 0], "\n")
+      message("Which columns are all zero: ", colnames(design_mat)[cs_tmp == 0], "\n")
       warning("Dropping columns that are all zero")
       design_mat <- design_mat[, cs_tmp != 0, drop = FALSE]
     }
-
+    
     rank_tmp <- Matrix::rankMatrix(design_mat)[1]
     if (rank_tmp != ncol(design_mat)) {
       warning("The design matrix is not full rank.")
-      cat("Design matrix is not full rank: ",
-          rank_tmp,
-          " < ",
-          ncol(design_mat))
+      message("Design matrix is not full rank: ",
+              rank_tmp,
+              " < ",
+              ncol(design_mat))
     }
   }
-
+  
   # Extract the coordinates matrix for each sample
   # Extract the covariates to use for each sample
   # Extract the counts and library sizes for each sample
@@ -162,16 +162,16 @@ prepData <- function(count_matrix,
     # Indices for cells in sample
     idx_local <- which(meta_data[, sample_col] == samp)
     cell_names_local <- rownames(meta_data)[idx_local]
-
+    
     # Coordinates
     if (!is.null(coord_data)) {
       coords_list[[1 + length(coords_list)]] <- coord_data[idx_local, ]
       rownames(coords_list[[length(coords_list)]]) <- cell_names_local
     }
-
+    
     # Covariates
     covariates_list[[1 + length(covariates_list)]] <- meta_data[idx_local, ]
-
+    
     # Counts and library size
     counts_list[[1 + length(counts_list)]] <- count_matrix[, idx_local, drop =
                                                              FALSE]
@@ -182,14 +182,14 @@ prepData <- function(count_matrix,
     } else {
       library_size_list[[1 + length(library_size_list)]] <- rep(1, length(cell_names_local))
     }
-
-
+    
+    
     # Design matrix
     if (!is.null(design_mat)) {
       X_list[[1 + length(X_list)]] <- design_mat[idx_local, , drop = FALSE]
       rownames(X_list[[length(X_list)]]) <- cell_names_local
     }
-
+    
     # Set names
     names(library_size_list[[length(library_size_list)]]) <- cell_names_local
     rownames(counts_list[[length(counts_list)]]) <- gene_names
@@ -200,57 +200,57 @@ prepData <- function(count_matrix,
   names(covariates_list) <- sample_names
   names(counts_list) <- sample_names
   names(library_size_list) <- sample_names
-
+  
   ## Design matrix from metadata
-
+  
   # Create design matrix if not supplied
   if (!is.null(design_formula)) {
     X_full <- dplyr::bind_rows(covariates_list)
     X_mat <- stats::model.matrix(design_formula, X_full)
     rm(X_full)
-
+    
     # Check X_mat for zero columns and rank deficiency
     if (!is.null(X_mat)) {
       cs_tmp <- colSums(X_mat)
       if (0 < sum(cs_tmp == 0)) {
         warning("There are all-zero columns in the design matrix.")
-        cat("Which columns are all zero:", colnames(X_mat)[cs_tmp == 0], "\n")
+        message("Which columns are all zero:", colnames(X_mat)[cs_tmp == 0], "\n")
         warning("Dropping design matrix columns that are all zero")
         X_mat <- X_mat[, cs_tmp != 0, drop = FALSE]
       }
-
+      
       rank_tmp <- Matrix::rankMatrix(X_mat)[1]
       if (rank_tmp != ncol(X_mat)) {
         warning("The design matrix is not full rank.")
-        cat("Design matrix is not full rank: ",
-            rank_tmp,
-            " < ",
-            ncol(X_mat))
+        message("Design matrix is not full rank: ",
+                rank_tmp,
+                " < ",
+                ncol(X_mat))
       }
     }
-
+    
     # Separate into lists
     for (samp in sample_names) {
       # Indices for cells in sample
       idx_local <- which(meta_data[, sample_col] == samp)
       cell_names_local <- rownames(meta_data)[idx_local]
-
+      
       # Design matrix
       X_list[[1 + length(X_list)]] <- X_mat[idx_local, , drop = FALSE]
       rownames(X_list[[length(X_list)]]) <- cell_names_local
     }
   }
   names(X_list) <- sample_names
-
+  
   # Adjacency matrix
   if (!is.null(adj_mat)) {
-    cat("Subsetting provided adjacency matrix.", "\n")
+    message("Subsetting provided adjacency matrix.", "\n")
     # Separate into lists
     for (samp in sample_names) {
       # Indices for cells in sample
       idx_local <- which(meta_data[, sample_col] == samp)
       cell_names_local <- rownames(meta_data)[idx_local]
-
+      
       # Subset matrix
       W <- adj_mat[idx_local, idx_local]
       # Ensure symmetry (sometimes ties in distances lead to weird things)
@@ -261,13 +261,13 @@ prepData <- function(count_matrix,
       # stopifnot(max(W) == 1)
       # stopifnot(min(W) == 0)
       # stopifnot(0 == sum(abs(Matrix::diag(W)) != 0))
-
+      
       # Degree matrix
       D <- Matrix::Diagonal(nrow(W), Matrix::rowSums(W))
-
+      
       W_list[[1 + length(W_list)]] <- W
       D_list[[1 + length(D_list)]] <- D
-
+      
       if (0 == min(Matrix::rowSums(W))) {
         warning(paste0("Not every cell has a neighbor, ", samp))
       }
@@ -288,8 +288,8 @@ prepData <- function(count_matrix,
     names(D_list) <- sample_names
   } else if (!is.null(coord_data) &&
              !is.null(D_THRESH) && is.null(adj_mat)) {
-    cat("Creating adjacency matrix.", "\n")
-
+    message("Creating adjacency matrix.", "\n")
+    
     ## Create adjacency matrices: If we have coordinates and a threshold
     for (idx in 1:length(coords_list)) {
       # Get indices of nearest neighbors for each cell
@@ -298,7 +298,7 @@ prepData <- function(count_matrix,
       nn_dist <- spatstat.geom::nndist(coords_list[[idx]], k = 1:k_search)
       # Find number of neighbors for each cell--at least 1
       n_nb <- pmax(1, rowSums(nn_dist <= D_THRESH))
-
+      
       # Extract indices of neighbors
       col_list <- list()
       row_list <- list()
@@ -308,7 +308,7 @@ prepData <- function(count_matrix,
       }
       col_list <- Reduce(c, col_list)
       row_list <- Reduce(c, row_list)
-
+      
       # Adjacency matrix of cell neighbors
       W <- Matrix::sparseMatrix(
         i = row_list,
@@ -324,10 +324,10 @@ prepData <- function(count_matrix,
       stopifnot(max(W) == 1)
       stopifnot(min(W) == 0)
       stopifnot(0 == sum(abs(Matrix::diag(W)) != 0))
-
+      
       # Degree matrix
       D <- Matrix::Diagonal(nrow(W), Matrix::rowSums(W))
-
+      
       W_list[[idx]] <- W
       D_list[[idx]] <- D
     }
@@ -336,9 +336,9 @@ prepData <- function(count_matrix,
   } else {
     warning("Not creating adjacency matrices: missing either coordinates or threshold.")
   }
-
+  
   ## Compute eigenvalues for the lattice models
-
+  
   if (grepl("NONE", compute_eigs, ignore.case = TRUE)) {
     # Do nothing since we're told to not compute eigenvalues
     warning("Not computing eigenvalues: option selected.")
@@ -346,26 +346,25 @@ prepData <- function(count_matrix,
     warning("Not computing eigenvalues: W_list is empty.")
   } else {
     for (idx in 1:length(W_list)) {
-      cat(paste(Sys.time(), idx), "\n")
       if (grepl("C", compute_eigs, ignore.case = TRUE)
           || grepl("S", compute_eigs, ignore.case = TRUE)) {
-        cat(
-          "Starting CAR/SAR eigenvalue computation for area",
+        message(
+          "Starting CAR/SAR eigenvalue computation for area ",
           idx,
-          "at",
+          " at ",
           paste(Sys.time(), "\n")
         )
-
+        
         eig_CS_list[[idx]] <- Re(eigen(Matrix::solve(D_list[[idx]], W_list[[idx]]), FALSE, only.values = TRUE)$values)
       }
       if (grepl("L", compute_eigs, ignore.case = TRUE)) {
-        cat(
-          "Starting Leroux eigenvalue computation for area",
+        message(
+          "Starting Leroux eigenvalue computation for area ",
           idx,
-          "at",
+          " at ",
           paste(Sys.time(), "\n")
         )
-
+        
         eig_L_list[[idx]] <- Re(eigen(D_list[[idx]] - W_list[[idx]], TRUE, only.values = TRUE)$values)
       }
       if (!(
@@ -389,7 +388,7 @@ prepData <- function(count_matrix,
       eig_L_list <- NULL
     }
   }
-
+  
   ## Store and return
   return(structure(
     list(
@@ -450,7 +449,7 @@ visualizeNeighborDistances <- function(meta_data,
     coord_data[meta_data[, sample_col] == x, ]
   })
   names(coords_list) <- unique(meta_data[, sample_col])
-
+  
   ## k nearest neighbor distances for each cell
   nb_dist <- dplyr::bind_rows(lapply(1:length(coords_list), function (x) {
     tmp <- spatstat.geom::nndist(coords_list[[x]], k = 1:k_search)
@@ -459,26 +458,26 @@ visualizeNeighborDistances <- function(meta_data,
     colnames(tmp)[1] = "sample"
     data.frame(tmp)
   }))
-
+  
   ## Mean / Standard deviation of k-nearest neighbor distances
   # Each row is a sample, each column is a distance (compute metrics over cells)
   mean_nb_dist <- as.matrix(dplyr::bind_rows(lapply(coords_list, function (x) {
     colMeans(spatstat.geom::nndist(x, k = 1:k_search))
   })))
   rownames(mean_nb_dist) <- names(coords_list)
-
+  
   std_nb_dist <- sqrt(t(as.matrix(dplyr::bind_cols(
     lapply(coords_list, function (x) {
       as.matrix(Rfast::colVars(spatstat.geom::nndist(x, k = 1:k_search)))
     })
   ))))
   rownames(std_nb_dist) <- names(coords_list)
-
+  
   ## Make a plot to visualize mean Euclidean distance of cells to kth neighbor for each sample
   plot_data <- reshape2::melt(mean_nb_dist,
                               value.name = "distance",
                               varnames = c("index", "k_nghbr"))
-
+  
   plot_data$k_nghbr <- gsub("dist.", "", plot_data$k_nghbr)
   plot_data$k_nghbr <- factor(plot_data$k_nghbr, levels = 1:k_search)
   p <- ggplot2::ggplot(data = plot_data, ggplot2::aes_string(x = "k_nghbr", y = "distance"))
@@ -487,7 +486,7 @@ visualizeNeighborDistances <- function(meta_data,
   p <- p + ggplot2::labs(x = "kth neighbor", y = "Mean Euclidean distance")
   p <- p + ggplot2::theme_bw()
   p <- p + ggplot2::theme(text = ggplot2::element_text(size = 20))
-
+  
   ## Store and return
   return(
     list(
@@ -497,4 +496,109 @@ visualizeNeighborDistances <- function(meta_data,
       distances_plot = p
     )
   )
+}
+
+#' Prepare data for the TESSERA method from a SpatialExperiment object.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param spDataObject A SpatialExperiment object.
+#' @param sample_col String: Column name in the meta data identifying which rows correspond
+#'  to which sample (how to break up the data into multiple samples).
+#' @param design_formula Formula object (compatible with stats::model.matrix).
+#'  Supply one of design_formula and design_mat.
+#' @param design_mat Design matrix.
+#'  Supply one of design_formula and design_mat.
+#'  Zero columns will be dropped.
+#' @param model_type One of "Leroux", "CAR", "SAR", "spNNGP".
+#'  Spatial covariance structure.
+#' @param D_THRESH Distance threshold for assigning two observations as adjacent.
+#'  Needed to compute adjacency matrices.
+#'  Not needed for non-lattice models (set to NULL).
+#' @param expected_num_neighbors In the absence of a known D_THRESH, how many
+#'  neighbors (on average) each cell should have. E.g., Visium data has 6.
+#'  Supply at least one of D_THRESH and expected_num_neighbors; D_THRESH supercedes
+#'  expected_num_neighbors.
+#'
+#' @return A list comprised of the following.
+#' @returns coords_list: A list with a matrix of coordinates for each sample.
+#' @returns covariates_list: A list with a dataframe of metadata for each sample.
+#' @returns library_size_list: A list with a vector of library sizes for each sample.
+#'  Total counts for each location if there are more than one gene/measurement;
+#'  otherwise, set to 1.
+#' @returns X_list: A list with a matrix of design matrices for each sample.
+#' @returns W_list: A list with measurement adjacency matrix for each sample.
+#'  If computed.
+#' @returns D_list: A list with measurement degree matrix for each sample.
+#'  If computed.
+#' @returns eig_CS_list: A list with CAR/SAR model eigenvalues for each sample.
+#'  If computed.
+#' @returns eig_L_list: A list with Leroux model eigenvalues for each sample.
+#'  If computed.
+#'
+#' @note Calls prepData and visualizeNeighborDistances.
+#' @note This function is optional/not a core function of the package.
+#'  It requires installation of the following Bioconductor packages:
+#'  "SpatialExperiment", "SingleCellExperiment", "SummarizedExperiment".
+#'
+#' @export
+prepDataSpatialExperiment <- function(spDataObject,
+                                      sample_col,
+                                      design_formula = NULL,
+                                      design_mat = NULL,
+                                      model_type = "Leroux",
+                                      D_THRESH = NULL,
+                                      expected_num_neighbors = 6) {
+  req_pkgs <- c("SpatialExperiment",
+                "SingleCellExperiment",
+                "SummarizedExperiment")
+  keep <- vapply(req_pkgs,
+                 requireNamespace,
+                 quietly = TRUE,
+                 FUN.VALUE = logical(1))
+  if (any(!keep)) {
+    stop(
+      "The following Bioconductor packages are required for this function: ",
+      paste(req_pkgs[!keep], collapse = ", "),
+      ". Please install them to proceed.",
+      call. = FALSE
+    )
+  }
+  
+  # Set up eigenvalue computation
+  if ("Leroux" == model_type) {
+    compute_eigs <- "L"
+  } else if ("CAR" == model_type) {
+    compute_eigs <- "C"
+  } else if ("SAR" == model_type) {
+    compute_eigs <- "S"
+  } else {
+    compute_eigs <- "NONE"
+  }
+  
+  # No distance threshold supplied, so we need to figure one out
+  if (is.null(D_THRESH) && !is.null(expected_num_neighbors)) {
+    nb_data <- visualizeNeighborDistances(
+      meta_data = SummarizedExperiment::colData(spDataObject),
+      sample_col = sample_col,
+      coord_data = SpatialExperiment::spatialCoords(spDataObject),
+      k_search = expected_num_neighbors + 1
+    )
+    
+    D_THRESH <- mean(colMeans(nb_data$mean_nb_dist[, expected_num_neighbors:(expected_num_neighbors + 1)]))
+  }
+  
+  # Call prepData function to get final object
+  TESSERA_data <- prepData(
+    count_matrix = SingleCellExperiment::counts(spDataObject),
+    meta_data = data.frame(SummarizedExperiment::colData(spDataObject)),
+    sample_col = sample_col,
+    design_formula = design_formula,
+    design_mat = design_mat,
+    coord_data = SpatialExperiment::spatialCoords(spDataObject),
+    D_THRESH = D_THRESH,
+    compute_eigs = compute_eigs
+  )
+  
+  return(TESSERA_data)
 }
