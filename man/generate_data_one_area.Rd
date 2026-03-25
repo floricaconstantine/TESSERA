@@ -66,6 +66,8 @@ x_coords: x-coordinates of points.
 
 y_coords: y-coordinates of points.
 
+coords: Matrix of coordinates (rows are x, y).
+
 Q: Unscaled precision matrix. Depends on W, D, gamma_true.
 
 phi_true: True sampled random effects.
@@ -86,6 +88,7 @@ Requires the Matrix library.
 Calls the various Q_matrix creation functions.
 }
 \examples{
+set.seed(2026)
 generate_data_one_area(1000, 0.03, "Leroux", c(1, 0, -1), 0.5, 1.0, "rand_bern")
 }
 \author{

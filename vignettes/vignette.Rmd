@@ -34,6 +34,7 @@ library(dplyr)
 library(reshape2)
 library(Matrix)
 library(MatrixGenerics)
+library(MASS)
 
 # Visualization
 library(ggplot2)
@@ -110,7 +111,7 @@ spe <- spe[order(rv, decreasing = TRUE), ]
 ```{r}
 # Key markers for norepinephrine neurons
 lc_markers <- c("TH", "DBH", "SLC6A2", "GCH1", "DDC")
-# Check which ones are in your high-variance vignette set
+# Check which marker genes are in the data set
 present_markers <- intersect(lc_markers, rownames(spe))
 
 # Print markers and their indices (by decreasing variance)
@@ -147,7 +148,7 @@ p
 # Simple design: Look at annotated region in v. out
 TESSERA_data <- prepDataSpatialExperiment(spDataObject = spe, 
                                           sample_col = "sample_part_id",
-                                          design_formula = as.formula( ~ annot_region),
+                                          design_formula = as.formula( ~ annot_region + donor_id),
                                           model_type = "Leroux",
                                           expected_num_neighbors = 6
                                           )
@@ -216,11 +217,10 @@ print(TESSERA_out$performanceSummary)
 z_data <- sapply(TESSERA_data$counts_list, function (x) {
   as.vector(x[gene_idx, ])
 })
-glm_out <- TESSERA::glm_nb_wrapper(
-  z_list = z_data,
-  X_list = TESSERA_data$X_list,
-  library_size_list = TESSERA_data$library_size_list
-)
+z_data <- Reduce(c, z_data)
+X_data <- Reduce(rbind, TESSERA_data$X_list)
+lib_data <- Reduce(c, sapply(TESSERA_data$library_size_list, as.vector))
+glm_out <- MASS::glm.nb(z_data ~ 0 + X_data + stats::offset(log(lib_data)))
 
 glm_preds <- predict(glm_out, type = "response")
 glm_resid <- resid(glm_out, type = "response")

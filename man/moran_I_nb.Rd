@@ -17,6 +17,14 @@ Moran's I (spatial autocorrelation).
 \description{
 Compute Moran's I using an adjacency matrix.
 }
+\examples{
+set.seed(2026)
+tau2_true <- 1.0
+gamma_true <- 0.5
+beta_true <- c(1, 0, -1) 
+ex_data <- generate_data_one_area(1000, 0.03, "Leroux", beta_true, gamma_true, tau2_true, "rand_bern")
+moran_I_nb(ex_data$z, ex_data$W)
+}
 \author{
 Florica J Constantine, florica AT berkeley.edu
 }

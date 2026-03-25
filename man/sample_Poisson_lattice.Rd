@@ -52,6 +52,14 @@ Requires the Matrix library.
 
 Calls the various Q_matrix creation functions.
 }
+\examples{
+set.seed(2026)
+tau2_true <- 1.0
+gamma_true <- 0.5
+beta_true <- c(1, 0, -1) 
+ex_data <- generate_data_one_area(1000, 0.03, "Leroux", beta_true, gamma_true, tau2_true, "rand_bern")
+sample_Poisson_lattice("Leroux", ex_data$X, ex_data$W, ex_data$D, ex_data$library_size, tau2_true, gamma_true, beta_true)
+}
 \author{
 Florica J Constantine, florica AT berkeley.edu
 }

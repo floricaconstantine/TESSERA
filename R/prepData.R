@@ -71,6 +71,8 @@
 #' @importFrom stats model.matrix
 #'
 #' @export
+#' 
+#' @example inst/examples/gen_data_and_run.R
 prepData <- function(count_matrix,
                      meta_data,
                      sample_col,
@@ -455,7 +457,7 @@ visualizeNeighborDistances <- function(meta_data,
     tmp <- spatstat.geom::nndist(coords_list[[x]], k = 1:k_search)
     rownames(tmp) <- rownames(coords_list[[x]])
     tmp <- cbind(rep(names(coords_list)[x], nrow(tmp)), tmp)
-    colnames(tmp)[1] = "sample"
+    colnames(tmp)[1] <- "sample"
     data.frame(tmp)
   }))
   

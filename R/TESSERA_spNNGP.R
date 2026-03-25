@@ -113,6 +113,8 @@
 #' @useDynLib TESSERA
 #'
 #' @export
+#' 
+#' @example inst/examples/gen_data_and_run.R
 TESSERA_spNNGP <- function(TESSERAData_obj,
                            gene_name,
                            cov_type = "Exp",
@@ -129,7 +131,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
                            dense_matrices = TRUE)
 {
   # Start clock
-  t0_EM = Sys.time()
+  t0_EM <- Sys.time()
   
   # Check inputs
   checkInputsTESSERAspNNGP(TESSERAData_obj)
@@ -155,7 +157,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     }
   }
   # Dimension of coefficient vector
-  beta_dim = ncol(TESSERAData_obj$X_list[[1]])
+  beta_dim <- ncol(TESSERAData_obj$X_list[[1]])
   
   # Set up nearest neighbor tracker and associated distances
   sp_dist_list <- list()
@@ -499,7 +501,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
       }
     }
   }
-  t1_EM = Sys.time()
+  t1_EM <- Sys.time()
   message("Time ", t1_EM - t0_EM, "\n")
   
   # Compute Negative Hessians
@@ -602,7 +604,10 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
 #'
 #' @returns Nothing.
 #' @import Matrix
+#' 
 #' @export
+#' 
+#' @example inst/examples/gen_data_and_run.R
 checkInputsTESSERAspNNGP <- function (TESSERAData_obj) {
   # Check that the bare minimum is present
   stopifnot(!is.null(TESSERAData_obj$counts_list))

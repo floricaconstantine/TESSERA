@@ -88,6 +88,9 @@ NumericVector normalize(NumericVector x)
 //' @returns SD Standard deviation of Moran's I.
 //'
 //' @export
+//' 
+//' @examples
+//' calc_moran(rpois(1000, 1), runif(1000), runif(1000))
 // [[Rcpp::export]]
 NumericVector calc_moran(NumericVector x, NumericVector c1, NumericVector c2)
 {

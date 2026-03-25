@@ -40,6 +40,9 @@ normalize <- function(x) {
 #' @returns SD Standard deviation of Moran's I.
 #'
 #' @export
+#' 
+#' @examples
+#' calc_moran(rpois(1000, 1), runif(1000), runif(1000))
 calc_moran <- function(x, c1, c2) {
     .Call('_TESSERA_calc_moran', PACKAGE = 'TESSERA', x, c1, c2)
 }

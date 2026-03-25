@@ -36,6 +36,7 @@
 #' @returns library_size: Scaling for theta.
 #' @returns x_coords: x-coordinates of points.
 #' @returns y_coords: y-coordinates of points.
+#' @returns coords: Matrix of coordinates (rows are x, y).
 #' @returns Q: Unscaled precision matrix. Depends on W, D, gamma_true.
 #' @returns phi_true: True sampled random effects.
 #'  (multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
@@ -61,6 +62,7 @@
 #' @export
 #'
 #' @examples
+#' set.seed(2026)
 #' generate_data_one_area(1000, 0.03, "Leroux", c(1, 0, -1), 0.5, 1.0, "rand_bern")
 generate_data_one_area <- function(n_points,
                                    nb_dist,
@@ -74,11 +76,11 @@ generate_data_one_area <- function(n_points,
                                    library_size = NULL) {
   # Model covariance function
   if ("CAR" == model_type) {
-    Q_fcn = Q_matrix_CAR
+    Q_fcn <- Q_matrix_CAR
   } else if ("SAR" == model_type) {
-    Q_fcn = Q_matrix_SAR
+    Q_fcn <- Q_matrix_SAR
   } else if ("Leroux" == model_type) {
-    Q_fcn = Q_matrix_Leroux
+    Q_fcn <- Q_matrix_Leroux
   } else {
     stop("Invalid model_type")
   }
@@ -175,6 +177,7 @@ generate_data_one_area <- function(n_points,
       library_size = library_size,
       x_coords = x_coords,
       y_coords = y_coords,
+      coords = coords,
       Q = Q,
       phi_true = phi_true,
       eta_true = eta_true,
@@ -221,6 +224,7 @@ generate_data_one_area <- function(n_points,
 #' @returns library_size: Scaling for theta.
 #' @returns x_coords: x-coordinates of points.
 #' @returns y_coords: y-coordinates of points.
+#' @returns coords: Matrix of coordinates (rows are x, y).
 #' @returns Sparse precision matrix Q.
 #' @returns Eigenvalues Dinv.
 #' @returns Lower triangular factor A.
@@ -249,6 +253,7 @@ generate_data_one_area <- function(n_points,
 #' @export
 #'
 #' @examples
+#' set.seed(2026)
 #' generate_data_one_area_spNNGP(1000, 0.03, "Mat", c(1.0, 1.0, 10, 2), 20, c(1, 0, -1))
 generate_data_one_area_spNNGP <- function(n_points,
                                           nb_dist,
@@ -365,6 +370,7 @@ generate_data_one_area_spNNGP <- function(n_points,
       library_size = library_size,
       x_coords = x_coords,
       y_coords = y_coords,
+      coords = coords,
       Q = Q,
       A = A,
       Dinv = Dinv,
@@ -406,6 +412,14 @@ generate_data_one_area_spNNGP <- function(n_points,
 #' @importFrom stats rpois
 #'
 #' @export
+#' 
+#' @examples
+#' set.seed(2026)
+#' tau2_true <- 1.0
+#' gamma_true <- 0.5
+#' beta_true <- c(1, 0, -1) 
+#' ex_data <- generate_data_one_area(1000, 0.03, "Leroux", beta_true, gamma_true, tau2_true, "rand_bern")
+#' sample_Poisson_lattice("Leroux", ex_data$X, ex_data$W, ex_data$D, ex_data$library_size, tau2_true, gamma_true, beta_true)
 sample_Poisson_lattice <- function(model_type,
                                    X,
                                    W,
@@ -416,11 +430,11 @@ sample_Poisson_lattice <- function(model_type,
                                    beta_true) {
   # Model covariance function
   if ("CAR" == model_type) {
-    Q_fcn = Q_matrix_CAR
+    Q_fcn <- Q_matrix_CAR
   } else if ("SAR" == model_type) {
-    Q_fcn = Q_matrix_SAR
+    Q_fcn <- Q_matrix_SAR
   } else if ("Leroux" == model_type) {
-    Q_fcn = Q_matrix_Leroux
+    Q_fcn <- Q_matrix_Leroux
   } else {
     stop("Invalid model_type")
   }
@@ -481,6 +495,13 @@ sample_Poisson_lattice <- function(model_type,
 #' @importFrom stats rpois
 #'
 #' @export
+#' 
+#' @examples
+#' set.seed(2026)
+#' cov_params_true <- c(1.0, 1.0, 10, 2)
+#' beta_true <- c(1, 0, -1) 
+#' ex_data <- generate_data_one_area_spNNGP(1000, 0.03, "Mat", cov_params_true, 20, beta_true)
+#' sample_Poisson_spNNGP("Mat", ex_data$X, ex_data$library_size, cbind(ex_data$x_coords, ex_data$y_coords), cov_params_true, 20, beta_true)
 sample_Poisson_spNNGP <- function(cov_type,
                                   X,
                                   library_size,
@@ -573,6 +594,8 @@ sample_Poisson_spNNGP <- function(cov_type,
 #' @importFrom dplyr bind_rows
 #'
 #' @export
+#' 
+#' @example inst/examples/gen_data_and_run.R
 prepSynthData <- function(TESSERAData_obj,
                           gene_list,
                           data_gen_model,
@@ -713,9 +736,9 @@ prepSynthData <- function(TESSERAData_obj,
       y_tmp <- as.vector(TESSERAData_obj$counts_list[[x]][g_idx, ])
       
       # Create PMFs for both real/synthetic data
-      tX = as.data.frame(table(x_tmp))
+      tX <- as.data.frame(table(x_tmp))
       colnames(tX) <- c("Val", "X")
-      tY = as.data.frame(table(y_tmp))
+      tY <- as.data.frame(table(y_tmp))
       colnames(tY) <- c("Val", "Y")
       tXY <- merge(tX, tY, all = TRUE)
       tXY[is.na(tXY)] <- 0

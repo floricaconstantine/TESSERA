@@ -126,6 +126,8 @@
 #' @useDynLib TESSERA
 #'
 #' @export
+#' 
+#' @example inst/examples/gen_data_and_run.R
 TESSERA_lattice <- function(TESSERAData_obj,
                             gene_name,
                             model_type = "CAR",
@@ -140,7 +142,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
                             verbose = TRUE,
                             dense_matrices = FALSE) {
   # Start clock
-  t0_EM = Sys.time()
+  t0_EM <- Sys.time()
   
   # Check inputs
   checkInputsTESSERA(TESSERAData_obj)
@@ -153,11 +155,11 @@ TESSERA_lattice <- function(TESSERAData_obj,
   
   # Model covariance function
   if ("CAR" == model_type) {
-    Q_fcn = Q_matrix_CAR
+    Q_fcn <- Q_matrix_CAR
   } else if ("SAR" == model_type) {
-    Q_fcn = Q_matrix_SAR
+    Q_fcn <- Q_matrix_SAR
   } else if ("Leroux" == model_type) {
-    Q_fcn = Q_matrix_Leroux
+    Q_fcn <- Q_matrix_Leroux
   } else {
     stop("Invalid model_type")
   }
@@ -166,7 +168,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
   if ("CAR" == model_type) {
     gamma_M_fcn <- M_step_gamma_CAR
   } else if ("SAR" == model_type) {
-    gamma_M_fcn = M_step_gamma_SAR
+    gamma_M_fcn <- M_step_gamma_SAR
   } else if ("Leroux" == model_type) {
     gamma_M_fcn <- M_step_gamma_Leroux
   } else {
@@ -188,7 +190,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
     }
   }
   # Dimension of coefficient vector
-  beta_dim = ncol(TESSERAData_obj$X_list[[1]])
+  beta_dim <- ncol(TESSERAData_obj$X_list[[1]])
   
   # Compute eigenvalues if needed
   if (is.null(TESSERAData_obj$eig_CS_list) &&
@@ -664,7 +666,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
       }
     }
   }
-  t1_EM = Sys.time()
+  t1_EM <- Sys.time()
   message("Time ", t1_EM - t0_EM, "\n")
   
   # Compute Negative Hessians
@@ -816,7 +818,10 @@ TESSERA_lattice <- function(TESSERAData_obj,
 #' @returns Nothing.
 #'
 #' @import Matrix
+#' 
 #' @export
+#' 
+#' @example inst/examples/gen_data_and_run.R
 checkInputsTESSERA <- function (TESSERAData_obj) {
   # Check that the bare minimum is present
   stopifnot(!is.null(TESSERAData_obj$counts_list))

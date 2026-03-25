@@ -24,6 +24,9 @@ SD Standard deviation of Moran's I.
 \description{
 Fast computation of Moran's I.
 }
+\examples{
+calc_moran(rpois(1000, 1), runif(1000), runif(1000))
+}
 \author{
 Matthew Cooper.
 }

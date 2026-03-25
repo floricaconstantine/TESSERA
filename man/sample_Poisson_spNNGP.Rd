@@ -53,6 +53,13 @@ Requires the Matrix library.
 
 Calls nngp_prec_mat.
 }
+\examples{
+set.seed(2026)
+cov_params_true <- c(1.0, 1.0, 10, 2)
+beta_true <- c(1, 0, -1) 
+ex_data <- generate_data_one_area_spNNGP(1000, 0.03, "Mat", cov_params_true, 20, beta_true)
+sample_Poisson_spNNGP("Mat", ex_data$X, ex_data$library_size, cbind(ex_data$x_coords, ex_data$y_coords), cov_params_true, 20, beta_true)
+}
 \author{
 Florica J Constantine, florica AT berkeley.edu
 }

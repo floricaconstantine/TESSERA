@@ -205,6 +205,8 @@ summarizeTESSERAPerformance <- function(TESSERAData_obj, TESSERAOutput_obj) {
 #' @importFrom dplyr bind_rows
 #'
 #' @export
+#' 
+#' @example inst/examples/gen_data_and_run.R
 waldTestStastics <- function (TESSERAOutput_obj, contrast_mat) {
   # Extract coefficients and negative hessian and check dimensions
   beta_hat <- TESSERAOutput_obj$beta_hat

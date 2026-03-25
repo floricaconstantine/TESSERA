@@ -68,6 +68,8 @@ x_coords: x-coordinates of points.
 
 y_coords: y-coordinates of points.
 
+coords: Matrix of coordinates (rows are x, y).
+
 Sparse precision matrix Q.
 
 Eigenvalues Dinv.
@@ -92,6 +94,7 @@ Requires the Matrix library.
 Calls the nngp_prec_mat creation functions.
 }
 \examples{
+set.seed(2026)
 generate_data_one_area_spNNGP(1000, 0.03, "Mat", c(1.0, 1.0, 10, 2), 20, c(1, 0, -1))
 }
 \author{

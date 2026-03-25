@@ -5,7 +5,8 @@ Authors@R:
     person("Florica",
     "Constantine",
     email = "florica@berkeley.edu",
-    role = c("aut", "cre"))
+    role = c("aut", "cre"),
+    comment = c(ORCID = "0000-0001-9714-6767"))
 Description: Fit a Poisson generalized spatial linear model for analyzing 
   multi-sample count data. This model allows for disconnected samples with 
   different coordinate systems that do not necessarily align, all while 
@@ -33,6 +34,7 @@ Imports:
 Suggests: 
     knitr,
     rmarkdown,
+    MASS,
     MatrixGenerics,
     SpatialExperiment,
     SingleCellExperiment,

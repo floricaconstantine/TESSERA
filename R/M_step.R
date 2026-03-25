@@ -38,7 +38,7 @@ M_step_tau2 <- function(Vhat, eta_hat, Q, beta_hat, X) {
   close_to_zero_const <- 1e2 * .Machine$double.eps
   if (close_to_zero_const >= tau2_hat) {
     warning("Invalid tau^2, setting to a small positive number")
-    tau2_hat = max(tau2_hat, close_to_zero_const)
+    tau2_hat <- max(tau2_hat, close_to_zero_const)
   }
   
   return(tau2_hat)
@@ -208,7 +208,7 @@ M_step_gamma_CAR <- function(Vhat,
   if (err_flag) {
     # If null, random
     if (is.null(gamma_current)) {
-      gamma_current = stats::runif(1)
+      gamma_current <- stats::runif(1)
       message("Assigning random gamma ", gamma_current, "\n")
     }
     
@@ -226,7 +226,7 @@ M_step_gamma_CAR <- function(Vhat,
   if (err_flag) {
     # If null, random
     if (is.null(gamma_current)) {
-      gamma_current = stats::runif(1)
+      gamma_current <- stats::runif(1)
       message("Assigning random gamma ", gamma_current, "\n")
     }
     
@@ -360,7 +360,7 @@ M_step_gamma_SAR <- function(Vhat,
   if (err_flag) {
     # If null, random
     if (is.null(gamma_current)) {
-      gamma_current = stats::runif(1)
+      gamma_current <- stats::runif(1)
       message("Assigning random gamma ", gamma_current, "\n")
     }
     
@@ -378,7 +378,7 @@ M_step_gamma_SAR <- function(Vhat,
   if (err_flag) {
     # If null, random
     if (is.null(gamma_current)) {
-      gamma_current = stats::runif(1)
+      gamma_current <- stats::runif(1)
       message("Assigning random gamma ", gamma_current, "\n")
     }
     
@@ -489,7 +489,7 @@ M_step_gamma_Leroux <- function(Vhat,
   if (err_flag) {
     # If null, random
     if (is.null(gamma_current)) {
-      gamma_current = stats::runif(1)
+      gamma_current <- stats::runif(1)
       message("Assigning random gamma ", gamma_current, "\n")
     }
     
@@ -507,7 +507,7 @@ M_step_gamma_Leroux <- function(Vhat,
   if (err_flag) {
     # If null, random
     if (is.null(gamma_current)) {
-      gamma_current = stats::runif(1)
+      gamma_current <- stats::runif(1)
       message("Assigning random gamma ", gamma_current, "\n")
     }
     
@@ -612,7 +612,7 @@ M_step_variogram <- function(eta_hat, beta_hat, X, coords, cov_type = "Exp") {
       message("Assigning nugget ", vg_params[1], "\n")
     }
     if (close_to_zero_const >= vg_params[3]) {
-      warning("WARNING: INVALID RANGE; FAILSAFE: Setting range to 95% of p-sill distance.")
+      warning("INVALID RANGE; FAILSAFE: Setting range to 95% of p-sill distance.")
       
       # Compute 95% of sill
       sill_95 <- 0.95 * vg_params[2]
@@ -796,13 +796,13 @@ BRISC_wrapper <- function(z_list,
   }
   
   if ("Exp" == cov_type) {
-    brisc_cov = "exponential"
+    brisc_cov <- "exponential"
   } else if ("Sph" == cov_type) {
-    brisc_cov = "spherical"
+    brisc_cov <- "spherical"
   } else if ("Mat" == cov_type) {
-    brisc_cov = "matern"
+    brisc_cov <- "matern"
   } else if ("Gau" == cov_type) {
-    brisc_cov = "gaussian"
+    brisc_cov <- "gaussian"
   }
   # Fit LM
   b_out <- BRISC::BRISC_estimation(
