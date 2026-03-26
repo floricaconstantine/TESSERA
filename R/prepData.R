@@ -71,7 +71,7 @@
 #' @importFrom stats model.matrix
 #'
 #' @export
-#' 
+#'
 #' @example inst/examples/gen_data_and_run.R
 prepData <- function(count_matrix,
                      meta_data,
@@ -198,10 +198,14 @@ prepData <- function(count_matrix,
     colnames(counts_list[[length(counts_list)]]) <- cell_names_local
   }
   # Assign names to match samples
-  names(coords_list) <- sample_names
-  names(covariates_list) <- sample_names
-  names(counts_list) <- sample_names
-  names(library_size_list) <- sample_names
+  if (length(coords_list) > 0)
+    names(coords_list) <- sample_names
+  if (length(covariates_list) > 0)
+    names(covariates_list) <- sample_names
+  if (length(counts_list) > 0)
+    names(counts_list) <- sample_names
+  if (length(library_size_list) > 0)
+    names(library_size_list) <- sample_names
   
   ## Design matrix from metadata
   
@@ -242,7 +246,8 @@ prepData <- function(count_matrix,
       rownames(X_list[[length(X_list)]]) <- cell_names_local
     }
   }
-  names(X_list) <- sample_names
+  if (length(X_list) > 0)
+    names(X_list) <- sample_names
   
   # Adjacency matrix
   if (!is.null(adj_mat)) {
@@ -482,7 +487,7 @@ visualizeNeighborDistances <- function(meta_data,
   
   plot_data$k_nghbr <- gsub("dist.", "", plot_data$k_nghbr)
   plot_data$k_nghbr <- factor(plot_data$k_nghbr, levels = 1:k_search)
-  p <- ggplot2::ggplot(data = plot_data, ggplot2::aes_string(x = "k_nghbr", y = "distance"))
+  p <- ggplot2::ggplot(data = plot_data, ggplot2::aes(x = .data$k_nghbr, y = .data$distance))
   p <- p + ggplot2::geom_boxplot()
   p <- p + ggplot2::geom_jitter()
   p <- p + ggplot2::labs(x = "kth neighbor", y = "Mean Euclidean distance")

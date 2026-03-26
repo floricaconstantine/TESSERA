@@ -1,0 +1,138 @@
+library(testthat)
+library(Matrix)
+library(ggplot2)
+
+# --- Shared Setup for Data Prep Tests ---
+set.seed(2026)
+n_cells <- 10
+genes <- c("GeneA", "GeneB")
+counts <- matrix(rpois(n_cells * 2, 5), nrow = 2)
+rownames(counts) <- genes
+colnames(counts) <- paste0("Cell", 1:10)
+
+meta <- data.frame(
+  sample = rep(c("S1", "S2"), each = 5),
+  batch = rep(1:2, 5),
+  row.names = colnames(counts)
+)
+
+coords <- matrix(runif(n_cells * 2), ncol = 2)
+rownames(coords) <- colnames(counts)
+
+# --- prepData Tests ---
+
+test_that("prepData validates design and dimension arguments", {
+  # Must supply exactly one of design_formula or design_mat
+  expect_error(prepData(counts, meta, "sample"),
+               "Must supply one of design formula")
+  expect_error(
+    prepData(
+      counts,
+      meta,
+      "sample",
+      design_formula = ~ batch,
+      design_mat = matrix(1, 10, 1)
+    ),
+    "Cannot supply both design formula and design matrix"
+  )
+  
+  # Dimension mismatch (counts vs meta)
+  expect_error(prepData(counts[, 1:5], meta, "sample", design_formula = ~
+                          batch))
+})
+
+test_that("prepData creates a valid TESSERAData object with multiple samples",
+          {
+            # suppressMessages silences adjacency and eigenvalue logs
+            res <- suppressMessages(
+              prepData(
+                count_matrix = counts,
+                meta_data = meta,
+                sample_col = "sample",
+                design_formula = ~ batch,
+                coord_data = coords,
+                D_THRESH = 0.5,
+                compute_eigs = "L"
+              )
+            )
+            
+            expect_s3_class(res, "TESSERAData")
+            expect_length(res$counts_list, 2)
+            expect_named(res$counts_list, c("S1", "S2"))
+            
+            # Verify Leroux eigenvalues were computed
+            expect_false(is.null(res$eig_L_list))
+            expect_length(res$eig_L_list$S1, 5)
+          })
+
+test_that("prepData handles library size normalization logic", {
+  # Added suppressMessages to remove missing coordinate warnings/logs
+  res_multi <- suppressWarnings(suppressMessages(prepData(
+    counts, meta, "sample", design_formula = ~ 1
+  )))
+  expect_equal(as.numeric(res_multi$library_size_list$S1[1]), sum(counts[, 1]))
+  
+  # Single-gene: library size is set to 1
+  res_single <- suppressWarnings(suppressMessages(prepData(
+    counts[1, , drop = FALSE], meta, "sample", design_formula = ~ 1
+  )))
+  expect_equal(as.numeric(res_single$library_size_list$S1[1]), 1)
+})
+
+test_that("prepData triggers warnings for poor design matrices", {
+  # 1. Test Zero Column Warnings
+  bad_mat_zero <- matrix(c(rep(1, 5), rep(0, 5)), ncol = 2)
+  rownames(bad_mat_zero) <- colnames(counts)[1:5]
+  
+  # Wrap the inner call in suppressMessages to catch "Which columns are all zero"
+  expect_warning(
+    expect_warning(suppressMessages(
+      prepData(
+        counts[, 1:5],
+        meta[1:5, ],
+        "sample",
+        design_mat = bad_mat_zero,
+        coord_data = coords[1:5, ],
+        D_THRESH = 0.5
+      )
+    ), "all-zero columns", fixed = TRUE),
+    "Dropping columns",
+    fixed = TRUE
+  )
+  
+  # 2. Test Rank Deficiency Warning
+  bad_mat_rank <- matrix(rep(1, 10), ncol = 2)
+  rownames(bad_mat_rank) <- colnames(counts)[1:5]
+  
+  # Wrap in suppressMessages to catch "Design matrix is not full rank"
+  expect_warning(suppressMessages(
+    prepData(
+      counts[, 1:5],
+      meta[1:5, ],
+      "sample",
+      design_mat = bad_mat_rank,
+      coord_data = coords[1:5, ],
+      D_THRESH = 0.5
+    )
+  ), "not full rank", fixed = TRUE)
+})
+
+# --- visualizeNeighborDistances Tests ---
+
+test_that("visualizeNeighborDistances returns the correct visualization list",
+          {
+            res <- visualizeNeighborDistances(meta, "sample", coords, k_search = 3)
+            
+            expect_named(res,
+                         c("nb_dist", "mean_nb_dist", "std_nb_dist", "distances_plot"))
+            expect_s3_class(res$distances_plot, "ggplot")
+            expect_equal(nrow(res$mean_nb_dist), 2)
+          })
+
+# --- prepDataSpatialExperiment Tests ---
+
+test_that("prepDataSpatialExperiment dependency guard works", {
+  skip_if_not_installed("SpatialExperiment")
+  # Should fail because a list is not a SpatialExperiment object
+  expect_error(prepDataSpatialExperiment(list(), "sample"))
+})

@@ -538,7 +538,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     list(
       # Coefficients, spatial parameters
       beta_hat = beta_tracker[, (em_idx + 1)],
-      cov_param_hat = cov_param_tracker[, (em_idx + 1), ],
+      cov_param_hat = matrix(cov_param_tracker[, (em_idx + 1), ], nrow = n_areas, ncol = 4),
       
       # Fitted values and residuals, fitted Poisson parameters, estimated random effects
       predictions = fit_tracker[, em_idx],

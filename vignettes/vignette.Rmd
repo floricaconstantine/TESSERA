@@ -11,7 +11,7 @@ vignette: >
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r, message=FALSE, warning=FALSE}
+```{r libraries, message=FALSE, warning=FALSE}
 # Libraries
 
 # TESSERA
@@ -47,13 +47,13 @@ library(ggplot2)
 ## Loading Data
 
 
-```{r, message=FALSE, warning=FALSE}
+```{r load_data, message=FALSE, warning=FALSE}
 # Load Data
 spe <- WeberDivechaLCdata::WeberDivechaLCdata_Visium()
 dim(spe)
 ```
 
-```{r}
+```{r filter_data}
 # Number of cells per sample
 sort(table(SummarizedExperiment::colData(spe)$sample_part_id))
 
@@ -70,7 +70,19 @@ SummarizedExperiment::colData(spe) <- cbind(SummarizedExperiment::colData(spe),
 rownames(SpatialExperiment::spatialCoords(spe)) <- rownames(SummarizedExperiment::colData(spe))
 ```
 
-```{r}
+```{r sort_data}
+# Assign the readable gene names to the rows
+rownames(spe) <- SummarizedExperiment::rowData(spe)$gene_name
+
+# Calculate variance across all spots for each gene
+rv <- MatrixGenerics::rowVars(SingleCellExperiment::counts(spe))
+names(rv) <- rownames(spe)
+
+# Order the entire object by raw count variance (highest to lowest)
+spe <- spe[order(rv, decreasing = TRUE), ]
+```
+
+```{r visualize_covariates}
 # Create the spatial plot
 p <- ggplot2::ggplot(
   data = as.data.frame(SummarizedExperiment::colData(spe)),
@@ -96,19 +108,7 @@ p
 ```
 
 
-```{r}
-# Assign the readable gene names to the rows
-rownames(spe) <- SummarizedExperiment::rowData(spe)$gene_name
-
-# Calculate variance across all spots for each gene
-rv <- MatrixGenerics::rowVars(SingleCellExperiment::counts(spe))
-names(rv) <- rownames(spe)
-
-# Order the entire object by raw count variance (highest to lowest)
-spe <- spe[order(rv, decreasing = TRUE), ]
-```
-
-```{r}
+```{r marker_genes}
 # Key markers for norepinephrine neurons
 lc_markers <- c("TH", "DBH", "SLC6A2", "GCH1", "DDC")
 # Check which marker genes are in the data set
@@ -123,7 +123,7 @@ print(marker_gene_idx)
 
 ## Processing Data
 
-```{r}
+```{r visualize_neighbors}
 # Figure out how to determine what cells are neighbors
 nb_data <- TESSERA::visualizeNeighborDistances(
   meta_data = SummarizedExperiment::colData(spe),
@@ -143,7 +143,7 @@ p <- p + ggplot2::theme_bw()
 p
 ```
 
-```{r}
+```{r prep_data, message=FALSE, warning=FALSE}
 # Prepare data for the TESSERA package
 # Simple design: Look at annotated region in v. out
 TESSERA_data <- prepDataSpatialExperiment(spDataObject = spe, 
@@ -156,7 +156,7 @@ TESSERA_data <- prepDataSpatialExperiment(spDataObject = spe,
 
 ## Running TESSERA on a single gene
 
-```{r, warning=FALSE}
+```{r run_TESSERA, message=FALSE, warning=FALSE}
 # Which gene to run
 gene_idx <- marker_gene_idx[1]
 # Run TESSERA for the top gene
@@ -179,30 +179,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 ```
 
 
-```{r, warning=FALSE, eval=FALSE}
-# Which gene to run
-gene_idx <- marker_gene_idx[1]
-# Run TESSERA for the top gene
-TESSERA_out <- TESSERA::TESSERA_spNNGP(
-  TESSERAData_obj = TESSERA_data,
-  gene_name = rownames(spe)[gene_idx],
-  cov_type = "Mat",
-  em_iters = 50,
-  # How many ECM iterations to run
-  opt_iters = 5,
-  # How many CM steps to run per E-Step
-  em_min_iters = 15,
-  # Min ECM iterations before early stopping
-  em_tol = 1e-3,
-  # Tolerance for early stopping
-  em_stopping = "rel_loglike",
-  # How to determine early stopping: Relative change in log likelihood
-  verbose = FALSE
-)
-```
-
-
-```{r}
+```{r TESSERA_results}
 # Print fitted parameters
 print("Estimated Coefficients")
 print(TESSERA_out$beta_hat)
@@ -212,7 +189,7 @@ print("Summary")
 print(TESSERA_out$performanceSummary)
 ```
 
-```{r}
+```{r NB_GLM_comparison}
 # Run an NB GLM for comparison
 z_data <- sapply(TESSERA_data$counts_list, function (x) {
   as.vector(x[gene_idx, ])
@@ -220,7 +197,9 @@ z_data <- sapply(TESSERA_data$counts_list, function (x) {
 z_data <- Reduce(c, z_data)
 X_data <- Reduce(rbind, TESSERA_data$X_list)
 lib_data <- Reduce(c, sapply(TESSERA_data$library_size_list, as.vector))
-glm_out <- MASS::glm.nb(z_data ~ 0 + X_data + stats::offset(log(lib_data)))
+# We need some sort of starting point for the GLM to converge
+glm_out <- MASS::glm.nb(z_data ~ 0 + X_data + stats::offset(log(lib_data)), 
+                                                            init.theta = mean(z_data) / var(z_data))
 
 glm_preds <- predict(glm_out, type = "response")
 glm_resid <- resid(glm_out, type = "response")
@@ -249,7 +228,7 @@ print(coef(glm_out))
 summary(glm_out)
 ```
 
-```{r}
+```{r combine_results}
 # Create data to visualize model fitting
 plot_data <- data.frame(
   residuals = TESSERA_out$residuals,
@@ -272,7 +251,7 @@ for (s_name in names(TESSERA_out$start_idx_list)) {
 }
 ```
 
-```{r}
+```{r visualize_counts}
 p <- ggplot2::ggplot(data = plot_data,
                      mapping = ggplot2::aes(
                        x = x,
@@ -285,7 +264,7 @@ p <- p + ggplot2::theme_bw()
 p
 ```
 
-```{r}
+```{r TESSERA_resid_plot}
 p <- ggplot2::ggplot(data = plot_data,
                      mapping = ggplot2::aes(x = x, y = y, color = residuals))
 p <- p + ggplot2::geom_point(size = 1)
@@ -294,7 +273,7 @@ p <- p + ggplot2::theme_bw()
 p
 ```
 
-```{r}
+```{r glm_resid_plot}
 p <- ggplot2::ggplot(data = plot_data,
                      mapping = ggplot2::aes(x = x, y = y, color = glm_residuals))
 p <- p + ggplot2::geom_point(size = 1)
@@ -305,93 +284,56 @@ p
 
 ## Running TESSERA on multiple genes
 
-```{r, warning=FALSE}
+```{r top_genes, warning=FALSE}
 # How many genes to run
 gene_idx_list <- unique(sort(c(seq(1, 45), marker_gene_idx)))
 print(length(gene_idx_list))
+gene_names <- rownames(spe)[gene_idx_list]
 ```
 
-```{r, warning=FALSE, eval=FALSE}
-# Parallel Processing
-library(foreach)
-library(doParallel)
+```{r parallel_TESSERA, warning=FALSE, message=FALSE, eval=FALSE}
+library(future)
+library(future.apply)
+
+# 'multisession' works on Windows and Unix. It starts fresh R workers.
+# 'workers' sets the number of cores.
+future::plan(future::multisession, workers = parallel::detectCores() - 2)
+
+# Optional: Set a higher memory limit for workers (e.g., 2GB per worker)
+options(future.globals.maxSize = 2000 * 1024^2) 
 
 t0 <- Sys.time()
 
-# Set up the parallel backend
-n_cores <- detectCores() - 2
-doParallel::registerDoParallel(n_cores) # Register the number of cores
-
-# Run the loop in parallel
-# The %dopar% operator enables parallel execution
-TESSERA_results <- foreach::foreach(idx = 1:length(gene_idx_list),
-                                    .packages = c("TESSERA")) %dopar% {
-                                      TESSERA::TESSERA_lattice(
-                                        TESSERAData_obj = TESSERA_data,
-                                        gene_name = rownames(spe)[gene_idx_list[idx]],
-                                        model_type = "Leroux",
-                                        em_iters = 50,
-                                        # How many ECM iterations to run
-                                        opt_iters = 5,
-                                        # How many CM steps to run per E-Step
-                                        em_min_iters = 15,
-                                        # Min ECM iterations before early stopping
-                                        em_tol = 1e-3,
-                                        # Tolerance for early stopping
-                                        em_stopping = "rel_loglike",
-                                        # How to determine early stopping: Relative change in log likelihood
-                                        verbose = FALSE
-                                      )
-                                    }
-
-# Stop the parallel backend (optional, but good practice)
-doParallel::stopImplicitCluster()
-
-t1 <- Sys.time()
-
-cat("Elapsed time:", difftime(t1, t0, units = "sec"), "\n")
-```
-
-```{r, warning=FALSE, eval=FALSE}
-t0 <- Sys.time()
-
-TESSERA_results <- list()
-# Run the loop in series
-for (idx in gene_idx_list) {
-  cat("Starting ",
-      idx,
-      "; Elapsed time:",
-      difftime(Sys.time(), t0, units = "sec"),
-      "\n")
-  TESSERA_results[[idx]] <- TESSERA::TESSERA_lattice(
+# Run the loop using future_lapply
+TESSERA_results <- future.apply::future_lapply(gene_names, function(g_name) {
+  TESSERA::TESSERA_lattice(
     TESSERAData_obj = TESSERA_data,
-    gene_name = rownames(spe)[idx],
+    gene_name = g_name,
     model_type = "Leroux",
     em_iters = 50,
-    # How many ECM iterations to run
-    opt_iters = 5,
-    # How many CM steps to run per E-Step
     em_min_iters = 15,
-    # Min ECM iterations before early stopping
     em_tol = 1e-3,
-    # Tolerance for early stopping
     em_stopping = "rel_loglike",
-    # How to determine early stopping: Relative change in log likelihood
     verbose = FALSE
   )
-}
+}, future.seed = TRUE) # future.seed = TRUE is required if your code uses randomness
+
 t1 <- Sys.time()
 
-cat("Elapsed time:", difftime(t1, t0, units = "sec"), "\n")
+# Clean up the workers
+future::plan(future::sequential)
+
+cat("Parallel processing took:", difftime(t1, t0, units = "sec"), "seconds.\n")
 ```
 
 ### Hypothesis testing
 
-```{r, eval=FALSE}
+```{r wald_stats, warning=FALSE, eval=FALSE}
 # Create contrast matrix
-contrast_mat <- matrix(data = c(0, 1),
+contrast_mat <- matrix(data = 0,
                        nrow = 1,
-                       ncol = 2)
+                       ncol = length(TESSERA_out$beta_hat))
+contrast_mat[2] <- 1
 colnames(contrast_mat) <- names(TESSERA_out$beta_hat)
 rownames(contrast_mat)[1] <- names(TESSERA_out$beta_hat)[2]
 
@@ -401,7 +343,7 @@ wald_df <- dplyr::bind_rows(lapply(TESSERA_results, function (x) {
 }))
 ```
 
-```{r, warning=FALSE, eval=FALSE}
+```{r empirical_null, warning=FALSE, eval=FALSE}
 # Empirical Null Estimation
 # Sweep over thresholds to find the optimal distribution parameters for the empirical null
 wald_thresh_selection <- TESSERA::selectWaldStatisticThreshold(
@@ -419,7 +361,7 @@ cat(
 ```
 
 
-```{r, eval=FALSE}
+```{r plot_wald_thresh, eval=FALSE}
 plot_data <- reshape2::melt(wald_thresh_selection$threshold_results,
                             id.vars = c("threshold", "quantile"))
 
@@ -431,7 +373,7 @@ p <- p + ggplot2::theme_bw()
 p
 ```
 
-```{r, eval=FALSE}
+```{r plot_emp_null_params, eval=FALSE}
 p <- ggplot2::ggplot(
   data = plot_data %>% dplyr::filter(variable %in% c("scale", "shift")),
   mapping = ggplot2::aes(x = threshold, y = value)
@@ -443,7 +385,7 @@ p <- p + ggplot2::theme_bw()
 p
 ```
 
-```{r, eval=FALSE}
+```{r plot_wald_thresh_mse, eval=FALSE}
 p <- ggplot2::ggplot(
   data = plot_data
   %>% dplyr::filter(!(variable %in% c("scale", "shift")))
@@ -458,7 +400,7 @@ p
 ```
 
 
-```{r, eval=FALSE}
+```{r sig_genes, eval=FALSE}
 PVAL_THRESH <- 0.05
 
 # Compute p-values

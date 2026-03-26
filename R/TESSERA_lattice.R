@@ -126,7 +126,7 @@
 #' @useDynLib TESSERA
 #'
 #' @export
-#' 
+#'
 #' @example inst/examples/gen_data_and_run.R
 TESSERA_lattice <- function(TESSERAData_obj,
                             gene_name,
@@ -192,20 +192,25 @@ TESSERA_lattice <- function(TESSERAData_obj,
   # Dimension of coefficient vector
   beta_dim <- ncol(TESSERAData_obj$X_list[[1]])
   
-  # Compute eigenvalues if needed
-  if (is.null(TESSERAData_obj$eig_CS_list) &&
-      is.null(TESSERAData_obj$eig_L_list)) {
-    message("Eigenvalues not supplied: Computing now.")
+  # Identify which specific eigenvalues we actually need
+  needs_CS <- (model_type %in% c("CAR", "SAR"))
+  needs_L  <- (model_type == "Leroux")
+  
+  # Trigger computation if the SPECIFIC list required is missing
+  if ((needs_CS && is.null(TESSERAData_obj$eig_CS_list)) ||
+      (needs_L && is.null(TESSERAData_obj$eig_L_list))) {
+    if (verbose)
+      message("Required eigenvalues not supplied: Computing now.")
     eig_val_list <- list()
+    
     for (area_idx in 1:n_areas) {
-      # D^{-1} W for CAR and SAR, D - W for Leroux
-      if (("CAR" == model_type) || ("SAR" == model_type)) {
+      if (needs_CS) {
         eig_val_list[[area_idx]] <- Re(eigen(
           Matrix::solve(TESSERAData_obj$D_list[[area_idx]], TESSERAData_obj$W_list[[area_idx]]),
           FALSE,
           only.values = TRUE
         )$values)
-      } else if ("Leroux" == model_type) {
+      } else {
         eig_val_list[[area_idx]] <- Re(
           eigen(
             TESSERAData_obj$D_list[[area_idx]] - TESSERAData_obj$W_list[[area_idx]],
@@ -216,12 +221,11 @@ TESSERA_lattice <- function(TESSERAData_obj,
       }
     }
   } else {
-    # Eigenvalues
-    if ((model_type == "CAR") || (model_type == "SAR")) {
-      eig_val_list <- TESSERAData_obj$eig_CS_list
-    } else if (model_type == "Leroux") {
-      eig_val_list <- TESSERAData_obj$eig_L_list
-    }
+    # If they already exist, grab the correct set
+    eig_val_list <- if (needs_L)
+      TESSERAData_obj$eig_L_list
+    else
+      TESSERAData_obj$eig_CS_list
   }
   
   # Store parameter estimates and track
@@ -818,9 +822,9 @@ TESSERA_lattice <- function(TESSERAData_obj,
 #' @returns Nothing.
 #'
 #' @import Matrix
-#' 
+#'
 #' @export
-#' 
+#'
 #' @example inst/examples/gen_data_and_run.R
 checkInputsTESSERA <- function (TESSERAData_obj) {
   # Check that the bare minimum is present
