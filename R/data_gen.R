@@ -418,8 +418,10 @@ generate_data_one_area_spNNGP <- function(n_points,
 #' tau2_true <- 1.0
 #' gamma_true <- 0.5
 #' beta_true <- c(1, 0, -1) 
-#' ex_data <- generate_data_one_area(1000, 0.03, "Leroux", beta_true, gamma_true, tau2_true, "rand_bern")
-#' sample_Poisson_lattice("Leroux", ex_data$X, ex_data$W, ex_data$D, ex_data$library_size, tau2_true, gamma_true, beta_true)
+#' ex_data <- generate_data_one_area(1000, 0.03, "Leroux", beta_true, 
+#'   gamma_true, tau2_true, "rand_bern")
+#' sample_Poisson_lattice("Leroux", ex_data$X, ex_data$W, ex_data$D, 
+#'   ex_data$library_size, tau2_true, gamma_true, beta_true)
 sample_Poisson_lattice <- function(model_type,
                                    X,
                                    W,
@@ -500,8 +502,10 @@ sample_Poisson_lattice <- function(model_type,
 #' set.seed(2026)
 #' cov_params_true <- c(1.0, 1.0, 10, 2)
 #' beta_true <- c(1, 0, -1) 
-#' ex_data <- generate_data_one_area_spNNGP(1000, 0.03, "Mat", cov_params_true, 20, beta_true)
-#' sample_Poisson_spNNGP("Mat", ex_data$X, ex_data$library_size, cbind(ex_data$x_coords, ex_data$y_coords), cov_params_true, 20, beta_true)
+#' ex_data <- generate_data_one_area_spNNGP(1000, 0.03, "Mat", cov_params_true, 
+#'   20, beta_true)
+#' sample_Poisson_spNNGP("Mat", ex_data$X, ex_data$library_size, 
+#'   cbind(ex_data$x_coords, ex_data$y_coords), cov_params_true, 20, beta_true)
 sample_Poisson_spNNGP <- function(cov_type,
                                   X,
                                   library_size,
