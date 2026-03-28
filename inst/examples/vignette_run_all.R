@@ -36,12 +36,12 @@ TESSERA_data <- readRDS(file.path(in_path, "vignette_processed_input_data.rds"))
 
 ## Parameters
 
-em_iters <- 100
+em_iters <- 200
 opt_iters <- 5
-em_min_iters <- 15
+em_min_iters <- 30
 em_tol <- 1e-3
 em_stopping <- "rel_loglike"
-em_verbose <- FALSE
+em_verbose <- TRUE 
 cov_type <- "Mat"
 
 # Key markers for norepinephrine neurons
@@ -66,7 +66,7 @@ present_markers <- intersect(lc_markers, gene_names)
 marker_gene_idx <- which(gene_names %in% lc_markers)
 
 # Which models to fit
-fit_model_list <- c("Leroux", "spNNGP")
+fit_model_list <- c("Leroux")
 # Which genes to fit on
 gene_index_list <- unique(sort(c(seq_len(3000), marker_gene_idx)))
 # Data frame with run settings
