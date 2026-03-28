@@ -38,7 +38,7 @@ TESSERA_data <- readRDS(file.path(in_path, "vignette_processed_input_data.rds"))
 
 em_iters <- 200
 opt_iters <- 5
-em_min_iters <- 30
+em_min_iters <- 15
 em_tol <- 1e-3
 em_stopping <- "rel_loglike"
 em_verbose <- TRUE 
