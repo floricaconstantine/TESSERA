@@ -4,3 +4,4 @@
 .Rhistory
 *.so
 poisECM.BiocCheck/00BiocCheck.log
+inst/extdata/vignette_processed_input_data.rds

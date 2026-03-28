@@ -25,7 +25,13 @@ library(MASS)
 
 ## Load in data
 
-##### TODO: Load prepData object created in other script, call it TESSERA_data
+# Paths to data
+path <- file.path("/scratch", "users", "spatialseq", "natgen_kidney")
+in_path <- file.path(path, "vignette_input_data")
+out_path <- file.path(path, "vignette_output_data")
+
+# Load prepData object created in other script (vignette_load_process.R)
+TESSERA_data <- readRDS(file.path(in_path, "vignette_processed_input_data.rds"))
 
 
 ## Parameters
@@ -40,7 +46,7 @@ cov_type <- "Mat"
 
 # Key markers for norepinephrine neurons
 gene_names <- rownames(TESSERA_data$counts_list[[1]])
-lc_markers <- c("TH", "DBH", "SLC6A2", "GCH1", "DDC")
+lc_markers <- c("TH", "DBH", "SLC6A2", "SLC18A2")
 
 # Contrast matrix
 contrast_matrix <- matrix(
@@ -62,13 +68,31 @@ marker_gene_idx <- which(gene_names %in% lc_markers)
 # Which models to fit
 fit_model_list <- c("Leroux", "spNNGP")
 # Which genes to fit on
-gene_index_list <- unique(sort(c(seq_len(1000), marker_gene_idx)))
+gene_index_list <- unique(sort(c(seq_len(3000), marker_gene_idx)))
 # Data frame with run settings
 sim_df <- expand.grid(gene_index = gene_index_list, fit_model = fit_model_list)
 
-##### TODO: Add in cluster arguments, etc.
-
+# Read in index of simulation job from command line input
 run_idx <- NA
+offset <- 0
+args <- commandArgs(trailingOnly = TRUE)
+if (0 == length(args)) {
+  stop("No arguments supplied: ERROR")
+} else {
+  for (idx in 1:length(args)) {
+    eval(parse(text = args[idx]))
+  }
+  
+  print(run_idx)
+  print(offset)
+  run_idx <- run_idx + offset
+  print(run_idx)
+  
+  # run_idx must be defined in arguments
+  if ((1 > run_idx) | (nrow(sim_df) < run_idx)) {
+    stop("run_idx must be between 1 and # of possible jobs")
+  }
+}
 
 # Select model and gene
 fit_model <- sim_df[run_idx, ]$fit_model
@@ -80,7 +104,7 @@ gene_idx <- sim_df[run_idx, ]$gene_index
 if ("Leroux" == fit_model) {
   TESSERA_out <- TESSERA::TESSERA_lattice(
     TESSERAData_obj = TESSERA_data,
-    gene_name = rownames(spe)[gene_idx],
+    gene_name = gene_names[gene_idx],
     model_type = "Leroux",
     em_iters = em_iters,
     # How many ECM iterations to run
@@ -97,7 +121,7 @@ if ("Leroux" == fit_model) {
 } else if ("spNNGP" == fit_model) {
   TESSERA_out <- TESSERA::TESSERA_spNNGP(
     TESSERAData_obj = TESSERA_data,
-    gene_name = rownames(spe)[gene_idx],
+    gene_name = gene_names[gene_idx],
     cov_type = cov_type,
     em_iters = em_iters,
     # How many ECM iterations to run
@@ -121,4 +145,15 @@ wald_df <- TESSERA::waldTestStastics(TESSERA_out, contrast_matrix)
 
 ## Save
 
-##### TODO: Save TESSERA_out and wald_df
+saveRDS(list(TESSERA_out = TESSERA_out, wald_df = wald_df),
+        file.path(
+          out_path,
+          paste0(
+            "vignette_raw_output_",
+            "gene_",
+            gene_names[gene_idx],
+            "_fitmodel_",
+            fit_model,
+            ".rds"
+          )
+        ))

@@ -24,6 +24,7 @@ library(Matrix)
 library(MatrixGenerics)
 library(MASS)
 
+
 ## Load and process data
 
 # Load Data
@@ -46,6 +47,7 @@ names(rv) <- rownames(spe)
 # Order the entire object by raw count variance (highest to lowest)
 spe <- spe[order(rv, decreasing = TRUE), ]
 
+
 ## Prepare Data
 
 # Prepare data for the TESSERA package
@@ -53,9 +55,13 @@ spe <- spe[order(rv, decreasing = TRUE), ]
 TESSERA_data <- TESSERA::prepDataSpatialExperiment(
   spDataObject = spe,
   sample_col = "sample_part_id",
-  design_formula = as.formula(~ annot_region + donor_id),
+  design_formula = as.formula( ~ annot_region + donor_id),
   model_type = "Leroux",
   expected_num_neighbors = 6
 )
 
-##### TODO: Save TESSERA_data
+
+## Save TESSERA_data
+
+saveRDS(TESSERA_data,
+        file.path("..", "extdata", "vignette_processed_input_data.rds"))
