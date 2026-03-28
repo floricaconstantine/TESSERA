@@ -38,7 +38,10 @@ library(dplyr)
 library(reshape2)
 library(Matrix)
 library(MatrixGenerics)
+
+# Statistics
 library(MASS)
+library(fdrtool)
 
 # Visualization
 library(ggplot2)
@@ -105,6 +108,7 @@ rownames(SpatialExperiment::spatialCoords(spe)) <- rownames(SummarizedExperiment
 ```
 
 For our analysis, we focus on the top genes as sorted by variance. 
+We see that the variance decreases rapidly. 
 ```{r sort_data}
 # Assign the readable gene names to the rows
 rownames(spe) <- SummarizedExperiment::rowData(spe)$gene_name
@@ -115,6 +119,11 @@ names(rv) <- rownames(spe)
 
 # Order the entire object by raw count variance (highest to lowest)
 spe <- spe[order(rv, decreasing = TRUE), ]
+
+p <- ggplot2::qplot(seq_along(rv), sort(rv, decreasing = TRUE))
+p <- p + ggplot2::scale_y_log10()
+p <- p + ggplot2::labs(x = "Index", y = "Variance of Counts")
+p
 ```
 
 This dataset has a single covariate of interest: membership in an annotated region. 
@@ -188,6 +197,7 @@ p
 ```
 
 The function below takes in the SpatialExperiment object, a column name that indicates the sample, a design formula (or design matrix), the model type (for the covariance structure), and an expected number of neighbors (or a distance cutoff for determing neighbors) and produces a processed data object that the `TESSERA` model fitting expects. 
+One key feature of `TESSERA` is that the preprocessing step can be completely once for all genes, and the results used repeatedly: this step allows the model fitting process to run much faster. 
 
 ```{r prep_data, message=FALSE, warning=FALSE}
 # Prepare data for the TESSERA package
@@ -213,8 +223,8 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
   TESSERAData_obj = TESSERA_data,
   gene_name = rownames(spe)[gene_idx],
   model_type = "Leroux",
-  em_iters = 50,
-  # How many ECM iterations to run
+  em_iters = 200,
+  # How many ECM iterations to run (maximum)
   opt_iters = 5,
   # How many CM steps to run per E-Step
   em_min_iters = 15,
@@ -225,6 +235,8 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
   # How to determine early stopping: Relative change in log likelihood
   verbose = FALSE
 )
+
+print(TESSERA_out$time)
 ```
 
 We now inspect the output. 
@@ -243,6 +255,7 @@ print(TESSERA_out$performanceSummary)
 
 As a point of comparison, we fit a negative binomial (NB) GLM. 
 We see that the error in the estimated counts is substantially greater that with TESSERA, and that the residual autocorrelations are also much higher. 
+Moreover, in addition to the fit quality being much worse, the estimated coefficients differ dramatically from those fit by `TESSERA`. 
 
 ```{r NB_GLM_comparison}
 # Run an NB GLM for comparison
@@ -253,8 +266,8 @@ z_data <- Reduce(c, z_data)
 X_data <- Reduce(rbind, TESSERA_data$X_list)
 lib_data <- Reduce(c, sapply(TESSERA_data$library_size_list, as.vector))
 # We need some sort of starting point for the GLM to converge
-glm_out <- MASS::glm.nb(z_data ~ 0 + X_data + stats::offset(log(lib_data)), 
-                                                            init.theta = mean(z_data) / var(z_data))
+glm_out <- MASS::glm.nb(z_data ~ 0 + X_data + offset(log(lib_data)), 
+                        init.theta = mean(z_data) / var(z_data))
 
 glm_preds <- predict(glm_out, type = "response")
 glm_resid <- resid(glm_out, type = "response")
@@ -333,6 +346,7 @@ p
 ```
 
 We now plot the residuals from the NB GLM. 
+The scale of the residuals is much higher than those from `TESSERA`. 
 ```{r glm_resid_plot}
 p <- ggplot2::ggplot(data = plot_data,
                      mapping = ggplot2::aes(x = x, y = y, color = glm_residuals))
@@ -347,19 +361,17 @@ p
 `TESSERA` can be run in parallel (or serial) to fit to multiple genes. 
 However, `TESSERA` is somewhat computationally intensive, so it is likely best to parallelize this process on a high performance computing cluster. 
 
-```{r top_genes, warning=FALSE}
-# How many genes to run
-gene_idx_list <- unique(sort(c(seq(1, 45), marker_gene_idx)))
-print(length(gene_idx_list))
-gene_names <- rownames(spe)[gene_idx_list]
-```
-
 The following code (not run) shows an example of using the futures package to parallelize `TESSERA` on 50 genes. 
 
 ```{r parallel_TESSERA, warning=FALSE, message=FALSE, eval=FALSE}
 library(future)
 library(future.apply)
 library(progressr)
+
+# How many genes to run
+gene_idx_list <- unique(sort(c(seq(1, 45), marker_gene_idx)))
+print(length(gene_idx_list))
+gene_names <- rownames(spe)[gene_idx_list]
 
 # Setup the parallel backend
 # 'multisession' is safe for Windows and Unix
@@ -412,6 +424,19 @@ cat("Parallel processing of", length(gene_names), "genes took:",
     round(difftime(t1, t0, units = "sec"), 2), "seconds.\n")
 ```
 
+For the purposes of this vignette, we have already run `TESSERA` on the top 3,000 genes. 
+The scripts to do are in the `inst/examples` folder, where `vignette_load_process.R` runs the preprocessing, `vignette_run_all.R` runs `TESSERA`, and `vignette_aggregate_results.R` aggregates the results. 
+We load the results here and look at the performance results. 
+
+```{r load_vignette_data}
+vignette_data <- readRDS(file.path("..", "inst", "extdata", "vignette_processed_output_data.rds"))
+performance_df <- vignette_data$performance_df
+wald_df <- vignette_data$wald_df
+
+head(performance_df)
+```
+
+
 ## Hypothesis testing
 
 Of particular interest, after fitting models to several genes, is differential expression. 
@@ -433,6 +458,11 @@ wald_df <- dplyr::bind_rows(lapply(TESSERA_results, function (x) {
 }))
 ```
 
+We can inspect the dataframe created in the aggregation script, from running `TESSERA` on the top 3,000 genes:
+```{r}
+head(wald_df)
+```
+
 For a generalized linear mixed model (GLMM), which `TESSERA` is fitting a type of, the null distribution of Wald test statistics is not known. 
 For enough samples (not cells), it will approach a normal distribution or a $\chi_1^2$ (depending on if the statistics are squared). 
 However, in the finite sample regime, GLMMs are prone to bias and biased standard errors. 
@@ -443,13 +473,13 @@ The functions below provide functionality to find the optimal parameter estimate
 Essentially, we look for a threshold below which most of the statistics come from the null; for these statistics, the p-values should look uniformly distributed on $(0, 1)$. 
 The plots below provide diagnostics for how the parameters and empirical null distribution changes as a function of the threshold. 
 
-```{r empirical_null, warning=FALSE, eval=FALSE}
+```{r empirical_null, warning=FALSE}
 # Empirical Null Estimation
 # Sweep over thresholds to find the optimal distribution parameters for the empirical null
 wald_thresh_selection <- TESSERA::selectWaldStatisticThreshold(
   wald_stats = wald_df$wald_stat_t^2,
-  quantile_spacing = 0.33,
-  metric = "Raw_MSE"
+  quantile_spacing = 0.005,
+  metric = "Log_MSE"
 )
 cat(
   "(Scale, Shift)",
@@ -460,48 +490,9 @@ cat(
 )
 ```
 
-
-```{r plot_wald_thresh, eval=FALSE}
-plot_data <- reshape2::melt(wald_thresh_selection$threshold_results,
-                            id.vars = c("threshold", "quantile"))
-
-p <- ggplot2::ggplot(data = plot_data,
-                     mapping = ggplot2::aes(x = quantile, y = threshold))
-p <- p + ggplot2::geom_line()
-p <- p + ggplot2::scale_y_continuous(trans = "log10")
-p <- p + ggplot2::theme_bw()
-p
-```
-
-```{r plot_emp_null_params, eval=FALSE}
-p <- ggplot2::ggplot(
-  data = plot_data %>% dplyr::filter(variable %in% c("scale", "shift")),
-  mapping = ggplot2::aes(x = threshold, y = value)
-)
-p <- p + ggplot2::facet_wrap( ~ variable)
-p <- p + ggplot2::geom_line()
-p <- p + ggplot2::scale_x_continuous(trans = "log10")
-p <- p + ggplot2::theme_bw()
-p
-```
-
-```{r plot_wald_thresh_mse, eval=FALSE}
-p <- ggplot2::ggplot(
-  data = plot_data
-  %>% dplyr::filter(!(variable %in% c("scale", "shift")))
-  %>% dplyr::filter(grepl("Raw_", variable)),
-  mapping = ggplot2::aes(x = threshold, y = value)
-)
-p <- p + ggplot2::facet_wrap( ~ variable)
-p <- p + ggplot2::geom_line()
-p <- p + ggplot2::scale_x_continuous(trans = "log10")
-p <- p + ggplot2::theme_bw()
-p
-```
-
 After fitting a null distribution and obtaining p-values, we may perform testing for differential expression, in this case, between regions. 
 
-```{r sig_genes, eval=FALSE}
+```{r sig_genes}
 PVAL_THRESH <- 0.05
 
 # Compute p-values
@@ -510,7 +501,18 @@ wald_df$wald_pval <- TESSERA::scaledNonCentralChi2PValues(wald_stats = wald_df$w
 # Adjust p-values
 wald_df$wald_pval_adj <- p.adjust(wald_df$wald_pval, method = "BH")
 
-sum(wald_df$wald_pval_adj < PVAL_THRESH, na.rm = TRUE)
+cat("Empirical Null, number of significant genes: ", sum(wald_df$wald_pval_adj < PVAL_THRESH), "\n")
+```
+
+We can also compare the number of genes found by the original local FDR method and the FNDR refinement. 
+As we can see, the original local FDR procedure finds no significant genes, while the FNDR procedure finds a similar number of significant genes to `TESSERA`. 
+```{r fdrtool_comparison}
+
+locfdr_out <- fdrtool::fdrtool(wald_df$wald_stat_t, cutoff.method = "locfdr", plot = FALSE)
+fndr_out <- fdrtool::fdrtool(wald_df$wald_stat_t, cutoff.method = "fndr", plot = FALSE)
+
+cat("Local FDR, number of significant genes: ", sum(locfdr_out$lfdr < PVAL_THRESH), "\n")
+cat("FNDR, number of significant genes: ", sum(fndr_out$lfdr < PVAL_THRESH), "\n")
 ```
 
 ## Session information
