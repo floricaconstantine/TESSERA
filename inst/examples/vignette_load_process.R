@@ -1,4 +1,4 @@
-# Load and process data for the vignette
+# This script processes the data used in the Vignette. 
 
 ## Libraries
 
@@ -63,5 +63,7 @@ TESSERA_data <- TESSERA::prepDataSpatialExperiment(
 
 ## Save TESSERA_data
 
+out_path <- file.path("..", "extdata")
+dir.create(out_path, showWarnings = FALSE)
 saveRDS(TESSERA_data,
-        file.path("..", "extdata", "vignette_processed_input_data.rds"))
+        file.path(out_path, "vignette_processed_input_data.rds"))

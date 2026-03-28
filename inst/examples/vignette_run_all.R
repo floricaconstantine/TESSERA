@@ -1,3 +1,8 @@
+# This script runs the TESSERA algorithm on the top 3000 genes from the data 
+# used in the Vignette. 
+# It is written to be run on an HPC computing cluster.
+# The script vignette_load_process.R should be run first. 
+
 ## Libraries
 
 # TESSERA
@@ -26,8 +31,9 @@ library(MASS)
 ## Load in data
 
 # Paths to data
-path <- file.path("/scratch", "users", "spatialseq", "natgen_kidney")
 in_path <- file.path("..", "extdata")
+# Edit this
+path <- file.path("/scratch", "users", "spatialseq", "natgen_kidney")
 out_path <- file.path(path, "vignette_output_data")
 
 # Load prepData object created in other script (vignette_load_process.R)
