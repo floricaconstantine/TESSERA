@@ -27,7 +27,7 @@ library(MASS)
 
 # Paths to data
 path <- file.path("/scratch", "users", "spatialseq", "natgen_kidney")
-in_path <- file.path(path, "vignette_input_data")
+in_path <- file.path("..", "extdata")
 out_path <- file.path(path, "vignette_output_data")
 
 # Load prepData object created in other script (vignette_load_process.R)
