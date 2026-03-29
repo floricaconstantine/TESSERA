@@ -55,7 +55,7 @@ spe <- spe[order(rv, decreasing = TRUE), ]
 TESSERA_data <- TESSERA::prepDataSpatialExperiment(
   spDataObject = spe,
   sample_col = "sample_part_id",
-  design_formula = as.formula( ~ annot_region + donor_id),
+  design_formula = as.formula( ~ annot_region + sample_part_id),
   model_type = "Leroux",
   expected_num_neighbors = 6
 )

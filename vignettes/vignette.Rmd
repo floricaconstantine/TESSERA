@@ -1,12 +1,14 @@
 ---
-title: "Introduction to TESSERA"
+title: "TESSERA: Tool for Estimating Spatial and Sample-level Effects via Regression Analysis"
 author:
   - name: Florica Constantine
     affiliation: "University of California, Berkeley"
 package: TESSERA
-output: BiocStyle::html_document: toc_float: true
+output: 
+  BiocStyle::html_document:
+    toc_float: true
 vignette: >
-  %\VignetteIndexEntry{Introduction to TESSERA}
+  %\VignetteIndexEntry{TESSERA: Tool for Estimating Spatial and Sample-level Effects via Regression Analysis}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -135,7 +137,7 @@ p <- ggplot2::ggplot(
   mapping = ggplot2::aes(x = pxl_col_in_fullres, y = pxl_row_in_fullres, color = annot_region)
 )
 p <- p + ggplot2::geom_point(size = 1)
-p <- p + ggplot2::facet_wrap( ~ sample_part_id)
+p <- p + ggplot2::facet_wrap( ~ sample_id)
 p <- p + ggplot2::scale_y_reverse()
 p <- p + ggplot2::scale_color_manual(
   name = "Annotated Region",
@@ -204,7 +206,7 @@ One key feature of `TESSERA` is that the preprocessing step can be completely on
 # Simple design: Look at annotated region in v. out
 TESSERA_data <- prepDataSpatialExperiment(spDataObject = spe, 
                                           sample_col = "sample_part_id",
-                                          design_formula = as.formula( ~ annot_region + donor_id),
+                                          design_formula = as.formula( ~ annot_region + sample_part_id),
                                           model_type = "Leroux",
                                           expected_num_neighbors = 6
                                           )
@@ -244,6 +246,9 @@ The fixed effects are stored in the `beta_hat` field and results from fitting th
 The `performanceSummary` data frame has information like the per-sample error, the Moran's I of the residuals, and the fitted spatial covariance parameters. 
 
 ```{r TESSERA_results}
+print("Number of Iterations")
+print(ncol(TESSERA_out$MSE_tracker))
+
 # Print fitted parameters
 print("Estimated Coefficients")
 print(TESSERA_out$beta_hat)
@@ -513,6 +518,16 @@ fndr_out <- fdrtool::fdrtool(wald_df$wald_stat_t, cutoff.method = "fndr", plot =
 
 cat("Local FDR, number of significant genes: ", sum(locfdr_out$lfdr < PVAL_THRESH), "\n")
 cat("FNDR, number of significant genes: ", sum(fndr_out$lfdr < PVAL_THRESH), "\n")
+```
+
+All methods are finding a lot of genes; to focus on the truly interesting genes, we might further threshold the estimated contrasts. 
+```{r sig_genes_lfc}
+gene_indicator <- which(abs(wald_df$contrast_val) > 0.2)
+print(length(gene_indicator))
+
+cat("Empirical Null, number of significant genes: ", sum(wald_df$wald_pval_adj[gene_indicator] < PVAL_THRESH), "\n")
+cat("Local FDR, number of significant genes: ", sum(locfdr_out$lfdr[gene_indicator] < PVAL_THRESH), "\n")
+cat("FNDR, number of significant genes: ", sum(fndr_out$lfdr[gene_indicator] < PVAL_THRESH), "\n")
 ```
 
 ## Session information

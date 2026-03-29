@@ -32,16 +32,19 @@ Imports:
   ggplot2,
   BRISC
 Suggests: 
-    testthat (>= 3.0.0),
-    knitr,
-    rmarkdown,
-    MASS,
-    MatrixGenerics,
-    SpatialExperiment,
-    SingleCellExperiment,
-    SummarizedExperiment,
-    WeberDivechaLCdata
-VignetteBuilder: knitr
+  testthat (>= 3.0.0),
+  knitr,
+  rmarkdown,
+  BiocStyle,
+  MASS,
+  MatrixGenerics,
+  SpatialExperiment,
+  SingleCellExperiment,
+  SummarizedExperiment,
+  WeberDivechaLCdata
+VignetteBuilder: 
+  knitr,
+  BiocStyle
 LinkingTo: Rcpp
 biocViews: Regression, DifferentialExpression, GeneExpression, Spatial
 Encoding: UTF-8
