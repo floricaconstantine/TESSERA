@@ -74,7 +74,7 @@ marker_gene_idx <- which(gene_names %in% lc_markers)
 # Which models to fit
 fit_model_list <- c("Leroux")
 # Which genes to fit on
-gene_index_list <- unique(sort(c(seq_len(5000), marker_gene_idx)))
+gene_index_list <- unique(sort(c(seq_len(3000), marker_gene_idx)))
 # Data frame with run settings
 sim_df <- expand.grid(gene_index = gene_index_list, fit_model = fit_model_list)
 
