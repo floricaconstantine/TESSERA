@@ -484,7 +484,7 @@ The plots below provide diagnostics for how the parameters and empirical null di
 wald_thresh_selection <- TESSERA::selectWaldStatisticThreshold(
   wald_stats = wald_df$wald_stat_t^2,
   quantile_spacing = 0.005,
-  metric = "Log_MSE"
+  metric = "Raw_MSE"
 )
 cat(
   "(Scale, Shift)",
@@ -507,6 +507,8 @@ wald_df$wald_pval <- TESSERA::scaledNonCentralChi2PValues(wald_stats = wald_df$w
 wald_df$wald_pval_adj <- p.adjust(wald_df$wald_pval, method = "BH")
 
 cat("Empirical Null, number of significant genes: ", sum(wald_df$wald_pval_adj < PVAL_THRESH), "\n")
+
+cat("Significant genes: ", wald_df[which(wald_df$wald_pval_adj < PVAL_THRESH), "gene"], "\n")
 ```
 
 We can also compare the number of genes found by the original local FDR method and the FNDR refinement. 
@@ -517,7 +519,11 @@ locfdr_out <- fdrtool::fdrtool(wald_df$wald_stat_t, cutoff.method = "locfdr", pl
 fndr_out <- fdrtool::fdrtool(wald_df$wald_stat_t, cutoff.method = "fndr", plot = FALSE)
 
 cat("Local FDR, number of significant genes: ", sum(locfdr_out$lfdr < PVAL_THRESH), "\n")
+cat("Significant genes: ", wald_df[which(locfdr_out$lfdr < PVAL_THRESH), "gene"], "\n")
+
 cat("FNDR, number of significant genes: ", sum(fndr_out$lfdr < PVAL_THRESH), "\n")
+cat("Significant genes: ", wald_df[which(fndr_out$lfdr < PVAL_THRESH), "gene"], "\n")
+
 ```
 
 All methods are finding a lot of genes; to focus on the truly interesting genes, we might further threshold the estimated contrasts. 
