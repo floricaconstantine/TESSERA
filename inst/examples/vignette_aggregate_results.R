@@ -34,6 +34,7 @@ for (fname in file_list) {
   
   # Add to lists
   performance_df[[1 + length(performance_df)]] <- out$TESSERA_out$performanceSummary
+  out$wald_df$contrast_name <- rownames(out$wald_df)
   wald_df[[1 + length(wald_df)]] <- out$wald_df
 }
 performance_df <- dplyr::bind_rows(performance_df)
