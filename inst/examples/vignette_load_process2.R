@@ -36,7 +36,7 @@ ehub <- ExperimentHub::ExperimentHub()
 spe_all <- spatialLIBD::fetch_data(type = "spe", eh = ehub)
 
 # Assign row names to be gene names
-rownames(spe_all) <- SummarizedExperiment::rowData(spe_all)$gene_name
+rownames(spe_all) <- make.unique(SummarizedExperiment::rowData(spe_all)$gene_name, sep="_")
 
 # Add the spatial coordinates into the metadata (convenience)
 SummarizedExperiment::colData(spe_all) <- cbind(SummarizedExperiment::colData(spe_all), 
