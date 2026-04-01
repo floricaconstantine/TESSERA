@@ -44,5 +44,5 @@ wald_df <- dplyr::bind_rows(wald_df)
 
 saveRDS(
   list(performance_df = performance_df, wald_df = wald_df),
-  file.path(out_path, "vignette_processed_output_data.rds")
+  file.path(out_path, "vignette_processed_output_data2.rds")
 )
