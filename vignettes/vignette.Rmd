@@ -17,6 +17,47 @@ vignette: >
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Introduction
+
+`TESSERA` is a method for fitting multi-sample generalized spatial linear models. 
+Here, multi-sample indicates that we have multiple areas, or regions, with independent spatial correlation structures. 
+
+By generalized spatial linear model, we mean that we fit an overdispersed Poisson model, where for each observation $j$ in sample $i$, the counts $z_{i, j}$ are 
+$$z_{i, j} \sim \text{Pois}\left(C_{i, j} \exp\left(x_{i, j}^\top \beta + \phi_{i, j}\right) \right),$$
+for some offset (library size) $C_{i, j}$, covariates $x_{i, j}$, random effects $\phi_{i, j}$, and fixed effects $\beta$. 
+The $\phi_{i, j}$ are spatially correlated within each sample, with different samples having their own spatial correlation structures. 
+A defining feature of this model is that while each sample is permitted its own independent spatial correlation structure, the method estimates a single set of fixed effects $\beta$.
+
+By enabling this estimation, `TESSERA` provides a rigorous foundation for addressing differential expression questions across experimental conditions---such as comparing diseased versus healthy tissue---while simultaneously accounting for the spatial autocorrelation inherent within each individual sample.
+
+`TESSERA` supports four classes of spatial correlation structures. 
+Three of these are lattice models, that is, models that take in measurement-measurement adjacency matrices. 
+The supported lattice models are the Leroux, CAR, and SAR structures. 
+The last class of model is a sparse nearest neighbor Gaussian process (spNNGP); this class of models uses a sparsified kernel matrix that depends on pairwise distances between measurements. 
+Supported kernels include the Matern ("Mat"), exponential ("Exp"), Gaussian ("Gau"), and spherical ("Sph") functions. 
+When in doubt about what correlation structure to use, for grid-like or regularly sampled measurements, or for measurements where adjacency can be determined, we recommend the Leroux lattice model; otherwise, the spNNGP with either the Matern or exponential kernel is a good choice.  
+
+This package is motivated by recent advances in spatial transciptomics, wherein multi-sample or multi-tissue data is becoming more common. 
+In this context, we often consider our samples to be independent tissue slices where factors such as disparate coordinate systems, varying cell type distributions, and differing underlying tissue architectures often preclude the use of traditional spatial methods.
+More details are available in our paper [LINK TO PAPER].
+
+
+## Installation
+
+The following code will install the latest release version of the `TESSERA` package from Bioconductor. 
+Additional details are shown on the [Bioconductor](https://bioconductor.org/packages/TESSERA) page.
+
+```{r install, eval=FALSE}
+install.packages("BiocManager")
+BiocManager::install("TESSERA")
+```
+
+Alternatively, `TESSERA` can be installed from github
+```{r install_git, eval=FALSE}
+install.packages("remotes")
+remotes::install_github("floricaconstantine/TESSERA")
+```
+
 ```{r libraries, message=FALSE, warning=FALSE}
 # Libraries
 
@@ -24,8 +65,6 @@ knitr::opts_chunk$set(echo = TRUE)
 library(TESSERA)
 
 # Data
-# BiocManager::install("WeberDivechaLCdata")
-library(WeberDivechaLCdata)
 
 # Data Processing and Objects
 # BiocManager::install("SummarizedExperiment")
@@ -49,36 +88,6 @@ library(fdrtool)
 library(ggplot2)
 ```
 
-## Introduction
-
-`TESSERA` is a package for fitting multi-sample generalized spatial linear models. 
-Here, multi-sample indicates that we have multiple areas, tissue samples, or regions with independent spatial correlation structures. 
-By generalized linear model, we mean that we fit an overdispersed Poisson model, where counts $z_j$ are 
-$$z_j \sim \text{Pois}\left(C_j \exp\left(x_j^\top \beta + \phi_j\right) \right),$$
-for some library size (offset) $C_j$, covariates $x_j$, random effects $\phi_j$, and fixed effects $\beta$. 
-The $\phi_j$ are spatially correlated, with different samples having their own spatial correlation structures. 
-Of particular note is that there is a single set of fixed effects $\beta$. 
-
-This package is motivated by recent advances in spatial transciptomics, wherein multi-sample or multi-tissue data is becoming more common. 
-More details are available in our paper [LINK TO PAPER].
-
-
-## Installation
-
-The following code will install the latest release version of the `TESSERA` package from Bioconductor. 
-Additional details are shown on the [Bioconductor](https://bioconductor.org/packages/TESSERA) page.
-
-```{r install, eval=FALSE}
-install.packages("BiocManager")
-BiocManager::install("TESSERA")
-```
-
-Alternatively, `TESSERA` can be installed from github
-```{r install_git, eval=FALSE}
-install.packages("remotes")
-remotes::install_github("floricaconstantine/TESSERA")
-```
-
 ## Loading Data
 
 In the examples below, we assume that the data are provided as a SpatialExperiment object (Bioconductor). 
@@ -86,35 +95,35 @@ If this is not the case, `TESSERA` includes functionality to take in raw count m
 
 In what follows, we load and process data to ready it for `TESSERA`. 
 ```{r load_data, message=FALSE, warning=FALSE}
+
+# TODO: Move this data somewhere
+
 # Load Data
-spe <- WeberDivechaLCdata::WeberDivechaLCdata_Visium()
-dim(spe)
+spe <- readRDS("../../spatial/vignette_processing_code/kidney_data_spe.rds")
+print(dim(spe))
+
+# Also load results from TESSERA
+TESSERA_all <- readRDS("../../spatial/vignette_processing_code/TESSERA_results.rds")
 ```
 
 ```{r filter_data}
-# Number of cells per sample
-sort(table(SummarizedExperiment::colData(spe)$sample_part_id))
+# Column containing sample IDs
+sample_col <- "orig.ident"
 
-# Keep only spots over tissue
-spe <- spe[, SummarizedExperiment::colData(spe)$in_tissue == 1]
-dim(spe)
+# Number of cells per sample
+sort(table(SummarizedExperiment::colData(spe)[, sample_col]))
 ```
 
-Of particular note is that the rownames of the coordinates in a SpatialExperiment object might not match those of the metadata; it is not necessary to add the coordinates to the metadata, but it is necessary for the rownames to match. 
+It is important for the row names of the coordinates in a SpatialExperiment object to match the row names of the metadata and the column names of the count matrix; it is not necessary to add the coordinates to the metadata, but it is necessary for the row names to match. 
 ```{r}
 # Add the spatial coordinates into the metadata (convenience)
 SummarizedExperiment::colData(spe) <- cbind(SummarizedExperiment::colData(spe), 
                                             SpatialExperiment::spatialCoords(spe))
-# Make sure rownames match 
-rownames(SpatialExperiment::spatialCoords(spe)) <- rownames(SummarizedExperiment::colData(spe))
 ```
 
-For our analysis, we focus on the top genes as sorted by variance. 
+For our analysis, we focus on the top genes as sorted by raw count variance after the data was pre-processed. 
 We see that the variance decreases rapidly. 
-```{r sort_data}
-# Assign the readable gene names to the rows
-rownames(spe) <- SummarizedExperiment::rowData(spe)$gene_name
-
+```{r sort_data, fig.height=4, fig.width=6}
 # Calculate variance across all spots for each gene
 rv <- MatrixGenerics::rowVars(SingleCellExperiment::counts(spe))
 names(rv) <- rownames(spe)
@@ -125,64 +134,152 @@ spe <- spe[order(rv, decreasing = TRUE), ]
 p <- ggplot2::qplot(seq_along(rv), sort(rv, decreasing = TRUE))
 p <- p + ggplot2::scale_y_log10()
 p <- p + ggplot2::labs(x = "Index", y = "Variance of Counts")
+p <- p + theme_bw()
+p <- p + ggplot2::theme(text = ggplot2::element_text(size = 15))
 p
 ```
 
-This dataset has a single covariate of interest: membership in an annotated region. 
-We visualize all 15 samples and the covariate across all samples. 
-```{r visualize_covariates}
+This dataset has two covariates of interest: Cell type and Disease.  
+We visualize all 14 samples and the cell type covariate across all samples. 
+```{r visualize_covariates, fig.height=8, fig.width=10}
+# Extract metadata
+plot_df <- as.data.frame(SummarizedExperiment::colData(spe))
+
+# Cell type colors
+set.seed(200)
+P26 <- Polychrome::createPalette(26, c("#ff0000", "#00ff00", "#0000ff"))
+names(P26) <- unique(plot_df$celltype)
+
 # Create the spatial plot
 p <- ggplot2::ggplot(
-  data = as.data.frame(SummarizedExperiment::colData(spe)),
-  mapping = ggplot2::aes(x = pxl_col_in_fullres, y = pxl_row_in_fullres, color = annot_region)
+  data = plot_df,
+  mapping = ggplot2::aes(x = pxl_col_in_fullres, y = pxl_row_in_fullres, color = celltype)
 )
-p <- p + ggplot2::geom_point(size = 1)
-p <- p + ggplot2::facet_wrap( ~ sample_id)
+p <- p + ggplot2::geom_point(size = 0.25)
+p <- p + ggplot2::scale_colour_manual(name = "Cell type", values = P26)
+p <- p + ggplot2::facet_wrap( ~ orig.ident)
 p <- p + ggplot2::scale_y_reverse()
-p <- p + ggplot2::scale_color_manual(
-  name = "Annotated Region",
-  values = c("TRUE" = "red", "FALSE" = "gray90"),
-  labels = c("TRUE" = "LC region", "FALSE" = "Non-LC region")
-)
 p <- p + ggplot2::guides(color = ggplot2::guide_legend(override.aes = list(size = 4)))
-p <- p + ggplot2::labs(title = "Locus Coeruleus Manual Annotation")
 p <- p + ggplot2::theme_void()
 p <- p + ggplot2::theme(
   panel.background = ggplot2::element_rect(fill = "white", color = NA),
-  text = ggplot2::element_text(size = 12),
+  text = ggplot2::element_text(size = 25),
   plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
 )
 p
 ```
 
-There are five genes of interest. 
-We note that `TESSERA` runs on a single gene at a time, that is, there is no sharing of information between genes when fitting the model. 
-```{r marker_genes}
-# Key markers for norepinephrine neurons
-lc_markers <- c("TH", "DBH", "SLC6A2", "GCH1", "DDC")
-# Check which marker genes are in the data set
-present_markers <- intersect(lc_markers, rownames(spe))
 
-# Print markers and their indices (by decreasing variance)
-print(present_markers)
-marker_gene_idx <- which(rownames(spe) %in% lc_markers)
-print(marker_gene_idx)
+### Design Matrix
+
+For our analysis, we want to control for three factors: cell type, disease, and sample. 
+Moreover, we believe that cell types expression differ across diseases and desire to test for differential expression within a cell type across diseases. 
+To this end we use a intercept-free interaction-only design, with effects for all pairs of cell type and disease. 
+We also fit effects for sample, nested within disease, as in the `DESeq2` vignette. 
+This model formulation is equivalent to a properly-constrained model that includes an intercept and main effects.
+We utilize an intercept-free formulation to simplify contrasts; this allows comparisons—such as differences between cell types or disease states—to be calculated as direct differences between two coefficients.
+The code below shows how to construct the design matrix. 
+```{r design_mat}
+# Which covariates to use
+celltype_col <- "celltype"
+sample_col <- "orig.ident"
+group_col <- "Group"
+coord_cols <- c("pxl_row_in_fullres", "pxl_col_in_fullres")
+covariates_keep <- c(group_col, celltype_col) # Use when creating design formula
+
+# Reference celltype, sample, and condition
+ref_celltype <- "C_TAL"
+ref_sample <- "HK2874_ST"
+ref_group <- "Control"
+
+
+# Re-level factors
+SummarizedExperiment::colData(spe)[, sample_col] <- relevel(factor(SummarizedExperiment::colData(spe)[, sample_col]), ref = ref_sample)
+SummarizedExperiment::colData(spe)[, celltype_col] <- relevel(factor(SummarizedExperiment::colData(spe)[, celltype_col]), ref = ref_celltype)
+SummarizedExperiment::colData(spe)[, group_col] <- relevel(factor(SummarizedExperiment::colData(spe)[, group_col]), ref = ref_group)
+
+## If we want a sample/patient effect; we need to nest this inside disease
+# Create a new 'nested' variable as in the DESeq2 vignette
+control_ids <- unique(SummarizedExperiment::colData(spe)[, sample_col][SummarizedExperiment::colData(spe)[, group_col]  == "Control"])
+DKD_ids <- unique(SummarizedExperiment::colData(spe)[, sample_col][SummarizedExperiment::colData(spe)[, group_col]  == "DKD"])
+HKD_ids <- unique(SummarizedExperiment::colData(spe)[, sample_col][SummarizedExperiment::colData(spe)[, group_col]  == "HKD"])
+new_id <- rep(0, nrow(SummarizedExperiment::colData(spe)))
+for (idx in 1:length(control_ids)) {
+  new_id[SummarizedExperiment::colData(spe)[, sample_col] == control_ids[idx]] <- idx
+}
+for (idx in 1:length(DKD_ids)) {
+  new_id[SummarizedExperiment::colData(spe)[, sample_col] == DKD_ids[idx]] <- idx
+}
+for (idx in 1:length(HKD_ids)) {
+  new_id[SummarizedExperiment::colData(spe)[, sample_col] == HKD_ids[idx]] <- idx
+}
+SummarizedExperiment::colData(spe)$nested_id <- factor(new_id)
+new_nested_sample_col <- "nested_id"
+
+# Create dataframe
+data_mat <- SummarizedExperiment::colData(spe)
+data_mat$z <- SingleCellExperiment::counts(spe)[1, ]
+
+# Design formula
+design_formula <- as.formula(paste0("z ~ ", "0 + ", paste(
+  covariates_keep[1],
+  c(covariates_keep[-c(1)], new_nested_sample_col),
+  sep = ":",
+  collapse = " + "
+)))
+print(design_formula)
+# Create design matrix
+X_mat <- model.matrix(design_formula, data_mat)
+
+# Rename sample/patient effects for clarity later
+for (idx in 2:length(DKD_ids)) {
+  colnames(X_mat) <- gsub(
+    paste0("GroupDKD:nested_id", idx),
+    paste0("GroupDKD:", DKD_ids[idx]),
+    colnames(X_mat)
+  )
+}
+for (idx in 2:length(HKD_ids)) {
+  colnames(X_mat) <- gsub(
+    paste0("GroupHKD:nested_id", idx),
+    paste0("GroupHKD:", HKD_ids[idx]),
+    colnames(X_mat)
+  )
+}
+for (idx in 2:length(control_ids)) {
+  colnames(X_mat) <- gsub(
+    paste0("GroupControl:nested_id", idx),
+    paste0("GroupControl:", control_ids[idx]),
+    colnames(X_mat)
+  )
+}
+
+# Toss out zero columns
+X_mat <- X_mat[, colSums(X_mat) != 0]
+# Make sure design is full rank
+stopifnot(Matrix::rankMatrix(X_mat)[1] == ncol(X_mat))
+
+print(dim(X_mat))
+colnames(X_mat)
 ```
 
-
-## Processing Data
+### Preparing Data 
 
 Our preferred spatial covariance structure is the Leroux model, a lattice model. 
 In this model, the random effects are zero-mean Gaussian random variables. 
 The covariance of the random effects can be decomposed into a spatially correlated portion and an uncorrelated portion. 
 However, lattice models require a notion of neighbors for each cell, that is, we need to identify which cells are adjacent. 
-For Visium data, we expect there to be 6 neighbors per cell; for this dataset, we see a jump in the distance-to-kth-neighbor plot after the 6th neighbor. 
+For Visium next-generation sequencing data, we expect there to be 6 neighbors per cell on average due to the hexagonal grid arrangement; for this dataset, we see a jump in the distance-to-kth-neighbor plot after the 6th neighbor. 
+Indeed, the `visualizeNeighborDistances` function can be used to find a cell-cell distance threshold below which we consider cells to be adjacent. 
+This value can be passed into the `prepDataSpatialExperiment` function as the `D_THRESH` argument in place of the `expected_num_neighbors` argument (which automates the below process of finding `D_THRESH` if the expected number of neighbors is known, as in Visium data). 
+For irregularly spaced data or for imaging-based data, the `D_THRESH` argument could be found by manual inspection. 
+Alternatively, `TESSERA`'s `prepData` function is capable of taking in a pre-computed adjacency matrix. 
 
-```{r visualize_neighbors}
+```{r visualize_neighbors, fig.height=4, fig.width=6}
 # Figure out how to determine what cells are neighbors
 nb_data <- TESSERA::visualizeNeighborDistances(
   meta_data = SummarizedExperiment::colData(spe),
-  sample_col = "sample_part_id",
+  sample_col = sample_col,
   coord_data = SpatialExperiment::spatialCoords(spe)
 )
 
@@ -195,46 +292,57 @@ nb_thresh <- mean(colMeans(nb_data$mean_nb_dist[, 6:7]))
 p <- nb_data$distances_plot
 p <- p + ggplot2::geom_hline(yintercept = nb_thresh, color = "red")
 p <- p + ggplot2::theme_bw()
+p <- p + ggplot2::theme(text = ggplot2::element_text(size = 15))
 p
 ```
 
-The function below takes in the SpatialExperiment object, a column name that indicates the sample, a design formula (or design matrix), the model type (for the covariance structure), and an expected number of neighbors (or a distance cutoff for determing neighbors) and produces a processed data object that the `TESSERA` model fitting expects. 
-One key feature of `TESSERA` is that the preprocessing step can be completely once for all genes, and the results used repeatedly: this step allows the model fitting process to run much faster. 
+The `prepDataSpatialExperiment` function below takes in the `SpatialExperiment` object, a column name that indicates the sample, a design formula (or design matrix), the model type (for the covariance structure), and an expected number of neighbors (or a distance cutoff for determining neighbors) and produces a processed data object that the `TESSERA` model fitting expects. 
+One key feature of `TESSERA` is that the preprocessing step can be done completely once for all genes, and the results used repeatedly: this step allows the model fitting process to run much faster. 
 
+We now process the data for `TESSERA`. 
+Note that if we had a simpler design, we could instead pass in a design formula instead of constructing the design matrix, as we did above. 
 ```{r prep_data, message=FALSE, warning=FALSE}
 # Prepare data for the TESSERA package
-# Simple design: Look at annotated region in v. out
-TESSERA_data <- prepDataSpatialExperiment(spDataObject = spe, 
-                                          sample_col = "sample_part_id",
-                                          design_formula = as.formula( ~ annot_region + sample_part_id),
-                                          model_type = "Leroux",
-                                          expected_num_neighbors = 6
-                                          )
+TESSERA_data <- TESSERA::prepDataSpatialExperiment(
+  spDataObject = spe,
+  sample_col = sample_col,
+  design_mat = X_mat,
+  design_formula = NULL,
+  model_type = "Leroux",
+  expected_num_neighbors = 6
+)
 ```
+
+If your data is not in a `SpatialExperiment` object, we also have the `prepData` function that enables manual construction of the inputs to `TESSERA`. 
 
 ## Running `TESSERA` on a single gene
 
-We now run `TESSERA` on a single gene, in this case, the first marker gene. 
+Note that `TESSERA` runs on a single gene at a time, that is, there is no sharing of information between genes when fitting the model. 
+We now run `TESSERA` on a single gene, in this case, the first gene (largest variance). 
 The obligatory inputs to `TESSERA` are the data object, the gene name (row/rowname in the count matrix), and the model type (covariance structure). 
 The other inputs are parameters of the ECM algorithm, in particular, how many iterations to run, how to determine early stopping, etc. 
 ```{r run_TESSERA, message=FALSE, warning=FALSE}
 # Which gene to run
-gene_idx <- marker_gene_idx[1]
-# Run TESSERA for the top gene
+gene_idx <- which(rownames(spe) == "ACTA2") # 1
+# Run TESSERA
 TESSERA_out <- TESSERA::TESSERA_lattice(
+  # Output of prepData or prepDataSpatialExperiment function
   TESSERAData_obj = TESSERA_data,
+  # Gene
   gene_name = rownames(spe)[gene_idx],
+  # Which covariance structure to use
   model_type = "Leroux",
-  em_iters = 200,
   # How many ECM iterations to run (maximum)
-  opt_iters = 5,
+  em_iters = 200,
   # How many CM steps to run per E-Step
-  em_min_iters = 15,
+  opt_iters = 5,
   # Min ECM iterations before early stopping
-  em_tol = 1e-3,
+  em_min_iters = 15,
   # Tolerance for early stopping
-  em_stopping = "rel_loglike",
+  em_tol = 1e-3,
   # How to determine early stopping: Relative change in log likelihood
+  em_stopping = "rel_loglike",
+  # Whether to print out parameter values and convergence information at each iteration
   verbose = FALSE
 )
 
@@ -242,12 +350,11 @@ print(TESSERA_out$time)
 ```
 
 We now inspect the output. 
-The fixed effects are stored in the `beta_hat` field and results from fitting the model in the `performanceSummary` field. 
+The fixed effects are stored in the `beta_hat` field and results from fitting the model are in the `performanceSummary` field. 
 The `performanceSummary` data frame has information like the per-sample error, the Moran's I of the residuals, and the fitted spatial covariance parameters. 
 
 ```{r TESSERA_results}
-print("Number of Iterations")
-print(ncol(TESSERA_out$MSE_tracker))
+cat("Number of Iterations:", ncol(TESSERA_out$MSE_tracker), "\n")
 
 # Print fitted parameters
 print("Estimated Coefficients")
@@ -259,8 +366,8 @@ print(TESSERA_out$performanceSummary)
 ```
 
 As a point of comparison, we fit a negative binomial (NB) GLM. 
-We see that the error in the estimated counts is substantially greater that with TESSERA, and that the residual autocorrelations are also much higher. 
-Moreover, in addition to the fit quality being much worse, the estimated coefficients differ dramatically from those fit by `TESSERA`. 
+We see that the error in the estimated counts is substantially greater than that of `TESSERA`, and that the residual autocorrelations are also much higher. 
+Moreover, in addition to the fit quality being worse, the estimated coefficients differ substantially from those fit by `TESSERA`. 
 
 ```{r NB_GLM_comparison}
 # Run an NB GLM for comparison
@@ -270,9 +377,8 @@ z_data <- sapply(TESSERA_data$counts_list, function (x) {
 z_data <- Reduce(c, z_data)
 X_data <- Reduce(rbind, TESSERA_data$X_list)
 lib_data <- Reduce(c, sapply(TESSERA_data$library_size_list, as.vector))
-# We need some sort of starting point for the GLM to converge
-glm_out <- MASS::glm.nb(z_data ~ 0 + X_data + offset(log(lib_data)), 
-                        init.theta = mean(z_data) / var(z_data))
+
+glm_out <- MASS::glm.nb(z_data ~ 0 + X_data + offset(log(lib_data)))
 
 glm_preds <- predict(glm_out, type = "response")
 glm_resid <- resid(glm_out, type = "response")
@@ -326,7 +432,7 @@ for (s_name in names(TESSERA_out$start_idx_list)) {
 
 We first plot the expression (log-transformed counts). 
 
-```{r visualize_counts}
+```{r visualize_counts, fig.height=12, fig.height=16}
 p <- ggplot2::ggplot(data = plot_data,
                      mapping = ggplot2::aes(
                        x = x,
@@ -336,107 +442,95 @@ p <- ggplot2::ggplot(data = plot_data,
 p <- p + ggplot2::geom_point(size = 1)
 p <- p + ggplot2::facet_wrap( ~ sample)
 p <- p + ggplot2::theme_bw()
+p <- p + ggplot2::theme(text = ggplot2::element_text(size = 25))
 p
 ```
 
 We next plot the residuals for TESSERA; we see that the residuals are flat. 
 
-```{r TESSERA_resid_plot}
+```{r TESSERA_resid_plot, fig.height=12, fig.height=16}
 p <- ggplot2::ggplot(data = plot_data,
                      mapping = ggplot2::aes(x = x, y = y, color = residuals))
 p <- p + ggplot2::geom_point(size = 1)
 p <- p + ggplot2::facet_wrap( ~ sample)
 p <- p + ggplot2::theme_bw()
+p <- p + ggplot2::theme(text = ggplot2::element_text(size = 25))
 p
 ```
 
 We now plot the residuals from the NB GLM. 
 The scale of the residuals is much higher than those from `TESSERA`. 
-```{r glm_resid_plot}
+```{r glm_resid_plot, fig.height=12, fig.height=16}
 p <- ggplot2::ggplot(data = plot_data,
                      mapping = ggplot2::aes(x = x, y = y, color = glm_residuals))
 p <- p + ggplot2::geom_point(size = 1)
 p <- p + ggplot2::facet_wrap( ~ sample)
 p <- p + ggplot2::theme_bw()
+p <- p + ggplot2::theme(text = ggplot2::element_text(size = 25))
 p
 ```
 
 ## Running TESSERA on multiple genes
 
 `TESSERA` can be run in parallel (or serial) to fit to multiple genes. 
-However, `TESSERA` is somewhat computationally intensive, so it is likely best to parallelize this process on a high performance computing cluster. 
+However, `TESSERA` is computationally intensive if run on hundreds or thousands of genes as is typically for genomic data, so it is best to parallelize this process on a high performance computing cluster. 
 
-The following code (not run) shows an example of using the futures package to parallelize `TESSERA` on 50 genes. 
+The following code (not run) shows an example of how to use the futures package to parallelize `TESSERA` on 50 genes. 
 
 ```{r parallel_TESSERA, warning=FALSE, message=FALSE, eval=FALSE}
 library(future)
 library(future.apply)
-library(progressr)
 
 # How many genes to run
-gene_idx_list <- unique(sort(c(seq(1, 45), marker_gene_idx)))
+gene_idx_list <- seq(50)
 print(length(gene_idx_list))
-gene_names <- rownames(spe)[gene_idx_list]
+gene_names <- rownames(spe)[gene_idx_list] 
 
-# Setup the parallel backend
-# 'multisession' is safe for Windows and Unix
-n_cores <- max(1, parallel::detectCores() - 2)
-future::plan(future::multisession, workers = n_cores)
+# Setup the backend
+n_workers <- min(length(gene_names), parallel::detectCores() - 2)
+if (.Platform$OS.type == "unix") {
+  future::plan(future::multicore, workers = n_workers)
+} else {
+  future::plan(future::multisession, workers = n_workers)
+}
 
-# Allow up to 2GB of data transfer to workers (prevents 'globals too large' errors)
+# Increase memory limit for globals (2GB)
 options(future.globals.maxSize = 2000 * 1024^2) 
-
-# Progress bar
-progressr::handlers("txtprogressbar") # Clean text-based progress bar
 
 t0 <- Sys.time()
 
-# Wrap the loop in with_progress
-# This "catches" the signals sent by the workers
-TESSERA_results <- progressr::with_progress({
+# 2. Run future_lapply
+# future.chunk.size = 1 ensures workers don't "batch" these 13-minute tasks.
+TESSERA_results <- future.apply::future_lapply(gene_names, function(g_name) {
   
-  # Create a progressor object based on the list of genes
-  p <- progressr::progressor(along = gene_names)
+  TESSERA::TESSERA_lattice(
+    TESSERAData_obj = TESSERA_data,
+    gene_name       = g_name,
+    model_type      = "Leroux",
+    em_iters        = 200,
+    em_min_iters    = 15,
+    em_tol          = 1e-3,
+    em_stopping     = "rel_loglike",
+    verbose         = FALSE
+  )
   
-  future.apply::future_lapply(gene_names, function(g_name) {
-    
-    # Run TESSERA 
-    res <- TESSERA::TESSERA_lattice(
-      TESSERAData_obj = TESSERA_data,
-      gene_name       = g_name,
-      model_type      = "Leroux",
-      em_iters        = 50,
-      em_min_iters    = 15,
-      em_tol          = 1e-3,
-      em_stopping     = "rel_loglike",
-      verbose         = FALSE
-    )
-    
-    # Signal that one gene is complete
-    p(sprintf("Gene: %s", g_name)) 
-    
-    return(res)
-    
-  }, future.seed = TRUE)
-})
+}, future.seed = TRUE, future.chunk.size = 1)
 
 t1 <- Sys.time()
 
-# Clean up the workers
+# Clean up
 future::plan(future::sequential)
 
 cat("Parallel processing of", length(gene_names), "genes took:", 
-    round(difftime(t1, t0, units = "sec"), 2), "seconds.\n")
+    round(difftime(t1, t0, units = "min"), 2), "minutes.\n")
 ```
 
-For the purposes of this vignette, we have already run `TESSERA` on the top 3,000 genes. 
-The scripts to do are in the `inst/examples` folder, where `vignette_load_process.R` runs the preprocessing, `vignette_run_all.R` runs `TESSERA`, and `vignette_aggregate_results.R` aggregates the results. 
+For the purposes of this vignette, we have already run `TESSERA` on the top 3,000 genes by raw count variance after data pre-processing with the following arguments to the `TESSERA_lattice` function alongside the gene name and `prepData` output: `model_type` = "Leroux", `em_iters` = 200, `opt_iters` = 5, `em_min_iters` = 30, `em_tol` = 0.001, `em_stopping` = "rel_loglike", `beta_init` = "glm", `gamma_init` = "moran", `tau2_init` = "var". 
 We load the results here and look at the performance results. 
 
 ```{r load_vignette_data}
-vignette_data <- readRDS(file.path("..", "inst", "extdata", "vignette_processed_output_data.rds"))
-performance_df <- vignette_data$performance_df
-wald_df <- vignette_data$wald_df
+performance_df <- TESSERA_all$perf_df
+wald_df <- TESSERA_all$wald_df
 
 head(performance_df)
 ```
@@ -446,25 +540,102 @@ head(performance_df)
 
 Of particular interest, after fitting models to several genes, is differential expression. 
 Often, this is accomplished via testing contrasts of an estimated fixed effects vector. 
-Below, we construct a contrast matrix and then apply it to the results from `TESSERA`. 
+The rows of the contrast matrix correspond to different contrasts, and the columns to the entries of the fixed effects vector. 
+We assume that each contrast is tested separately and is of the form 
+$$\sum_{k = 1}^p c_k \beta_k = 0,$$
+where $\beta_k$ is the $k^{th}$ entry of the fixed effects vector $\beta$ and the $c_k$ are coefficients that encode the contrasts. 
 
-```{r wald_stats, warning=FALSE, eval=FALSE}
-# Create contrast matrix
-contrast_mat <- matrix(data = 0,
-                       nrow = 1,
-                       ncol = length(TESSERA_out$beta_hat))
-contrast_mat[2] <- 1
-colnames(contrast_mat) <- names(TESSERA_out$beta_hat)
-rownames(contrast_mat)[1] <- names(TESSERA_out$beta_hat)[2]
+Below, we construct a contrast matrix for testing differential expression within a cell type between diseases. 
+```{r contrast_mat_within_ct}
+cell_type_list <- levels(SummarizedExperiment::colData(spe)[, celltype_col])
+condition_list <- levels(SummarizedExperiment::colData(spe)[, group_col])
 
-# Compute Wald test statistics
-wald_df <- dplyr::bind_rows(lapply(TESSERA_results, function (x) {
-  TESSERA::waldTestStastics(x, contrast_mat)
-}))
+# Pairs of conditions
+condition_pairs <- combn(condition_list, 2)
+# Colnames in design matrix
+covariate_names <- colnames(X_mat)
+
+# Loop over cell types
+contrast_list <- list()
+for (ct in cell_type_list) {
+  for (d_idx in 1:ncol(condition_pairs)) {
+    idx1 <- which(covariate_names == paste0(group_col, condition_pairs[1, d_idx], ":", celltype_col, ct))
+    idx2 <- which(covariate_names == paste0(group_col, condition_pairs[2, d_idx], ":", celltype_col, ct))
+    
+    # If something is missing, skip the contrast
+    if ((0 == length(idx1)) || (0 == length(idx2))) {
+      next
+    }
+    
+    # Create contrast matrix
+    tmp <- matrix(data = 0, nrow = 1, ncol = length(covariate_names))
+    tmp[1, idx1] <- 1
+    tmp[1, idx2] <- -1
+    rownames(tmp) <- c(paste0(ct, ":", condition_pairs[1, d_idx], "-", condition_pairs[2, d_idx]))
+    
+    contrast_list[[1 + length(contrast_list)]] <- tmp
+  }
+}
+
+contrast_mat <- Reduce(rbind, contrast_list)
+colnames(contrast_mat) <- covariate_names
+head(contrast_mat, 2)
 ```
 
-We can inspect the dataframe created in the aggregation script, from running `TESSERA` on the top 3,000 genes:
-```{r}
+We also demonstrate how to construct a contrast matrix for testing differential expression between cell types. 
+```{r contrast_mat_across_ct}
+cell_type_list <- levels(SummarizedExperiment::colData(spe)[, celltype_col])
+
+# Pairs of cell types
+celltype_pairs <- combn(cell_type_list, 2)
+# Colnames in design matrix
+covariate_names <- colnames(X_mat)
+
+# Loop over cell type pairs
+contrast_list <- list()
+
+for (ct_idx in 1:ncol(celltype_pairs)) {
+  idx1 <- which(grepl(celltype_pairs[1, ct_idx], covariate_names))
+  idx2 <- which(grepl(celltype_pairs[2, ct_idx], covariate_names))
+  
+  # Create contrast matrix
+  tmp <- matrix(data = 0, nrow = 1, ncol = length(covariate_names))
+  tmp[1, idx1] <- 1 / length(idx1)
+  tmp[1, idx2] <- -1 / length(idx2)
+  rownames(tmp) <- c(paste0(celltype_pairs[1, ct_idx], "-", celltype_pairs[2, ct_idx]))
+  
+  contrast_list[[1 + length(contrast_list)]] <- tmp
+}
+
+celltype_contrast_mat <- Reduce(rbind, contrast_list)
+colnames(celltype_contrast_mat) <- covariate_names
+head(celltype_contrast_mat, 2)
+```
+
+We view the results of the within-cell type contrasts on the top gene below.
+```{r wald_stats_within, warning=FALSE}
+one_gene_wald <- TESSERA::waldTestStastics(TESSERA_out, contrast_mat)
+one_gene_wald <- dplyr::select(one_gene_wald, -c("contrast_string"))
+head(one_gene_wald, 3)
+```
+
+We view the results of the across-cell type contrasts on the top gene below.
+```{r wald_stats_across, warning=FALSE}
+one_gene_ct_wald <- TESSERA::waldTestStastics(TESSERA_out, celltype_contrast_mat)
+one_gene_ct_wald <- dplyr::select(one_gene_ct_wald, -c("contrast_string"))
+head(one_gene_ct_wald, 3)
+```
+
+We can inspect the dataframe created in the aggregation script, from running `TESSERA` on the top 3,000 genes.
+Specifically, we look for which genes are differentially expression between conditions within a cell type.
+For cell type $c$, the contrasts of interest are 
+$$
+\beta_{\textit{c, DKD}} - \beta_{\textit{c, Control}}, \qquad 
+\beta_{\textit{c, HKD}} - \beta_{\textit{c, Control}}, \qquad
+\beta_{\textit{c, HKD}} - \beta_{\textit{c, DKD}}.
+$$
+```{r wald_df}
+wald_df <- wald_df[!is.na(wald_df$wald_stat_t), ]
 head(wald_df)
 ```
 
@@ -472,18 +643,19 @@ For a generalized linear mixed model (GLMM), which `TESSERA` is fitting a type o
 For enough samples (not cells), it will approach a normal distribution or a $\chi_1^2$ (depending on if the statistics are squared). 
 However, in the finite sample regime, GLMMs are prone to bias and biased standard errors. 
 
-If we are testing 100s or more genes, there is a path forward: we might use Efron's idea of estimating the null distribution from the data. 
+If we are testing hundreds or thousands of genes, there is a path forward: we might use Efron's idea of estimating the null distribution from the data. 
 In our case, we believe that the square of the Wald statistics computed previously can be modeled as a scaled, non-central $\chi_1^2$ distribution. 
 The functions below provide functionality to find the optimal parameter estimates. 
 Essentially, we look for a threshold below which most of the statistics come from the null; for these statistics, the p-values should look uniformly distributed on $(0, 1)$. 
 The plots below provide diagnostics for how the parameters and empirical null distribution changes as a function of the threshold. 
 
 ```{r empirical_null, warning=FALSE}
+t0 <- Sys.time()
 # Empirical Null Estimation
 # Sweep over thresholds to find the optimal distribution parameters for the empirical null
 wald_thresh_selection <- TESSERA::selectWaldStatisticThreshold(
   wald_stats = wald_df$wald_stat_t^2,
-  quantile_spacing = 0.005,
+  quantile_spacing = 0.01,
   metric = "Raw_MSE"
 )
 cat(
@@ -493,9 +665,41 @@ cat(
   wald_thresh_selection$threshold,
   "\n"
 )
+t1 <- Sys.time()
+cat("Threshold selection of", nrow(wald_df), "statistics took:", 
+    round(difftime(t1, t0, units = "min"), 2), "minutes.\n")
 ```
 
-After fitting a null distribution and obtaining p-values, we may perform testing for differential expression, in this case, between regions. 
+```{r threshold_selection_error, fig.height=4, fig.width=6}
+# Plot threshold selection sweep results
+plot_df <- wald_thresh_selection$threshold_results
+# Put MSE on the same scale as other error metrics
+plot_df$Raw_RMSE <- sqrt(plot_df$Raw_MSE)
+# Melt data frame so that each metric can be a new line
+# Also only plot the "Raw_" metrics, not logged (error between distributions of logged p-values)
+plot_df <- reshape2::melt(plot_df, c("quantile", "threshold")) %>%
+  dplyr::filter(grepl("Raw_", variable))
+# Clean up labels and remove MSE
+plot_df$variable <- gsub("Raw_", "", plot_df$variable)
+plot_df <- plot_df[plot_df$variable != "MSE", ]
+
+p <- ggplot2::ggplot(
+  data = plot_df,
+  mapping = ggplot2::aes(
+    x = as.numeric(threshold),
+    y = as.numeric(value),
+    group = variable,
+    color = variable
+  )
+)
+p <- p + ggplot2::geom_line(linewidth = 1)
+p <- p + ggplot2::scale_y_log10()
+p <- p + ggplot2::labs(x = "Threshold", y = "Error", color = "Metric")
+p <- p + ggplot2::theme_bw()
+p <- p + ggplot2::theme(text = ggplot2::element_text(size = 15))
+p
+```
+After fitting a null distribution and obtaining p-values, we may perform testing for differential expression, in this case, between conditions. 
 
 ```{r sig_genes}
 PVAL_THRESH <- 0.05
@@ -504,36 +708,93 @@ PVAL_THRESH <- 0.05
 wald_df$wald_pval <- TESSERA::scaledNonCentralChi2PValues(wald_stats = wald_df$wald_stat_t^2,
                                                           chi2_params = wald_thresh_selection$chi2_params)
 # Adjust p-values
-wald_df$wald_pval_adj <- p.adjust(wald_df$wald_pval, method = "BH")
+for (cd in unique(wald_df$contrast_description)) {
+  wald_df$wald_pval_adj[wald_df$contrast_description == cd] <- p.adjust(wald_df$wald_pval[wald_df$contrast_description == cd], method = "BH")
+}
 
-cat("Empirical Null, number of significant genes: ", sum(wald_df$wald_pval_adj < PVAL_THRESH), "\n")
 
-cat("Significant genes: ", wald_df[which(wald_df$wald_pval_adj < PVAL_THRESH), "gene"], "\n")
+cat(
+  "Empirical Null, number of significant genes: ",
+  sum(wald_df$wald_pval_adj < PVAL_THRESH, na.rm = TRUE),
+  "\n"
+)
 ```
+
+We can compare the p-value distribution for statistics below the threshold against that of the uniform distribution on $(0, 1)$, and see that it is close. 
+```{r threshold_selection_uniform_qq, fig.height=4, fig.width=6}
+# Make a QQ plot of the p-values below the threshold against the U[0, 1] distribution
+plot_df <- data.frame(empirical = sort(wald_df[wald_df$wald_stat_t^2 < wald_thresh_selection$threshold, ]$wald_pval))
+plot_df$theoretical <- (seq(nrow(plot_df)) - 1) / nrow(plot_df)
+p <- ggplot2::ggplot(data = plot_df,
+                     mapping = ggplot2::aes(x = as.numeric(theoretical), y = as.numeric(empirical)))
+p <- p + ggplot2::geom_line(linewidth=2)
+p <- p + ggplot2::geom_abline(
+  slope = 1,
+  intercept = 0,
+  color = "red",
+  linetype = "dashed",
+  linewidth = 1
+)
+p <- p + ggplot2::labs(x = "Uniform[0, 1]", y = "Estimated P-Values")
+p <- p + ggplot2::theme_bw()
+p <- p + ggplot2::theme(text = ggplot2::element_text(size = 15))
+p
+```
+
+
 
 We can also compare the number of genes found by the original local FDR method and the FNDR refinement. 
-As we can see, the original local FDR procedure finds no significant genes, while the FNDR procedure finds a similar number of significant genes to `TESSERA`. 
 ```{r fdrtool_comparison}
 
-locfdr_out <- fdrtool::fdrtool(wald_df$wald_stat_t, cutoff.method = "locfdr", plot = FALSE)
-fndr_out <- fdrtool::fdrtool(wald_df$wald_stat_t, cutoff.method = "fndr", plot = FALSE)
+locfdr_out <- fdrtool::fdrtool(wald_df$wald_stat_t,
+                               cutoff.method = "locfdr",
+                               plot = FALSE)
+fndr_out <- fdrtool::fdrtool(wald_df$wald_stat_t,
+                             cutoff.method = "fndr",
+                             plot = FALSE)
 
-cat("Local FDR, number of significant genes: ", sum(locfdr_out$lfdr < PVAL_THRESH), "\n")
-cat("Significant genes: ", wald_df[which(locfdr_out$lfdr < PVAL_THRESH), "gene"], "\n")
+wald_df$wald_pval_locfdr <- locfdr_out$pval
+wald_df$wald_pval_fndr <- fndr_out$pval
+# Adjust p-values
+wald_df$wald_pval_adj_locfdr <- NA
+wald_df$wald_pval_adj_fndr <- NA
+for (cd in unique(wald_df$contrast_description)) {
+  wald_df$wald_pval_adj_locfdr[wald_df$contrast_description == cd] <- p.adjust(wald_df$wald_pval_locfdr[wald_df$contrast_description == cd], method = "BH")
+  wald_df$wald_pval_adj_fndr[wald_df$contrast_description == cd] <- p.adjust(wald_df$wald_pval_fndr[wald_df$contrast_description == cd], method = "BH")
+}
 
-cat("FNDR, number of significant genes: ", sum(fndr_out$lfdr < PVAL_THRESH), "\n")
-cat("Significant genes: ", wald_df[which(fndr_out$lfdr < PVAL_THRESH), "gene"], "\n")
-
+cat(
+  "Local FDR, number of significant genes: ",
+  sum(wald_df$wald_pval_adj_locfdr < PVAL_THRESH, na.rm = TRUE),
+  "\n"
+)
+cat(
+  "FNDR, number of significant genes: ",
+  sum(wald_df$wald_pval_adj_fndr < PVAL_THRESH, na.rm = TRUE),
+  "\n"
+)
 ```
 
-All methods are finding a lot of genes; to focus on the truly interesting genes, we might further threshold the estimated contrasts. 
-```{r sig_genes_lfc}
-gene_indicator <- which(abs(wald_df$contrast_val) > 0.2)
-print(length(gene_indicator))
+We summarize the results by looking at the number of significant genes for each comparison. 
+In general, we see that the comparisons involving the DKD condition find more significant genes.
+As a sanity check, we see that cell types with very few cells in the dataset, such as RBC (red blood cells), find the fewest number of DE genes. 
+```{r n_sig_plot, fig.height=8, fig.width=10}
+n_sig_df <- data.frame(wald_df 
+                       %>% dplyr::group_by(contrast_description) 
+                       %>% dplyr::summarise(n_sig = sum(wald_pval_adj < PVAL_THRESH, na.rm = TRUE)))
+n_sig_df$celltype <- sapply(n_sig_df$contrast_description, function (x) {strsplit(x, ":")[[1]][1]})
+n_sig_df$comparison <- sapply(n_sig_df$contrast_description, function (x) {strsplit(x, ":")[[1]][2]})
 
-cat("Empirical Null, number of significant genes: ", sum(wald_df$wald_pval_adj[gene_indicator] < PVAL_THRESH), "\n")
-cat("Local FDR, number of significant genes: ", sum(locfdr_out$lfdr[gene_indicator] < PVAL_THRESH), "\n")
-cat("FNDR, number of significant genes: ", sum(fndr_out$lfdr[gene_indicator] < PVAL_THRESH), "\n")
+p <- ggplot2::ggplot(data = n_sig_df, mapping = ggplot2::aes(x = celltype, y = n_sig, fill = comparison))
+p <- p + ggplot2::geom_col(position = "dodge")
+p <- p + ggplot2::scale_color_manual(c("cornflowerblue", "goldenrod", "coral"))
+p <- p + ggplot2::theme_bw()
+p <- p + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = -90, hjust = 0))
+p <- p + ggplot2::labs(x = "Cell Type", 
+                       y = "Number of Significant Genes",
+                       fill = "Comparison")
+p <- p + ggplot2::theme(text = ggplot2::element_text(size = 20))
+p
 ```
 
 ## Session information

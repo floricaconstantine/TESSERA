@@ -130,10 +130,10 @@
 #' @example inst/examples/gen_data_and_run.R
 TESSERA_lattice <- function(TESSERAData_obj,
                             gene_name,
-                            model_type = "CAR",
+                            model_type = "Leroux",
                             em_iters = 200,
-                            opt_iters = 10,
-                            em_min_iters = 10,
+                            opt_iters = 5,
+                            em_min_iters = 15,
                             em_tol = 1e-3,
                             em_stopping = NULL,
                             beta_init = "glm",
