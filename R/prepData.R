@@ -269,7 +269,7 @@ setMethod(
       )
       
       D_THRESH <- mean(colMeans(nb_data$mean_nb_dist[, expected_num_neighbors:(expected_num_neighbors + 1)]))
-      message("Estimating distance threshold:", D_THRESH, "\n")
+      message("Estimating distance threshold: ", D_THRESH, "\n")
     }
     
     if (!is.null(adj_mat)) {
