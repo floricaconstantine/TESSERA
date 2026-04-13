@@ -2,28 +2,44 @@
 % Please edit documentation in R/prepData.R
 \name{prepData}
 \alias{prepData}
+\alias{prepData,ANY-method}
+\alias{prepData,SpatialExperiment-method}
 \title{Prepare data for the TESSERA method.}
 \usage{
-prepData(
-  count_matrix,
+prepData(x, ...)
+
+\S4method{prepData}{ANY}(
+  x,
   meta_data,
   sample_col,
   design_formula = NULL,
   design_mat = NULL,
   coord_data = NULL,
   D_THRESH = NULL,
+  expected_num_neighbors = 6,
   k_search = 20,
   adj_mat = NULL,
   compute_eigs = "CSL"
 )
+
+\S4method{prepData}{SpatialExperiment}(
+  x,
+  sample_col,
+  design_formula = NULL,
+  design_mat = NULL,
+  model_type = "Leroux",
+  D_THRESH = NULL,
+  expected_num_neighbors = 6
+)
 }
 \arguments{
-\item{count_matrix}{Variables x samples (genes x cells) count matrix.
-Can be sparse. Rownames are variable names.
-Ensure that there is at least one row (a matrix).}
+\item{x}{Variables x samples (genes x cells) count matrix (can be sparse)
+OR a \code{SpatialExperiment} object.}
+
+\item{...}{Additional arguments passed to methods.}
 
 \item{meta_data}{Dataframe with metadata/covariates.
-Ensure that rownames(meta_data) == colnames(count_matrix).}
+Ensure that rownames(meta_data) == colnames(x) (if x is a matrix).}
 
 \item{sample_col}{String: Column name in meta_data identifying which rows correspond
 to which sample (how to break up the data into multiple samples).}
@@ -36,58 +52,54 @@ Supply one of design_formula and design_mat.
 Zero columns will be dropped.}
 
 \item{coord_data}{Dataframe or matrix with coordinates for observations.
-Rows are samples.
-Ensure that rownames(coord_data) == colnames(count_matrix).
-Needed to compute adjacency matrices.
-Needed for spNNGP model, not necessary for lattice models if adjacency matrices
-are supplied elsewhere.}
+Rows are samples. Ensure that rownames(coord_data) == colnames(x).
+Needed to compute adjacency matrices.}
 
 \item{D_THRESH}{Distance threshold for assigning two observations as adjacent.
-Needed to compute adjacency matrices.
-Not needed for non-lattice models (set to NULL).}
+Needed to compute adjacency matrices.}
+
+\item{expected_num_neighbors}{In the absence of a known D_THRESH, how many
+neighbors (on average) each cell should have. E.g., Visium data has 6.
+Ignored if D_THRESH is supplied.}
 
 \item{k_search}{When forming adjacency matrices, the maximum number of neighbors.}
 
-\item{adj_mat}{A pre-computed adjacency matrix (sparse).
-Instead of forming it via D_THRESH or coordinates, a user can supply it.}
+\item{adj_mat}{A pre-computed adjacency matrix (sparse).}
 
 \item{compute_eigs}{Whether to compute eigenvalues of various matrices.
 CAR/SAR: D^\{-1\} W; Leroux: D - W.
-Depends on forming adjacency matrices, so needs coord_data, D_THRESH, k_search.
 "None": Compute no eigenvalues.
-String containing "C": Compute eigenvalues for the CAR model.
-String containing "S": Compute eigenvalues for the SAR model.
-String containing "L": Compute eigenvalues for the Leroux model.
-If a non-lattice model (spNNGP) is desired, set this to "None"; otherwise,
-match the lattice model desired.}
+String containing "C": CAR, "S": SAR, "L": Leroux.}
+
+\item{model_type}{One of "Leroux", "CAR", "SAR", "spNNGP".
+(Used when providing a \code{SpatialExperiment} object).}
 }
 \value{
-A list comprised of the following.
+A list comprised of the following:
 
 coords_list: A list with a matrix of coordinates for each sample.
 
 covariates_list: A list with a dataframe of metadata for each sample.
 
 library_size_list: A list with a vector of library sizes for each sample.
-Total counts for each location if there are more than one gene/measurement;
-otherwise, set to 1.
 
 X_list: A list with a matrix of design matrices for each sample.
 
 W_list: A list with measurement adjacency matrix for each sample.
-If computed.
 
 D_list: A list with measurement degree matrix for each sample.
-If computed.
 
 eig_CS_list: A list with CAR/SAR model eigenvalues for each sample.
-If computed.
 
 eig_L_list: A list with Leroux model eigenvalues for each sample.
-If computed.
 }
 \description{
 Prepare data for the TESSERA method.
+}
+\note{
+This function supports multiple dispatch for base matrices and SpatialExperiment objects.
+
+SpatialExperiment support requires: "SpatialExperiment", "SingleCellExperiment", "SummarizedExperiment".
 }
 \examples{
 # Load package

@@ -8,35 +8,17 @@ adjacency matrices.}
 visualizeNeighborDistances(meta_data, sample_col, coord_data, k_search = 20)
 }
 \arguments{
-\item{meta_data}{Dataframe with metadata/covariates.
-Ensure that rownames(meta_data) == rownames(coord_data).}
+\item{meta_data}{Dataframe with metadata/covariates.}
 
 \item{sample_col}{String: Column name in meta_data identifying which rows correspond
-to which sample (how to break up the data into multiple samples).}
+to which sample.}
 
-\item{coord_data}{Dataframe or matrix with coordinates for observations.
-Rows are samples.
-Ensure that rownames(coord_data) == rownames(meta_data).}
+\item{coord_data}{Dataframe or matrix with coordinates for observations.}
 
 \item{k_search}{When forming adjacency matrices, the maximum number of neighbors.}
 }
 \value{
-A list comprised of the following.
-
-nb_dist: Dataframe containing distances to the k-th nearest neighbor
-for each cell for each sample.
-First column is sample, all other columns are the distances to the k-th nearest neighbor.
-
-mean_nb_dist: Matrix containing mean distance (across cells) to
-k-th nearest neighbor for each sample.
-Rows are samples, columns are mean distances to the kth nearest neighbor.
-
-std_nb_dist: Matrix containing standard deviation of distance (across cells) to
-k-th nearest neighbor for each sample.
-Rows are samples, columns are standard deviation of distances to the kth nearest neighbor.
-
-distances_plot: ggplot2 plot showing mean Euclidean distance (across cells)
-for each sample to the k-th nearest neighbor.
+A list comprised of distances and a ggplot2 visualization.
 }
 \description{
 Prepare data for the TESSERA method: Choose a distance threshold for

@@ -9,10 +9,10 @@ Fits a common set of fixed effects across areas.}
 TESSERA_lattice(
   TESSERAData_obj,
   gene_name,
-  model_type = "CAR",
+  model_type = "Leroux",
   em_iters = 200,
-  opt_iters = 10,
-  em_min_iters = 10,
+  opt_iters = 5,
+  em_min_iters = 15,
   em_tol = 0.001,
   em_stopping = NULL,
   beta_init = "glm",
