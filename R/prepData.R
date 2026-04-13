@@ -24,18 +24,14 @@
 #'  Needed to compute adjacency matrices.
 #' @param D_THRESH Distance threshold for assigning two observations as adjacent.
 #'  Needed to compute adjacency matrices.
-#' @param k_search When forming adjacency matrices, the maximum number of neighbors.
-#' @param adj_mat A pre-computed adjacency matrix (sparse).
-#' @param compute_eigs Whether to compute eigenvalues of various matrices.
-#'  CAR/SAR: D^\{-1\} W; Leroux: D - W.
-#'  "None": Compute no eigenvalues.
-#'  String containing "C": CAR, "S": SAR, "L": Leroux.
-#' @param model_type One of "Leroux", "CAR", "SAR", "spNNGP".
-#'  (Used when providing a \code{SpatialExperiment} object).
 #' @param expected_num_neighbors In the absence of a known D_THRESH, how many
 #'  neighbors (on average) each cell should have. E.g., Visium data has 6.
-#'  Ignored if D_THRESH is supplied. 
-#' @param ... Additional arguments passed to methods.
+#'  Ignored if D_THRESH is supplied.
+#' @param k_search When forming adjacency matrices, the maximum number of neighbors.
+#' @param adj_mat A pre-computed adjacency matrix (sparse).
+#' @param model_type One of "Leroux", "CAR", "SAR", "spNNGP", or "ALL".
+#'  Which model will be fit by TESSERA.
+#'  The value "ALL" will prepare the data for all four methods.
 #'
 #' @return A list comprised of the following:
 #' @returns coords_list: A list with a matrix of coordinates for each sample.
@@ -60,7 +56,7 @@
 #' @importFrom Rfast colVars
 #'
 #' @export
-#' 
+#'
 #' @example inst/examples/gen_data_and_run.R
 setGeneric("prepData", function(x, ...) {
   standardGeneric("prepData")
@@ -80,8 +76,7 @@ setMethod(
                         expected_num_neighbors = 6,
                         k_search = 20,
                         adj_mat = NULL,
-                        # C: CAR, S: SAR, L: Leroux, "NONE": None
-                        compute_eigs = "CSL") {
+                        model_type = "Leroux") {
     count_matrix <- x
     
     # Process arguments
@@ -91,9 +86,22 @@ setMethod(
     if (!is.null(design_formula) && !is.null(design_mat)) {
       stop("Cannot supply both design formula and design matrix: pick one.")
     }
-    if (is.null(compute_eigs)) {
-      compute_eigs <- "NONE"
-    }
+    
+    # Set up eigenvalue computation
+    # Define supported types and their corresponding eigenvalue flags
+    model_map <- c(
+      "Leroux" = "L",
+      "CAR"    = "C",
+      "SAR"    = "S",
+      "spNNGP" = "NONE",
+      "ALL"    = "CSL"
+    )
+    # Standardize input (handles case sensitivity and partial matching)
+    # This will throw an informative error if the user provides something totally wild
+    model_type <- match.arg(model_type, names(model_map))
+    message("Model type: ", model_type, "\n")
+    # Extract the corresponding flag
+    compute_eigs <- model_map[[model_type]]
     
     # Check dimensions and names
     stopifnot(ncol(count_matrix) == nrow(meta_data))
@@ -207,6 +215,7 @@ setMethod(
     if (length(library_size_list) > 0)
       names(library_size_list) <- sample_names
     
+    
     ## Design matrix from metadata
     
     # Create design matrix if not supplied
@@ -250,6 +259,19 @@ setMethod(
       names(X_list) <- sample_names
     
     # Adjacency matrix
+    # No distance threshold supplied, so we need to figure one out
+    if (is.null(D_THRESH) && !is.null(expected_num_neighbors)) {
+      nb_data <- visualizeNeighborDistances(
+        meta_data = meta_data,
+        sample_col = sample_col,
+        coord_data = coord_data,
+        k_search = expected_num_neighbors + 1
+      )
+      
+      D_THRESH <- mean(colMeans(nb_data$mean_nb_dist[, expected_num_neighbors:(expected_num_neighbors + 1)]))
+      message("Estimating distance threshold:", D_THRESH, "\n")
+    }
+    
     if (!is.null(adj_mat)) {
       message("Subsetting provided adjacency matrix.", "\n")
       # Separate into lists
@@ -288,19 +310,6 @@ setMethod(
     } else if (!is.null(coord_data) &&
                !is.null(D_THRESH) && is.null(adj_mat)) {
       message("Creating adjacency matrix.", "\n")
-      
-      # No distance threshold supplied, so we need to figure one out
-      if (is.null(D_THRESH) && !is.null(expected_num_neighbors)) {
-        nb_data <- visualizeNeighborDistances(
-          meta_data = meta_data,
-          sample_col = sample_col,
-          coord_data = coord_data,
-          k_search = expected_num_neighbors + 1
-        )
-        
-        D_THRESH <- mean(colMeans(nb_data$mean_nb_dist[, expected_num_neighbors:(expected_num_neighbors + 1)]))
-        message("Estimating distance threshold:", D_THRESH, "\n")
-      }
       
       ## Create adjacency matrices: If we have coordinates and a threshold
       for (idx in 1:length(coords_list)) {
@@ -429,7 +438,11 @@ setMethod(
                         design_mat = NULL,
                         model_type = "Leroux",
                         D_THRESH = NULL,
-                        expected_num_neighbors = 6) {
+                        expected_num_neighbors = 6,
+                        k_search = 20,
+                        adj_mat = NULL) {
+    message("Preparing data for TESSERA from a SpatialExperiment.\n")
+    
     spDataObject <- x
     
     req_pkgs <- c("SpatialExperiment",
@@ -448,31 +461,9 @@ setMethod(
       )
     }
     
-    # Set up eigenvalue computation
-    if ("Leroux" == model_type) {
-      compute_eigs <- "L"
-    } else if ("CAR" == model_type) {
-      compute_eigs <- "C"
-    } else if ("SAR" == model_type) {
-      compute_eigs <- "S"
-    } else {
-      compute_eigs <- "NONE"
-    }
-    
-    # No distance threshold supplied, so we need to figure one out
-    if (is.null(D_THRESH) && !is.null(expected_num_neighbors)) {
-      nb_data <- visualizeNeighborDistances(
-        meta_data = SummarizedExperiment::colData(spDataObject),
-        sample_col = sample_col,
-        coord_data = SpatialExperiment::spatialCoords(spDataObject),
-        k_search = expected_num_neighbors + 1
-      )
-      
-      D_THRESH <- mean(colMeans(nb_data$mean_nb_dist[, expected_num_neighbors:(expected_num_neighbors + 1)]))
-    }
-    
     # Call generic prepData (which will dispatch to ANY method)
-    TESSERA_data <- prepData(
+    message("Extracting fields and calling generic prepData function.\n")
+    TESSERA_data <- selectMethod("prepData", "ANY")(
       x = SingleCellExperiment::counts(spDataObject),
       meta_data = data.frame(SummarizedExperiment::colData(spDataObject)),
       sample_col = sample_col,
@@ -480,7 +471,10 @@ setMethod(
       design_mat = design_mat,
       coord_data = SpatialExperiment::spatialCoords(spDataObject),
       D_THRESH = D_THRESH,
-      compute_eigs = compute_eigs
+      expected_num_neighbors = expected_num_neighbors,
+      model_type = model_type,
+      k_search = k_search,
+      adj_mat = adj_mat
     )
     
     return(TESSERA_data)

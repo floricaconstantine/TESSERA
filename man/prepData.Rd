@@ -19,7 +19,7 @@ prepData(x, ...)
   expected_num_neighbors = 6,
   k_search = 20,
   adj_mat = NULL,
-  compute_eigs = "CSL"
+  model_type = "Leroux"
 )
 
 \S4method{prepData}{SpatialExperiment}(
@@ -29,14 +29,14 @@ prepData(x, ...)
   design_mat = NULL,
   model_type = "Leroux",
   D_THRESH = NULL,
-  expected_num_neighbors = 6
+  expected_num_neighbors = 6,
+  k_search = 20,
+  adj_mat = NULL
 )
 }
 \arguments{
 \item{x}{Variables x samples (genes x cells) count matrix (can be sparse)
 OR a \code{SpatialExperiment} object.}
-
-\item{...}{Additional arguments passed to methods.}
 
 \item{meta_data}{Dataframe with metadata/covariates.
 Ensure that rownames(meta_data) == colnames(x) (if x is a matrix).}
@@ -66,13 +66,9 @@ Ignored if D_THRESH is supplied.}
 
 \item{adj_mat}{A pre-computed adjacency matrix (sparse).}
 
-\item{compute_eigs}{Whether to compute eigenvalues of various matrices.
-CAR/SAR: D^\{-1\} W; Leroux: D - W.
-"None": Compute no eigenvalues.
-String containing "C": CAR, "S": SAR, "L": Leroux.}
-
-\item{model_type}{One of "Leroux", "CAR", "SAR", "spNNGP".
-(Used when providing a \code{SpatialExperiment} object).}
+\item{model_type}{One of "Leroux", "CAR", "SAR", "spNNGP", or "ALL".
+Which model will be fit by TESSERA.
+The value "ALL" will prepare the data for all four methods.}
 }
 \value{
 A list comprised of the following:
