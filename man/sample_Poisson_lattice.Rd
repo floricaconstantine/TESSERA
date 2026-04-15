@@ -2,7 +2,7 @@
 % Please edit documentation in R/data_gen.R
 \name{sample_Poisson_lattice}
 \alias{sample_Poisson_lattice}
-\title{Generate data from a Poisson lattice model with known parameters and adjacency matrix.}
+\title{Simulate spatial counts from a known lattice structure}
 \usage{
 sample_Poisson_lattice(
   model_type,
@@ -16,51 +16,66 @@ sample_Poisson_lattice(
 )
 }
 \arguments{
-\item{model_type}{"CAR", "SAR", or "Leroux"---model for random effects.}
+\item{model_type}{Character: The spatial model for random effects.
+Options are "CAR", "SAR", or "Leroux".}
 
-\item{X}{Covariates.}
+\item{X}{Matrix: Covariates/design matrix.}
 
-\item{W}{Adjacency matrix.}
+\item{W}{Matrix: Sparse adjacency matrix representing measurement-to-measurement
+connectivity.}
 
-\item{D}{Diagonal degree matrix (row-sums of W).}
+\item{D}{Matrix: Diagonal degree matrix (row-sums of \code{W}).}
 
-\item{library_size}{Scaling for theta.}
+\item{library_size}{Numeric vector: Scaling factors (offsets) for each
+observation.}
 
-\item{tau2_true}{True scale parameter.}
+\item{tau2_true}{Numeric: True spatial scale parameter \eqn{\tau^2}.}
 
-\item{gamma_true}{True correlation parameter.}
+\item{gamma_true}{Numeric: True spatial correlation parameter \eqn{\gamma}.}
 
-\item{beta_true}{True fixed effects.}
+\item{beta_true}{Numeric vector: True fixed effect coefficients \eqn{\beta}.}
 }
 \value{
-A list with the following fields:
-
-z: Sampled counts Pois(theta x lib size).
-
-phi_true: True sampled random effects.
-(multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
-
-eta_true: phi + X beta.
-
-theta_true: exp(eta).
+A list containing the following components:
+\itemize{
+\item \strong{z}: The observed count vector sampled from \eqn{Pois(library\_size * \theta)}.
+\item \strong{phi_true}: The true sampled spatial random effects
+\eqn{\phi \sim N(0, \tau^2 Q^{-1})}.
+\item \strong{eta_true}: The linear predictor \eqn{\eta = X\beta + \phi}.
+\item \strong{theta_true}: The relative abundance \eqn{\theta = \exp(\eta)}.
+}
 }
 \description{
-Generate data from a Poisson lattice model with known parameters and adjacency matrix.
+Generates synthetic counts from a Poisson lattice model (CAR, SAR, or Leroux)
+given a pre-defined adjacency structure and fixed parameters. This is
+particularly useful for benchmarking against existing spatial graphs or
+performing power analyses on specific tissue architectures.
 }
 \note{
-Requires the Matrix library.
-
-Calls the various Q_matrix creation functions.
+This function requires the \code{Matrix} package for sparse matrix
+operations and Cholesky decomposition.
 }
 \examples{
 set.seed(2026)
-tau2_true <- 1.0
-gamma_true <- 0.5
-beta_true <- c(1, 0, -1) 
-ex_data <- generate_data_one_area(1000, 0.03, "Leroux", beta_true, 
-  gamma_true, tau2_true, "rand_bern")
-sample_Poisson_lattice("Leroux", ex_data$X, ex_data$W, ex_data$D, 
-  ex_data$library_size, tau2_true, gamma_true, beta_true)
+# Use existing area data to re-sample Poisson counts
+tau2 <- 1.0
+gamma <- 0.5
+beta <- c(1, 0, -1)
+
+# Generate base structure
+base_struct <- generate_data_one_area(1000, 0.03, "Leroux", beta, gamma, tau2, "rand_bern")
+
+# Re-sample counts from the same structure
+sim_counts <- sample_Poisson_lattice(
+  model_type = "Leroux",
+  X = base_struct$X,
+  W = base_struct$W,
+  D = base_struct$D,
+  library_size = base_struct$library_size,
+  tau2_true = tau2,
+  gamma_true = gamma,
+  beta_true = beta
+)
 }
 \author{
 Florica J Constantine, florica AT berkeley.edu

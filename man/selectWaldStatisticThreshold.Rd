@@ -2,7 +2,7 @@
 % Please edit documentation in R/post_analysis.R
 \name{selectWaldStatisticThreshold}
 \alias{selectWaldStatisticThreshold}
-\title{Given Wald statistics, compute an optimal threshold.}
+\title{Optimal threshold selection for empirical null estimation}
 \usage{
 selectWaldStatisticThreshold(
   wald_stats,
@@ -11,54 +11,51 @@ selectWaldStatisticThreshold(
 )
 }
 \arguments{
-\item{wald_stats}{Vector of Wald statistics: non-negative F-statistics.
-Square t-statistics to obtain F-statistics.}
+\item{wald_stats}{A numeric vector of Wald statistics (non-negative).
+Note: t-statistics should be squared to obtain F-statistics (or 1-df \eqn{\chi^2}
+equivalent) before input.}
 
-\item{quantile_spacing}{How finely to search for a threshold.
-Default is 0.01, for 0.01, 0.02, ..., 0.99 quantiles.}
+\item{quantile_spacing}{Numeric value defining the search resolution for
+the threshold. Defaults to 0.01 (searching 0.01, 0.02, ..., 0.99 quantiles).}
 
-\item{metric}{What metric to use for selecting the optimal threshold.
-Options are "Raw_" or "Log_" plus "MSE", "MAE", "MedAE", or "MaxAE",
-for the Mean-Square Error (L2), the Mean Absolute Error (L1), the Median
-Absolute Error, and the Maximum Absolute Error (L-infinity/KS).}
+\item{metric}{Character string specifying the selection metric.
+Options include "Raw_" or "Log_" prefixed to "MSE", "MAE", "MedAE",
+or "MaxAE". These correspond to Mean Squared Error, Mean Absolute Error,
+Median Absolute Error, and Maximum Absolute Error (L-infinity), respectively.}
 }
 \value{
-A list with the following entries
-
-threshold The optimal threshold (lowest error).
-
-chi2params A vector of the shift and scale parameters corresponding
-to the optimal threshold.
-
-threshold_results A dataframe with all metrics and fitted parameters
-for all thresholds/quantiles.
+A list containing the following components:
+\itemize{
+\item \strong{threshold}: The selected optimal Wald statistic threshold.
+\item \strong{chi2params}: A vector containing the estimated shift (non-centrality)
+and scale parameters for the empirical null.
+\item \strong{threshold_results}: A data frame summarizing metrics and
+fitted parameters across all evaluated threshold quantiles.
+}
 }
 \description{
-In the TESSERA algorithm, and in generalized linear mixed models in general,
-the exact distribution of p-values for Wald statistics under the null hypothesis
-is unknown.
-We know that the standard errors are, for finite samples, likely biased
-downward (too small).
-Moreover, for finite samples, due to the approximations
-in the E-step of the fitting algorithm, there may be a small positive bias.
-Hence, a scaled chi-squared distribution or scaled F-distribution with
-a non-centrality parameter might be a good model for the statistics under
-the null hypothesis, where we note that an unscaled chi-squared or F distribution
-are the standard asymptotic distributions for Wald statistics.
-To use this function, the Wald statistics as well as a threshold is estimated.
-The threshold is a rough upper bound for the statistics coming from the null
-distribution--it need not be exact, but it should be greater than most of the
-null distributed statistics and smaller than most of the non-null distributed
-statistics.
-The threshold is estimated by noting that under the null hypothesis,
-the p-values should be approximately Uniform(0, 1)
-distributed; for each threshold value, we compute the error
-between the quantiles of the p-values and those of the Uniform(0, 1) distribution
-and choose the threshold with the lowest error.
+In generalized linear mixed models (GLMMs) and the TESSERA framework,
+theoretical null distributions for Wald statistics are often unreliable
+due to finite-sample biases and E-step approximations. This function
+estimates an empirical null distribution—modeled as a scaled,
+non-central \eqn{\chi^2_1} distribution—by identifying an optimal threshold
+below which statistics likely originate from the null.
+}
+\details{
+The estimation procedure sweeps over a range of candidate thresholds. For
+each threshold, it estimates parameters such that the resulting p-values
+best approximate a \eqn{Uniform(0, 1)} distribution. The optimal threshold is
+selected by minimizing a chosen error metric (e.g., MSE) between the
+observed p-value quantiles and theoretical uniform quantiles.
 }
 \examples{
-selectWaldStatisticThreshold(c(5 * stats::rchisq(2000, 1, ncp = 10),
- 200 + 5 * stats::rchisq(2000, 1, ncp = 10)), 0.05)
+# Simulate null and non-null Wald statistics
+null_stats <- 5 * stats::rchisq(2000, df = 1, ncp = 0.5)
+alt_stats <- 200 + 5 * stats::rchisq(500, df = 1, ncp = 10)
+wald_vec <- c(null_stats, alt_stats)
+
+# Select optimal threshold
+selectWaldStatisticThreshold(wald_vec, quantile_spacing = 0.05)
 }
 \author{
 Florica J Constantine, florica AT berkeley.edu

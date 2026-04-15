@@ -2,68 +2,76 @@
 # Dependencies in file: Matrix.
 # Dependencies: Functions from models.R
 
-#' Generate data for one area.
+#' Simulate spatial count data for a single area
+#'
+#' Generates synthetic spatial transcriptomics data based on a Poisson
+#' Generalized Linear Mixed Model (\eqn{GLMM}). The function simulates spatial random
+#' effects \eqn{\phi} using a \eqn{CAR}, \eqn{SAR}, or \eqn{Leroux} model, generates
+#' covariates \eqn{X} based on several stochastic processes, and samples counts
+#' \eqn{z} from a Poisson distribution.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param n_points Number of points in the area.
-#' @param nb_dist Distance threshold for determining if two points are neighbors.
-#'  Coordinates are samples in (0, 1)^2 so 0.03 is a reasonable value for ~1000 points.
-#' @param model_type "CAR", "SAR", or "Leroux"---model for random effects.
-#' @param beta_true True fixed effects.
-#' @param gamma_true True correlation parameter.
-#' @param tau2_true True scale parameter.
-#' @param X_type How to generate the covariates X.
-#'  Note that the coordinates are sorted by x then by y, so nearby points are
-#'  more likely to be neighbors.
-#'  "rand_bern": X_\{i, j\} ~ 2 ( sign(N(0, 1)) + 1 ) in \{0, 1\}
-#'  "rand_unif": X_\{i, j\} ~ U(0, 1)
-#'  "rand_norm": X_\{i, j\} ~ N(0, 1)
-#'  "ar1": X_\{:, j\} follows an AR(1) process.
-#'  "ar1_bern": Generate the AR(1) as above, and apply the same sign transformation
-#'    as in "rand_bern"
-#'  "intercept": Constant column of all 1s
-#' @param ar_gamma Autocorrelation parameter for X if needed.
-#' @param X Instead of passing in X_type, pass in a pre-defined matrix X.
-#' @param library_size Instead of using all 1s, pass in a pre-specified library size.
-#'  Expected value/offset for each point.
+#' @param n_points Integer: Number of observations/points in the area.
+#' @param nb_dist Numeric: Distance threshold for determining adjacency.
+#'   Since coordinates are sampled in \eqn{(0, 1)^2}, a value of 0.03 is
+#'   typically appropriate for \eqn{n \approx 1000}.
+#' @param model_type Character: The spatial model for random effects.
+#'   Options are "CAR", "SAR", or "Leroux".
+#' @param beta_true Numeric vector: True fixed effect coefficients \eqn{\beta}.
+#' @param gamma_true Numeric: True spatial correlation parameter \eqn{\gamma}.
+#' @param tau2_true Numeric: True spatial scale parameter \eqn{\tau^2}.
+#' @param X_type Character: Method for generating the design matrix \eqn{X}.
+#'   Options include:
+#'   \itemize{
+#'     \item \strong{"rand_bern"}: Bernoulli covariates \eqn{X_{i, j} \in \{0, 1\}}.
+#'     \item \strong{"rand_unif"}: Uniformly distributed \eqn{X_{i, j} \sim U(0, 1)}.
+#'     \item \strong{"rand_norm"}: Normally distributed \eqn{X_{i, j} \sim N(0, 1)}.
+#'     \item \strong{"ar1"}: \eqn{X} follows a spatial AR(1) process across sorted coordinates.
+#'     \item \strong{"ar1_bern"}: AR(1) process transformed into binary values.
+#'     \item \strong{"intercept"}: A constant column of 1s.
+#'   }
+#' @param ar_gamma Numeric: Autocorrelation parameter for \eqn{X} (used if \code{X_type}
+#'   is "ar1" or "ar1_bern").
+#' @param X Optional matrix: A pre-defined design matrix to use instead of generating one.
+#' @param library_size Optional numeric vector: Pre-specified library sizes
+#'   (offsets). Defaults to a vector of 1s if not provided.
 #'
-#' @return A list with the following fields:
-#' @returns X: Binary covariates.
-#' @returns W: Adjacency matrix.
-#' @returns D: Diagonal degree matrix (row-sums of W).
-#' @returns eig_list: List of eigenvalues of Z = D^\{-1\} W (CAR/SAR) or D - W (Leroux).
-#' @returns library_size: Scaling for theta.
-#' @returns x_coords: x-coordinates of points.
-#' @returns y_coords: y-coordinates of points.
-#' @returns coords: Matrix of coordinates (rows are x, y).
-#' @returns Q: Unscaled precision matrix. Depends on W, D, gamma_true.
-#' @returns phi_true: True sampled random effects.
-#'  (multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
-#' @returns eta_true: phi + X beta.
-#' @returns theta_true: exp(eta).
-#' @returns z: Sampled counts Pois(theta x lib size).
+#' @return A list containing the following components:
+#' \itemize{
+#'   \item \strong{X}: The generated design matrix of covariates.
+#'   \item \strong{W}: The sparse adjacency matrix.
+#'   \item \strong{D}: The diagonal degree matrix.
+#'   \item \strong{eig_list}: Eigenvalues of the standardized adjacency or Laplacian matrix,
+#'     depending on \code{model_type}.
+#'   \item \strong{coords}: A matrix of \eqn{(x, y)} coordinates.
+#'   \item \strong{Q}: The unscaled precision matrix defined by \eqn{W}, \eqn{D}, and \eqn{\gamma}.
+#'   \item \strong{phi_true}: The true sampled spatial random effects \eqn{\phi \sim N(0, \tau^2 Q^{-1})}.
+#'   \item \strong{eta_true}: The linear predictor \eqn{\eta = X\beta + \phi}.
+#'   \item \strong{theta_true}: The relative abundance \eqn{\theta = \exp(\eta)}.
+#'   \item \strong{z}: The observed count vector sampled from \eqn{Pois(library\_size * \theta)}.
+#' }
 #'
-#' @note Requires the Matrix library.
-#' @note Calls the various Q_matrix creation functions.
+#' @note This function requires the \code{Matrix} package for sparse matrix operations.
 #'
 #' @import Matrix
-#' @importFrom Matrix Matrix
-#' @importFrom Matrix chol
-#' @importFrom Matrix rowSums
-#' @importFrom Matrix solve
-#' @importFrom Matrix t
-#' @importFrom stats arima.sim
-#' @importFrom stats dist
-#' @importFrom stats rnorm
-#' @importFrom stats rpois
-#' @importFrom stats runif
+#' @importFrom Matrix Matrix chol rowSums solve t
+#' @importFrom stats arima.sim dist rnorm rpois runif
 #'
 #' @export
 #'
 #' @examples
 #' set.seed(2026)
-#' generate_data_one_area(1000, 0.03, "Leroux", c(1, 0, -1), 0.5, 1.0, "rand_bern")
+#' # Generate data for 1000 cells with a Leroux spatial structure
+#' sim_data <- generate_data_one_area(
+#'   n_points = 1000,
+#'   nb_dist = 0.03,
+#'   model_type = "Leroux",
+#'   beta_true = c(1, 0, -1),
+#'   gamma_true = 0.5,
+#'   tau2_true = 1.0,
+#'   X_type = "rand_bern"
+#' )
 generate_data_one_area <- function(n_points,
                                    nb_dist,
                                    model_type,
@@ -188,73 +196,80 @@ generate_data_one_area <- function(n_points,
 }
 
 
-#' Generate data for one area from the spNNGP model.
+#' Simulate spatial count data via spNNGP
+#'
+#' Generates synthetic spatial transcriptomics data using a Poisson
+#' Generalized Linear Mixed Model (\eqn{GLMM}) with a Sparse Nearest Neighbor
+#' Gaussian Process (\eqn{spNNGP}) prior for the random effects. This function
+#' approximates a Gaussian Process by using a specified number of nearest
+#' neighbors to construct a sparse precision matrix.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param n_points Number of points in the area.
-#' @param nb_dist Distance threshold for determining if two points are neighbors.
-#'  Coordinates are samples in (0, 1)^2 so 0.03 is a reasonable value for ~1000 points.
-#' @param cov_type Which model for the Gaussian process covariance.
-#'    "Exp", "Mat", "Gau", and "Sph" are the valid options, for
-#'    Exponential, Matern, Gaussian, and Spherical, respectively.
-#' @param cov_params Variogram/covariance parameters.
-#' @param nngp_k Number of nearest neighbors.
-#' @param beta_true True fixed effects.
-#' @param X_type How to generate the covariates X.
-#'  Note that the coordinates are sorted by x then by y, so nearby points are
-#'  more likely to be neighbors.
-#'  "rand_bern": X_\{i, j\} ~ 2 ( sign(N(0, 1)) + 1 ) in \{0, 1\}
-#'  "rand_unif": X_\{i, j\} ~ U(0, 1)
-#'  "rand_norm": X_\{i, j\} ~ N(0, 1)
-#'  "ar1": X_\{:, j\} follows an AR(1) process.
-#'  "ar1_bern": Generate the AR(1) as above, and apply the same sign transformation
-#'    as in "rand_bern"
-#'  "intercept": Constant column of all 1s
-#' @param ar_gamma Autocorrelation parameter for X if needed.
-#' @param X Instead of passing in X_type, pass in a pre-defined matrix X.
-#' @param library_size Instead of using all 1s, pass in a pre-specified library size.
-#'  Expected value/offset for each point.
+#' @param n_points Integer: Number of points/observations in the area.
+#' @param nb_dist Numeric: Distance threshold for determining adjacency (if needed
+#'   for secondary lattice structures). Coordinates are sampled in \eqn{(0, 1)^2}.
+#' @param cov_type Character: The covariance kernel for the Gaussian process.
+#'   Options are "Exp" (Exponential), "Mat" (Matern), "Gau" (Gaussian),
+#'   and "Sph" (Spherical).
+#' @param cov_params Numeric vector: Parameters for the covariance kernel
+#'   (typically sigma^2/sill, tau^2/nugget, phi/range, and optionally nu/smoothness).
+#' @param nngp_k Integer: The number of nearest neighbors used in the spNNGP
+#'   approximation.
+#' @param beta_true Numeric vector: True fixed effect coefficients \eqn{\beta}.
+#' @param X_type Character: Method for generating the design matrix \eqn{X}.
+#'   Options include:
+#'   \itemize{
+#'     \item \strong{"rand_bern"}: Bernoulli-style covariates \eqn{X_{i, j} \in \{0, 1\}}.
+#'     \item \strong{"rand_unif"}: Uniformly distributed \eqn{X_{i, j} \sim U(0, 1)}.
+#'     \item \strong{"rand_norm"}: Normally distributed \eqn{X_{i, j} \sim N(0, 1)}.
+#'     \item \strong{"ar1"}: \eqn{X} follows an AR(1) process across sorted coordinates.
+#'     \item \strong{"ar1_bern"}: AR(1) process transformed into binary values.
+#'     \item \strong{"intercept"}: A constant column of 1s.
+#'   }
+#' @param ar_gamma Numeric: Autocorrelation parameter for \eqn{X} (used if \code{X_type}
+#'   is "ar1" or "ar1_bern").
+#' @param X Optional matrix: A pre-defined design matrix to use instead of generating one.
+#' @param library_size Optional numeric vector: Pre-specified library sizes
+#'   (offsets). Defaults to a vector of 1s.
 #'
-#' @return A list with the following fields:
-#' @returns X: Binary covariates.
-#' @returns W: Adjacency matrix.
-#' @returns D: Diagonal degree matrix (row-sums of W).
-#' @returns eig_list: List of eigenvalues of Z = D^\{-1\} W (CAR/SAR) or D - W (Leroux).
-#' @returns library_size: Scaling for theta.
-#' @returns x_coords: x-coordinates of points.
-#' @returns y_coords: y-coordinates of points.
-#' @returns coords: Matrix of coordinates (rows are x, y).
-#' @returns Sparse precision matrix Q.
-#' @returns Eigenvalues Dinv.
-#' @returns Lower triangular factor A.
-#' @returns phi_true: True sampled random effects.
-#'  (multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
-#' @returns eta_true: phi + X beta.
-#' @returns theta_true: exp(eta).
-#' @returns z: Sampled counts Pois(theta x lib size).
+#' @return A list containing the following components:
+#' \itemize{
+#'   \item \strong{X}: The generated design matrix of covariates.
+#'   \item \strong{W}: The sparse adjacency matrix (if calculated).
+#'   \item \strong{D}: The diagonal degree matrix.
+#'   \item \strong{eig_list}: Eigenvalues for comparison lattice structures (if calculated).
+#'   \item \strong{coords}: A matrix of \eqn{(x, y)} coordinates.
+#'   \item \strong{Q}: The sparse precision matrix \eqn{Q = (I - A)^T D^{-1} (I - A)}.
+#'   \item \strong{Dinv}: The diagonal variance matrix \eqn{D^{-1}} from the NNGP decomposition.
+#'   \item \strong{A}: The sparse lower triangular matrix representing neighbor weights.
+#'   \item \strong{phi_true}: The sampled spatial random effects \eqn{\phi \sim N(0, Q^{-1})}.
+#'   \item \strong{eta_true}: The linear predictor \eqn{\eta = X\beta + \phi}.
+#'   \item \strong{theta_true}: The relative abundance \eqn{\theta = \exp(\eta)}.
+#'   \item \strong{z}: The observed count vector sampled from \eqn{Pois(library\_size * \theta)}.
+#' }
 #'
-#' @note Requires the Matrix library.
-#' @note Calls the nngp_prec_mat creation functions.
+#' @note This function requires the \code{Matrix} package for handling sparse precision
+#'   structures. The spNNGP approach is significantly more memory-efficient than
+#'   full Gaussian Processes for large \eqn{n}.
 #'
 #' @import Matrix
-#' @importFrom Matrix Matrix
-#' @importFrom Matrix chol
-#' @importFrom Matrix Diagonal
-#' @importFrom Matrix rowSums
-#' @importFrom Matrix solve
-#' @importFrom Matrix t
-#' @importFrom stats arima.sim
-#' @importFrom stats dist
-#' @importFrom stats rnorm
-#' @importFrom stats rpois
-#' @importFrom stats runif
+#' @importFrom Matrix Matrix chol Diagonal rowSums solve t
+#' @importFrom stats arima.sim dist rnorm rpois runif
 #'
 #' @export
 #'
 #' @examples
 #' set.seed(2026)
-#' generate_data_one_area_spNNGP(1000, 0.03, "Mat", c(1.0, 1.0, 10, 2), 20, c(1, 0, -1))
+#' # Generate data using a Matern kernel with 20 nearest neighbors
+#' sim_data <- generate_data_one_area_spNNGP(
+#'   n_points = 1000,
+#'   nb_dist = 0.03,
+#'   cov_type = "Mat",
+#'   cov_params = c(1.0, 0.1, 10, 2), # sill, nugget, range, smoothness
+#'   nngp_k = 20,
+#'   beta_true = c(1, 0, -1)
+#' )
 generate_data_one_area_spNNGP <- function(n_points,
                                           nb_dist,
                                           cov_type,
@@ -382,46 +397,66 @@ generate_data_one_area_spNNGP <- function(n_points,
   )
 }
 
-#' Generate data from a Poisson lattice model with known parameters and adjacency matrix.
+#' Simulate spatial counts from a known lattice structure
+#'
+#' Generates synthetic counts from a Poisson lattice model (CAR, SAR, or Leroux)
+#' given a pre-defined adjacency structure and fixed parameters. This is
+#' particularly useful for benchmarking against existing spatial graphs or
+#' performing power analyses on specific tissue architectures.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param model_type "CAR", "SAR", or "Leroux"---model for random effects.
-#' @param X Covariates.
-#' @param W Adjacency matrix.
-#' @param D Diagonal degree matrix (row-sums of W).
-#' @param library_size Scaling for theta.
-#' @param tau2_true True scale parameter.
-#' @param gamma_true True correlation parameter.
-#' @param beta_true True fixed effects.
+#' @param model_type Character: The spatial model for random effects.
+#'   Options are "CAR", "SAR", or "Leroux".
+#' @param X Matrix: Covariates/design matrix.
+#' @param W Matrix: Sparse adjacency matrix representing measurement-to-measurement
+#'   connectivity.
+#' @param D Matrix: Diagonal degree matrix (row-sums of \code{W}).
+#' @param library_size Numeric vector: Scaling factors (offsets) for each
+#'   observation.
+#' @param tau2_true Numeric: True spatial scale parameter \eqn{\tau^2}.
+#' @param gamma_true Numeric: True spatial correlation parameter \eqn{\gamma}.
+#' @param beta_true Numeric vector: True fixed effect coefficients \eqn{\beta}.
 #'
-#' @return A list with the following fields:
-#' @returns z: Sampled counts Pois(theta x lib size).
-#' @returns phi_true: True sampled random effects.
-#'  (multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
-#' @returns eta_true: phi + X beta.
-#' @returns theta_true: exp(eta).
+#' @return A list containing the following components:
+#' \itemize{
+#'   \item \strong{z}: The observed count vector sampled from \eqn{Pois(library\_size * \theta)}.
+#'   \item \strong{phi_true}: The true sampled spatial random effects
+#'     \eqn{\phi \sim N(0, \tau^2 Q^{-1})}.
+#'   \item \strong{eta_true}: The linear predictor \eqn{\eta = X\beta + \phi}.
+#'   \item \strong{theta_true}: The relative abundance \eqn{\theta = \exp(\eta)}.
+#' }
 #'
-#' @note Requires the Matrix library.
-#' @note Calls the various Q_matrix creation functions.
+#' @note This function requires the \code{Matrix} package for sparse matrix
+#'   operations and Cholesky decomposition.
 #'
 #' @import Matrix
-#' @importFrom Matrix chol
-#' @importFrom Matrix solve
-#' @importFrom stats rnorm
-#' @importFrom stats rpois
+#' @importFrom Matrix chol solve
+#' @importFrom stats rnorm rpois
 #'
 #' @export
-#' 
+#'
 #' @examples
 #' set.seed(2026)
-#' tau2_true <- 1.0
-#' gamma_true <- 0.5
-#' beta_true <- c(1, 0, -1) 
-#' ex_data <- generate_data_one_area(1000, 0.03, "Leroux", beta_true, 
-#'   gamma_true, tau2_true, "rand_bern")
-#' sample_Poisson_lattice("Leroux", ex_data$X, ex_data$W, ex_data$D, 
-#'   ex_data$library_size, tau2_true, gamma_true, beta_true)
+#' # Use existing area data to re-sample Poisson counts
+#' tau2 <- 1.0
+#' gamma <- 0.5
+#' beta <- c(1, 0, -1)
+#'
+#' # Generate base structure
+#' base_struct <- generate_data_one_area(1000, 0.03, "Leroux", beta, gamma, tau2, "rand_bern")
+#'
+#' # Re-sample counts from the same structure
+#' sim_counts <- sample_Poisson_lattice(
+#'   model_type = "Leroux",
+#'   X = base_struct$X,
+#'   W = base_struct$W,
+#'   D = base_struct$D,
+#'   library_size = base_struct$library_size,
+#'   tau2_true = tau2,
+#'   gamma_true = gamma,
+#'   beta_true = beta
+#' )
 sample_Poisson_lattice <- function(model_type,
                                    X,
                                    W,
@@ -463,49 +498,73 @@ sample_Poisson_lattice <- function(model_type,
   ))
 }
 
-#' Generate data from a Poisson spNNGP model with known parameters.
+#' Simulate spatial counts from a known spNNGP structure
+#'
+#' Generates synthetic counts from a Poisson spNNGP model given a set of spatial
+#' coordinates, covariance parameters, and fixed effects. This function is
+#' ideal for testing the sensitivity of the spNNGP approximation across
+#' different neighborhood sizes \eqn{k} or kernel types without regenerating
+#' the underlying spatial layout.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param cov_type Which model to fit for the Gaussian process covariance.
-#'  "Exp", "Mat", "Gau", and "Sph" are the valid options, for
-#'  Exponential, Matern, Gaussian, and Spherical, respectively.
-#' @param X Covariates, rows are samples.
-#' @param library_size Scaling for theta.
-#' @param coords Matrix of coordinates.
-#'  Rows are samples, nrow(coords) == nrow(X).
-#' @param cov_params Covariance parameters
-#'  (nugget, sill, range, smoothness (optional)).
-#' @param nngp_k How many neighbors to use for the spNNGP kernel.
-#' @param beta_true True fixed effects.
+#' @param cov_type Character: The covariance kernel for the Gaussian process.
+#'   Options are "Exp" (Exponential), "Mat" (Matern), "Gau" (Gaussian),
+#'   and "Sph" (Spherical).
+#' @param X Matrix: Covariates/design matrix where rows correspond to observations.
+#' @param library_size Numeric vector: Scaling factors (offsets) for each observation.
+#' @param coords Matrix: Spatial coordinates \eqn{(x, y)} for each observation.
+#'   Must have the same number of rows as \code{X}.
+#' @param cov_params Numeric vector: Covariance parameters ordered as
+#'   (nugget, sill, range, and optionally smoothness).
+#' @param nngp_k Integer: The number of nearest neighbors to use for the
+#'   spNNGP precision matrix construction.
+#' @param beta_true Numeric vector: True fixed effect coefficients \eqn{\beta}.
 #'
-#' @return A list with the following fields:
-#' @returns z: Sampled counts Pois(theta x lib size).
-#' @returns phi_true: True sampled random effects.
-#'  (multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
-#' @returns eta_true: phi + X beta.
-#' @returns theta_true: exp(eta).
+#' @return A list containing the following components:
+#' \itemize{
+#'   \item \bold{z}: The observed count vector sampled from \eqn{Pois(library\_size * \theta)}.
+#'   \item \bold{phi_true}: The true sampled spatial random effects
+#'     \eqn{\phi \sim N(0, Q^{-1})}, where \eqn{Q} is the sparse NNGP precision matrix.
+#'   \item \bold{eta_true}: The linear predictor \eqn{\eta = X\beta + \phi}.
+#'   \item \bold{theta_true}: The relative abundance \eqn{\theta = \exp(\eta)}.
+#' }
 #'
-#' @note Requires the Matrix library.
-#' @note Calls nngp_prec_mat.
+#' @note This function requires the \code{Matrix} package for sparse Cholesky
+#'   decomposition and solving the precision structure.
 #'
 #' @import Matrix
-#' @importFrom Matrix chol
-#' @importFrom Matrix solve
-#' @importFrom Matrix Diagonal
-#' @importFrom stats rnorm
-#' @importFrom stats rpois
+#' @importFrom Matrix chol solve Diagonal
+#' @importFrom stats rnorm rpois
 #'
 #' @export
-#' 
+#'
 #' @examples
 #' set.seed(2026)
-#' cov_params_true <- c(1.0, 1.0, 10, 2)
-#' beta_true <- c(1, 0, -1) 
-#' ex_data <- generate_data_one_area_spNNGP(1000, 0.03, "Mat", cov_params_true, 
-#'   20, beta_true)
-#' sample_Poisson_spNNGP("Mat", ex_data$X, ex_data$library_size, 
-#'   cbind(ex_data$x_coords, ex_data$y_coords), cov_params_true, 20, beta_true)
+#' # Simulation parameters
+#' cov_params <- c(0.1, 1.0, 10, 2) # nugget, sill, range, smoothness
+#' beta <- c(1, 0, -1)
+#'
+#' # Generate initial structure
+#' base_data <- generate_data_one_area_spNNGP(
+#'   n_points = 1000,
+#'   nb_dist = 0.03,
+#'   cov_type = "Mat",
+#'   cov_params = cov_params,
+#'   nngp_k = 20,
+#'   beta_true = beta
+#' )
+#'
+#' # Re-sample counts using the known spNNGP kernel
+#' sim_counts <- sample_Poisson_spNNGP(
+#'   cov_type = "Mat",
+#'   X = base_data$X,
+#'   library_size = base_data$library_size,
+#'   coords = base_data$coords,
+#'   cov_params = cov_params,
+#'   nngp_k = 20,
+#'   beta_true = beta
+#' )
 sample_Poisson_spNNGP <- function(cov_type,
                                   X,
                                   library_size,
@@ -552,53 +611,57 @@ sample_Poisson_spNNGP <- function(cov_type,
   ))
 }
 
-#' Prepare synthetic data for the TESSERA method.
+
+#' Generate synthetic multi-sample spatial count data
+#'
+#' Replaces the observed counts in a \code{TESSERAData_obj} with synthetic counts
+#' generated from specified true parameters. This utility is designed for
+#' benchmarking and power analyses, allowing users to simulate data over
+#' existing tissue architectures and experimental designs.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param TESSERAData_obj Object containing data.
-#'  Created by the prepData method.
-#' @param gene_list Which gene/measurement to fit.
-#'  I.e., Which row in the count data matrix to fit.
-#'   Rownames of `TESSERAData_obj$counts_list[[idx]]`.
-#'  A string (single gene) or a vector of strings (multiple genes).
-#' @param data_gen_model Which model to fit for the random effects.
-#'    "CAR", "SAR", and "Leroux" are the valid Lattice model options,
-#'    "spNNGP" is the only non-Lattice option.
-#' @param tau2_true Spatial scale parameters.
-#'  A vector (single gene) or a matrix (genes x samples, rows are genes).
-#'  Only needed for lattice models.
-#'  Warning: 0 <= tau^2 is necessary.
-#' @param gamma_true Spatial correlation parameters.
-#'  A vector (single gene) or a matrix (genes x samples, rows are genes).
-#'  Only needed for lattice models.
-#'  Warning: For CAR/SAR models, -1 < gamma < 1 is necessary.
-#'  Warning: For Leroux models, 0 <= gamma < 1 is necessary.
-#'    If these ranges are exceeded, errors are likely.
-#' @param cov_params Spatial correlation parameters.
-#'  A matrix (samples x 3/4 parameters) or array (genes x samples x 3/4 parameters).
-#'  Only needed for spNNGP.
-#'  Parameters are (nugget, sill, range, and an optional smoothness (Matern)).
-#' @param cov_type Spatial correlation kernel.
-#'  Only needed for spNNGP.
-#'  "Exp", "Mat", "Gau", and "Sph" are the valid options, for
-#'  Exponential, Matern, Gaussian, and Spherical, respectively.
-#' @param nngp_k How many neighbors to use for the spNNGP kernel.
-#' @param beta_true Coefficients.
-#'  A vector (single gene) or a matrix (genes x covariates, rows are genes).
+#' @param TESSERAData_obj Object containing the experimental structure,
+#'   typically created by the \code{prepData} method.
+#' @param gene_list Character vector: The names of the genes/measurements to
+#'   simulate. These must correspond to row names in the original count data.
+#' @param data_gen_model Character: The spatial model to use for simulations.
+#'   Options include "CAR", "SAR", "Leroux" (Lattice models), or "spNNGP".
+#' @param tau2_true Spatial scale parameters \eqn{\tau^2}. Provide a numeric vector
+#'   (for a single gene) or a matrix of dimensions (genes x samples) (for
+#'   multiple genes). Required only for Lattice models.
+#'   \strong{Note:} \eqn{\tau^2 \ge 0} is required.
+#' @param gamma_true Spatial correlation parameters \eqn{\gamma}. Provide a numeric
+#'   vector (single gene) or a matrix of dimensions (genes x samples).
+#'   Required only for Lattice models.
+#'   \itemize{
+#'     \item \strong{CAR/SAR}: \eqn{-1 < \gamma < 1} required.
+#'     \item \strong{Leroux}: \eqn{0 \le \gamma < 1} required.
+#'   }
+#' @param cov_params Spatial covariance parameters for spNNGP. Provide a matrix
+#'   (samples x 3/4 parameters) for a single gene, or an array
+#'   (genes x samples x 3/4 parameters) for multiple genes.
+#'   Parameters must be ordered as (nugget, sill, range, and optional smoothness).
+#' @param cov_type Character: The spatial correlation kernel for spNNGP.
+#'   Options are "Exp", "Mat", "Gau", and "Sph".
+#' @param nngp_k Integer: The number of nearest neighbors to use for the
+#'   spNNGP kernel approximation.
+#' @param beta_true True fixed effect coefficients \eqn{\beta}. Provide a numeric
+#'   vector (single gene) or a matrix of dimensions (genes x covariates).
 #'
-#' @return A list comprised of the following.
-#' @returns new_TESSERAData_obj Object containing data.
-#'  Has all of the same information and values as TESSERAData_obj,
-#'  except for new counts_list values.
-#' @returns synthetic_count_summary: A dataframe summarizing statistics of the
-#'  generated counts and computing various similarity statistics between the
-#'  generated and original counts.
+#' @return A list containing the following components:
+#' \itemize{
+#'   \item \strong{new_TESSERAData_obj}: A \code{TESSERAData_obj} where the
+#'     \code{counts_list} has been replaced with synthetic values.
+#'   \item \strong{synthetic_count_summary}: A data frame summarizing the
+#'     generated counts and computing similarity metrics between the
+#'     synthetic and original data.
+#' }
 #'
 #' @importFrom dplyr bind_rows
 #'
 #' @export
-#' 
+#'
 #' @example inst/examples/gen_data_and_run.R
 prepSynthData <- function(TESSERAData_obj,
                           gene_list,

@@ -28,6 +28,7 @@ Hence, a scaled chi-squared distribution or scaled F-distribution with
 a non-centrality parameter might be a good model for the statistics under
 the null hypothesis, where we note that an unscaled chi-squared or F distribution
 are the standard asymptotic distributions for Wald statistics.
+As we test a single hypothesis, we use a single degree of freedom.
 To use this function, the Wald statistics as well as a threshold are required.
 The threshold is a rough upper bound for the statistics coming from the null
 distribution--it need not be exact, but it should be greater than most of the

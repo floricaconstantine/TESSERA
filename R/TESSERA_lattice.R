@@ -5,128 +5,75 @@
 # Rcpp dependencies: calc_moran.cpp.
 
 
-#' Fit multi-area Poisson spatial generalized linear model.
-#'  Allows for CAR, SAR, or Leroux random effects.
-#'  Fits a common set of fixed effects across areas.
+#' Fit Multi-Sample Poisson Spatial GLMM via ECM Algorithm
+#'
+#' Fits a multi-sample Poisson spatial generalized linear mixed model (GLMM) 
+#' using a shared set of fixed effects across all samples while permitting 
+#' sample-specific spatial random effects (CAR, SAR, or Leroux). Parameter 
+#' estimation is performed via an Expectation-Conditional Maximization (ECM) 
+#' algorithm.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param TESSERAData_obj Object containing data.
-#'  Created by the prepData method.
-#' @param gene_name Which gene/measurement to fit.
-#'  I.e., Which row in the count data matrix to fit.
-#' @param model_type Which model to fit for the random effects.
-#'    "CAR", "SAR", and "Leroux" are the valid options.
-#' @param em_iters Number of E(C)M iterations to run.
-#' @param opt_iters Number of inner M-step iterations to run.
-#'    The M-step is technically a CM step, i.e., a conditional maximization.
-#'    That is, we perform block coordinate ascent wherein we maximize the
-#'    expected likelihood in tau^2 and then in gamma for each area, and then
-#'    in beta, where each maximization holds all other parameters constant.
-#'    This approach leads to a slower convergence in terms of the number of
-#'    iterations (em_iters) but faster computation in each iteration.
-#' @param em_min_iters Minimum number of E(C)M iterations to run.
-#' @param em_tol Tolerance for early stopping the E(C)M algorithm.
-#' @param em_stopping How to decide to stop early.
-#'    NULL: Don't stop early.
-#'    "abs_loglike": Difference in absolute data log likelihood, |old - new|.
-#'    "rel_loglike": Relative difference in data log likelihood, |old - new|/|old|.
-#'      Data log likelihood taken across alll areas.
-#'    "abs_beta_norm": Absolute L2 norm of difference in beta, ||old - new||_2.
-#'    "rel_beta_norm": Relative L2 norm of difference in beta,
-#'      ||old - new||_2 / ||old||_2.
-#' @param beta_init How to initialize beta.
-#'    "glm": Stack up all the observed counts z and covariate matrices X and
-#'      fit a Poisson GLM z ~ 0 + X using base R's glm function.
-#'    "random": Initialize with standard normal random variables.
-#'    A vector or matrix: Initialize with provided value.
-#' @param gamma_init How to initialize beta.
-#'    "moran": Compute absolute Moran's I of log(z + 1/2) - X beta
-#'    "random": Initialize with standard uniform random variables.
-#'    A number, vector, or matrix: Initialize with provided values.
-#' @param tau2_init How to initialize beta.
-#'    "lognormal": Approximation based on the log-normality of the Poisson parameter.
-#'    "var": Compute variance of log(z + 1/2) - X beta
-#'    "random": Initialize with standard normal random variables.
-#'    A number, vector, or matrix: Initialize with provided values.
-#' @param verbose Boolean of whether to print out updates.
-#' @param dense_matrices Boolean of whether to treat Q as a dense matrix when
-#'    computing certain quantities in the E-step. This will increase memory usage
-#'    (e.g., ~2 -> 8 GB for 3k cells per sample and 20 neighbors), but will slightly
-#'    speed up computation (by roughly 10-20%).
+#' @param TESSERAData_obj An object containing prepared data, typically 
+#'   created by \code{\link{prepData}}.
+#' @param gene_name Character: The name of the gene/measurement (row) to fit.
+#' @param model_type Character: The spatial model for random effects. 
+#'   Options are "CAR", "SAR", or "Leroux".
+#' @param em_iters Integer: Maximum number of ECM iterations.
+#' @param opt_iters Integer: Number of inner CM steps (Conditional Maximization) 
+#'   per iteration. The algorithm maximizes the expected likelihood for 
+#'   \eqn{\tau^2}, then \eqn{\gamma} for each area, and finally \eqn{\beta} while 
+#'   holding other parameters constant.
+#' @param em_min_iters Integer: Minimum number of ECM iterations to perform 
+#'   before allowing early stopping.
+#' @param em_tol Numeric: Convergence tolerance for early stopping.
+#' @param em_stopping Character: Metric used for early stopping:
+#' \itemize{
+#'   \item \code{NULL}: No early stopping.
+#'   \item "abs_loglike": Absolute change in total log-likelihood.
+#'   \item "rel_loglike": Relative change in total log-likelihood.
+#'   \item "abs_beta_norm": Absolute \eqn{L_2} norm of the change in \eqn{\beta}.
+#'   \item "rel_beta_norm": Relative \eqn{L_2} norm of the change in \eqn{\beta}.
+#' }
+#' @param beta_init Initial value for \eqn{\beta}. Options: "glm" (fit a Poisson GLM), 
+#'   "random" (standard normal), or a numeric vector.
+#' @param gamma_init Initial value for \eqn{\gamma}. Options: "moran" (absolute 
+#'   Moran's I of residuals), "random" (standard uniform), or numeric.
+#' @param tau2_init Initial value for \eqn{\tau^2}. Options: "lognormal" (approximate 
+#'   Poisson-lognormal variance), "var" (variance of residuals), "random", 
+#'   or numeric.
+#' @param verbose Logical: Whether to print iteration-wise parameter updates.
+#' @param dense_matrices Logical: If \code{TRUE}, treats the precision matrix \eqn{Q} 
+#'   as dense during specific E-step calculations. This increases memory usage 
+#'   but can improve computation speed by 10 to 20 percent.
 #'
-#' @return A list comprised of the following:
-#' @return beta_hat: Estimated coefficients.
-#' @return gamma_hat: Estimated spatial correlation parameters.
-#' @return tau2_hat: Estimated spatial scale parameters.
-#' @returns predictions: Predicted values.
-#'    Vector of all values (corresponds to z_list stacked together).
-#' @returns eta_hat: Estimated random effects.
-#'    Vector of all values (corresponds to z_list stacked together).
-#' @returns theta_hat: Estimated Poisson parameters.
-#'    Vector of all values (corresponds to z_list stacked together).
-#' @returns phi_hat: Estimated spatial random effects.
-#'    Vector of all values (corresponds to z_list stacked together).
-#' @returns gamma_tracker: Estimated correlation parameters.
-#'    areas x EM iterations matrix---history across iterations.
-#' @returns tau2_tracker: Estimated scale parameters.
-#'    areas x EM iterations matrix---history across iterations.
-#' @returns beta_tracker: Estimated fixed effects.
-#'    coefficients x EM iterations matrix---history across iterations.
-#' @returns R2_tracker: Squared correlation between predictions and observations.
-#'    areas x EM Iterations matrix---history across iterations.
-#' @returns MSE_tracker: Mean-Square Error between predictions and observations.
-#'    areas x EM Iterations matrix---history across iterations.
-#' @returns data_log_like_tracker: Log likelihood of observations.
-#'    areas x EM Iterations matrix---history across iterations.
-#' @returns expected_log_like_tracker: Expected log likelihood at current parameters.
-#'    areas x EM Iterations matrix---history across iterations.
-#' @returns resid_moran_nb: Moran's I for each area computed using neighbor
-#'   adjacency as weights.
-#'   areas x EM Iterations matrix---history across iterations.
-#' @returns resid_moran: Moran's I for each area computed using coordinates.
-#'   areas x EM Iterations x (value, expectation, sd) array.
-#'   NULL unless coordinates are supplied.
-#' @returns start_idx_list: Indices where each area's values start in predictions, etc.
-#'    E.g., if area 1 has 100 points and area 2 has 50, we would have
-#'    c(1, 101, 151, ...).
-#' @returns eig_val_list: List of eigenvalues, depending on model type.
-#'    ONLY IF NOT PASSED IN.
-#' @returns time: Total time taken by function.
-#' @returns beta_neghessian: Negative Hessian of final value of beta.
-#'    Matrix.
-#' @returns tau2_neghessian: Negative Hessian of final value of tau^2.
-#'    Vector of values.
-#' @returns gamma_neghessian: Negative Hessian of final value of gamma.
-#'    Vector of values.
-#' @returns run_settings: A list with the parameter settings used to run the algorithm.
-#' @returns performanceSummary: A dataframe with summary statistics for each sample.
-#'  See [summarizeTESSERAPerformance()] for more details.
+#' @return A list containing the following components:
+#' \itemize{
+#'   \item \strong{beta_hat}: Estimated fixed effect coefficients.
+#'   \item \strong{gamma_hat}: Estimated spatial correlation parameters (per area).
+#'   \item \strong{tau2_hat}: Estimated spatial scale parameters (per area).
+#'   \item \strong{phi_hat}: Estimated spatial random effects.
+#'   \item \strong{theta_hat}: Estimated Poisson rate parameters \eqn{exp(X\beta + \phi)}.
+#'   \item \strong{beta_tracker}: Matrix of \eqn{\beta} estimates across iterations.
+#'   \item \strong{gamma_tracker}: Matrix of \eqn{\gamma} estimates across iterations.
+#'   \item \strong{tau2_tracker}: Matrix of \eqn{\tau^2} estimates across iterations.
+#'   \item \strong{performanceSummary}: A summary data frame for each sample.
+#'   \item \strong{time}: Total execution time.
+#' }
 #'
-#' @references Meng, Xiao-Li, and Donald B. Rubin.
-#'                "Maximum likelihood estimation via the ECM algorithm: A general framework."
-#'                Biometrika 80.2 (1993): 267-278.
+#' @references Meng, Xiao-Li, and Donald B. Rubin. "Maximum likelihood estimation via the ECM algorithm: A general framework." Biometrika 80.2 (1993): 267-278.
 #'
-#' @note D must be invertible, as must W, so make sure that every point has
-#'      at least one neighbor, i.e., that there are no isolated points,
-#'      for at least the CAR and SAR models.
-#' @note Requires the Matrix library.
+#' @note For CAR and SAR models, ensure the adjacency structure \eqn{W} contains no 
+#'   isolated points (every observation must have \eqn{\ge 1} neighbor) to ensure 
+#'   invertibility.
 #'
 #' @import Matrix
-#' @importFrom stats coef
-#' @importFrom stats cor
-#' @importFrom stats dpois
-#' @importFrom stats poisson
-#' @importFrom stats predict
-#' @importFrom stats rnorm
-#' @importFrom stats runif
-#' @importFrom stats var
-#' @importFrom Rcpp sourceCpp
-#' @importFrom Rcpp evalCpp
+#' @importFrom stats coef cor dpois poisson predict rnorm runif var
+#' @importFrom Rcpp sourceCpp evalCpp
 #' @useDynLib TESSERA
-#'
 #' @export
-#'
+#' 
 #' @example inst/examples/gen_data_and_run.R
 TESSERA_lattice <- function(TESSERAData_obj,
                             gene_name,

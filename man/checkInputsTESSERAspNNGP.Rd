@@ -53,7 +53,8 @@ for (idx in seq_len(n_samples)) {
 ## Prepare for TESSERA
 
 # This is how you'd go about preparing data manually
-# See the prepDataSpatialExperiment for a much more streamlined workflow
+# See the prepData for a much more streamlined workflow with 
+# a SpatialExperiment object
 
 # Count matrix: one gene per row
 count_matrix <- matrix(Reduce(c, sapply(data_list, function (x) {
@@ -85,13 +86,13 @@ colnames(W) <- colnames(count_matrix)
 
 # Prepare data
 TESSERA_data <- prepData(
-  count_matrix = count_matrix,
+  x = count_matrix,
   meta_data = meta_data,
   sample_col = "sample",
   design_mat = design_mat,
   coord_data = coords,
   adj_mat = W,
-  compute_eigs = "L"
+  model = "Leroux"
 )
 
 # Optional checks for data objects

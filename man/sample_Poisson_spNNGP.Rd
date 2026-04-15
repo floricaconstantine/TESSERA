@@ -2,7 +2,7 @@
 % Please edit documentation in R/data_gen.R
 \name{sample_Poisson_spNNGP}
 \alias{sample_Poisson_spNNGP}
-\title{Generate data from a Poisson spNNGP model with known parameters.}
+\title{Simulate spatial counts from a known spNNGP structure}
 \usage{
 sample_Poisson_spNNGP(
   cov_type,
@@ -15,52 +15,72 @@ sample_Poisson_spNNGP(
 )
 }
 \arguments{
-\item{cov_type}{Which model to fit for the Gaussian process covariance.
-"Exp", "Mat", "Gau", and "Sph" are the valid options, for
-Exponential, Matern, Gaussian, and Spherical, respectively.}
+\item{cov_type}{Character: The covariance kernel for the Gaussian process.
+Options are "Exp" (Exponential), "Mat" (Matern), "Gau" (Gaussian),
+and "Sph" (Spherical).}
 
-\item{X}{Covariates, rows are samples.}
+\item{X}{Matrix: Covariates/design matrix where rows correspond to observations.}
 
-\item{library_size}{Scaling for theta.}
+\item{library_size}{Numeric vector: Scaling factors (offsets) for each observation.}
 
-\item{coords}{Matrix of coordinates.
-Rows are samples, nrow(coords) == nrow(X).}
+\item{coords}{Matrix: Spatial coordinates \eqn{(x, y)} for each observation.
+Must have the same number of rows as \code{X}.}
 
-\item{cov_params}{Covariance parameters
-(nugget, sill, range, smoothness (optional)).}
+\item{cov_params}{Numeric vector: Covariance parameters ordered as
+(nugget, sill, range, and optionally smoothness).}
 
-\item{nngp_k}{How many neighbors to use for the spNNGP kernel.}
+\item{nngp_k}{Integer: The number of nearest neighbors to use for the
+spNNGP precision matrix construction.}
 
-\item{beta_true}{True fixed effects.}
+\item{beta_true}{Numeric vector: True fixed effect coefficients \eqn{\beta}.}
 }
 \value{
-A list with the following fields:
-
-z: Sampled counts Pois(theta x lib size).
-
-phi_true: True sampled random effects.
-(multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
-
-eta_true: phi + X beta.
-
-theta_true: exp(eta).
+A list containing the following components:
+\itemize{
+\item \bold{z}: The observed count vector sampled from \eqn{Pois(library\_size * \theta)}.
+\item \bold{phi_true}: The true sampled spatial random effects
+\eqn{\phi \sim N(0, Q^{-1})}, where \eqn{Q} is the sparse NNGP precision matrix.
+\item \bold{eta_true}: The linear predictor \eqn{\eta = X\beta + \phi}.
+\item \bold{theta_true}: The relative abundance \eqn{\theta = \exp(\eta)}.
+}
 }
 \description{
-Generate data from a Poisson spNNGP model with known parameters.
+Generates synthetic counts from a Poisson spNNGP model given a set of spatial
+coordinates, covariance parameters, and fixed effects. This function is
+ideal for testing the sensitivity of the spNNGP approximation across
+different neighborhood sizes \eqn{k} or kernel types without regenerating
+the underlying spatial layout.
 }
 \note{
-Requires the Matrix library.
-
-Calls nngp_prec_mat.
+This function requires the \code{Matrix} package for sparse Cholesky
+decomposition and solving the precision structure.
 }
 \examples{
 set.seed(2026)
-cov_params_true <- c(1.0, 1.0, 10, 2)
-beta_true <- c(1, 0, -1) 
-ex_data <- generate_data_one_area_spNNGP(1000, 0.03, "Mat", cov_params_true, 
-  20, beta_true)
-sample_Poisson_spNNGP("Mat", ex_data$X, ex_data$library_size, 
-  cbind(ex_data$x_coords, ex_data$y_coords), cov_params_true, 20, beta_true)
+# Simulation parameters
+cov_params <- c(0.1, 1.0, 10, 2) # nugget, sill, range, smoothness
+beta <- c(1, 0, -1)
+
+# Generate initial structure
+base_data <- generate_data_one_area_spNNGP(
+  n_points = 1000,
+  nb_dist = 0.03,
+  cov_type = "Mat",
+  cov_params = cov_params,
+  nngp_k = 20,
+  beta_true = beta
+)
+
+# Re-sample counts using the known spNNGP kernel
+sim_counts <- sample_Poisson_spNNGP(
+  cov_type = "Mat",
+  X = base_data$X,
+  library_size = base_data$library_size,
+  coords = base_data$coords,
+  cov_params = cov_params,
+  nngp_k = 20,
+  beta_true = beta
+)
 }
 \author{
 Florica J Constantine, florica AT berkeley.edu

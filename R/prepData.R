@@ -3,12 +3,14 @@
 # coordinate matrices, covariate matrices, count matrices, library sizes, etc.
 # with a list element for each sample
 # Dependencies in file: Matrix, dplyr, spatstat, reshape2, Rfast, ggplot2, spatstat.geom.
+# Optional dependencies in file: SpatialExperiment, SingleCellExperiment, SummarizedExperiment.
+
 
 #' Prepare data for the TESSERA method.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param x Variables x samples (genes x cells) count matrix (can be sparse)
+#' @param x Variables x measurements (genes x cells) count matrix (can be sparse),
 #'  OR a \code{SpatialExperiment} object.
 #' @param meta_data Dataframe with metadata/covariates.
 #'  Ensure that rownames(meta_data) == colnames(x) (if x is a matrix).
@@ -32,16 +34,19 @@
 #' @param model_type One of "Leroux", "CAR", "SAR", "spNNGP", or "ALL".
 #'  Which model will be fit by TESSERA.
 #'  The value "ALL" will prepare the data for all four methods.
+#' @param ... Additional arguments passed to methods.
 #'
 #' @return A list comprised of the following:
-#' @returns coords_list: A list with a matrix of coordinates for each sample.
-#' @returns covariates_list: A list with a dataframe of metadata for each sample.
-#' @returns library_size_list: A list with a vector of library sizes for each sample.
-#' @returns X_list: A list with a matrix of design matrices for each sample.
-#' @returns W_list: A list with measurement adjacency matrix for each sample.
-#' @returns D_list: A list with measurement degree matrix for each sample.
-#' @returns eig_CS_list: A list with CAR/SAR model eigenvalues for each sample.
-#' @returns eig_L_list: A list with Leroux model eigenvalues for each sample.
+#' \itemize{
+#'   \item \strong{coords_list}: A list with a matrix of coordinates for each sample.
+#'   \item \strong{covariates_list}: A list with a dataframe of metadata for each sample.
+#'   \item \strong{library_size_list}: A list with a vector of library sizes for each sample.
+#'   \item \strong{X_list}: A list with a matrix of design matrices for each sample.
+#'   \item \strong{W_list}: A list with measurement adjacency matrix for each sample.
+#'   \item \strong{D_list}: A list with measurement degree matrix for each sample.
+#'   \item \strong{eig_CS_list}: A list with CAR/SAR model eigenvalues for each sample.
+#'   \item \strong{eig_L_list}: A list with Leroux model eigenvalues for each sample.
+#' }
 #'
 #' @note This function supports multiple dispatch for base matrices and SpatialExperiment objects.
 #' @note SpatialExperiment support requires: "SpatialExperiment", "SingleCellExperiment", "SummarizedExperiment".
@@ -54,16 +59,17 @@
 #' @importFrom stats model.matrix
 #' @importFrom reshape2 melt
 #' @importFrom Rfast colVars
+#' @importFrom methods selectMethod setMethod setGeneric
 #'
 #' @export
 #'
 #' @example inst/examples/gen_data_and_run.R
-setGeneric("prepData", function(x, ...) {
+methods::setGeneric("prepData", function(x, ...) {
   standardGeneric("prepData")
 })
 
 #' @rdname prepData
-setMethod(
+methods::setMethod(
   f = "prepData",
   signature = signature(x = "ANY"),
   definition = function(x,
@@ -429,7 +435,7 @@ setMethod(
 )
 
 #' @rdname prepData
-setMethod(
+methods::setMethod(
   f = "prepData",
   signature = signature(x = "SpatialExperiment"),
   definition = function(x,
@@ -463,7 +469,7 @@ setMethod(
     
     # Call generic prepData (which will dispatch to ANY method)
     message("Extracting fields and calling generic prepData function.\n")
-    TESSERA_data <- selectMethod("prepData", "ANY")(
+    TESSERA_data <- methods::selectMethod("prepData", "ANY")(
       x = SingleCellExperiment::counts(spDataObject),
       meta_data = data.frame(SummarizedExperiment::colData(spDataObject)),
       sample_col = sample_col,

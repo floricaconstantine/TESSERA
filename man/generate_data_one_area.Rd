@@ -2,7 +2,7 @@
 % Please edit documentation in R/data_gen.R
 \name{generate_data_one_area}
 \alias{generate_data_one_area}
-\title{Generate data for one area.}
+\title{Simulate spatial count data for a single area}
 \usage{
 generate_data_one_area(
   n_points,
@@ -18,78 +18,78 @@ generate_data_one_area(
 )
 }
 \arguments{
-\item{n_points}{Number of points in the area.}
+\item{n_points}{Integer: Number of observations/points in the area.}
 
-\item{nb_dist}{Distance threshold for determining if two points are neighbors.
-Coordinates are samples in (0, 1)^2 so 0.03 is a reasonable value for ~1000 points.}
+\item{nb_dist}{Numeric: Distance threshold for determining adjacency.
+Since coordinates are sampled in \eqn{(0, 1)^2}, a value of 0.03 is
+typically appropriate for \eqn{n \approx 1000}.}
 
-\item{model_type}{"CAR", "SAR", or "Leroux"---model for random effects.}
+\item{model_type}{Character: The spatial model for random effects.
+Options are "CAR", "SAR", or "Leroux".}
 
-\item{beta_true}{True fixed effects.}
+\item{beta_true}{Numeric vector: True fixed effect coefficients \eqn{\beta}.}
 
-\item{gamma_true}{True correlation parameter.}
+\item{gamma_true}{Numeric: True spatial correlation parameter \eqn{\gamma}.}
 
-\item{tau2_true}{True scale parameter.}
+\item{tau2_true}{Numeric: True spatial scale parameter \eqn{\tau^2}.}
 
-\item{X_type}{How to generate the covariates X.
-Note that the coordinates are sorted by x then by y, so nearby points are
-more likely to be neighbors.
-"rand_bern": X_\{i, j\} ~ 2 ( sign(N(0, 1)) + 1 ) in \{0, 1\}
-"rand_unif": X_\{i, j\} ~ U(0, 1)
-"rand_norm": X_\{i, j\} ~ N(0, 1)
-"ar1": X_\{:, j\} follows an AR(1) process.
-"ar1_bern": Generate the AR(1) as above, and apply the same sign transformation
-as in "rand_bern"
-"intercept": Constant column of all 1s}
+\item{X_type}{Character: Method for generating the design matrix \eqn{X}.
+Options include:
+\itemize{
+\item \strong{"rand_bern"}: Bernoulli covariates \eqn{X_{i, j} \in \{0, 1\}}.
+\item \strong{"rand_unif"}: Uniformly distributed \eqn{X_{i, j} \sim U(0, 1)}.
+\item \strong{"rand_norm"}: Normally distributed \eqn{X_{i, j} \sim N(0, 1)}.
+\item \strong{"ar1"}: \eqn{X} follows a spatial AR(1) process across sorted coordinates.
+\item \strong{"ar1_bern"}: AR(1) process transformed into binary values.
+\item \strong{"intercept"}: A constant column of 1s.
+}}
 
-\item{ar_gamma}{Autocorrelation parameter for X if needed.}
+\item{ar_gamma}{Numeric: Autocorrelation parameter for \eqn{X} (used if \code{X_type}
+is "ar1" or "ar1_bern").}
 
-\item{X}{Instead of passing in X_type, pass in a pre-defined matrix X.}
+\item{X}{Optional matrix: A pre-defined design matrix to use instead of generating one.}
 
-\item{library_size}{Instead of using all 1s, pass in a pre-specified library size.
-Expected value/offset for each point.}
+\item{library_size}{Optional numeric vector: Pre-specified library sizes
+(offsets). Defaults to a vector of 1s if not provided.}
 }
 \value{
-A list with the following fields:
-
-X: Binary covariates.
-
-W: Adjacency matrix.
-
-D: Diagonal degree matrix (row-sums of W).
-
-eig_list: List of eigenvalues of Z = D^\{-1\} W (CAR/SAR) or D - W (Leroux).
-
-library_size: Scaling for theta.
-
-x_coords: x-coordinates of points.
-
-y_coords: y-coordinates of points.
-
-coords: Matrix of coordinates (rows are x, y).
-
-Q: Unscaled precision matrix. Depends on W, D, gamma_true.
-
-phi_true: True sampled random effects.
-(multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
-
-eta_true: phi + X beta.
-
-theta_true: exp(eta).
-
-z: Sampled counts Pois(theta x lib size).
+A list containing the following components:
+\itemize{
+\item \strong{X}: The generated design matrix of covariates.
+\item \strong{W}: The sparse adjacency matrix.
+\item \strong{D}: The diagonal degree matrix.
+\item \strong{eig_list}: Eigenvalues of the standardized adjacency or Laplacian matrix,
+depending on \code{model_type}.
+\item \strong{coords}: A matrix of \eqn{(x, y)} coordinates.
+\item \strong{Q}: The unscaled precision matrix defined by \eqn{W}, \eqn{D}, and \eqn{\gamma}.
+\item \strong{phi_true}: The true sampled spatial random effects \eqn{\phi \sim N(0, \tau^2 Q^{-1})}.
+\item \strong{eta_true}: The linear predictor \eqn{\eta = X\beta + \phi}.
+\item \strong{theta_true}: The relative abundance \eqn{\theta = \exp(\eta)}.
+\item \strong{z}: The observed count vector sampled from \eqn{Pois(library\_size * \theta)}.
+}
 }
 \description{
-Generate data for one area.
+Generates synthetic spatial transcriptomics data based on a Poisson
+Generalized Linear Mixed Model (\eqn{GLMM}). The function simulates spatial random
+effects \eqn{\phi} using a \eqn{CAR}, \eqn{SAR}, or \eqn{Leroux} model, generates
+covariates \eqn{X} based on several stochastic processes, and samples counts
+\eqn{z} from a Poisson distribution.
 }
 \note{
-Requires the Matrix library.
-
-Calls the various Q_matrix creation functions.
+This function requires the \code{Matrix} package for sparse matrix operations.
 }
 \examples{
 set.seed(2026)
-generate_data_one_area(1000, 0.03, "Leroux", c(1, 0, -1), 0.5, 1.0, "rand_bern")
+# Generate data for 1000 cells with a Leroux spatial structure
+sim_data <- generate_data_one_area(
+  n_points = 1000,
+  nb_dist = 0.03,
+  model_type = "Leroux",
+  beta_true = c(1, 0, -1),
+  gamma_true = 0.5,
+  tau2_true = 1.0,
+  X_type = "rand_bern"
+)
 }
 \author{
 Florica J Constantine, florica AT berkeley.edu

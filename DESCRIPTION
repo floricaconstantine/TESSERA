@@ -18,6 +18,7 @@ Description: Fit a Poisson generalized spatial linear model for analyzing
 License: Artistic-2.0
 Imports: 
   stats,
+  methods,
   Rcpp,
   Matrix,
   pracma,
@@ -33,6 +34,7 @@ Imports:
   BRISC
 Suggests: 
   testthat (>= 3.0.0),
+  devtools,
   knitr,
   rmarkdown,
   BiocStyle,
@@ -41,10 +43,11 @@ Suggests:
   SpatialExperiment,
   SingleCellExperiment,
   SummarizedExperiment,
-  WeberDivechaLCdata
+  BiocFileCache,
+  fdrtool,
+  Polychrome
 VignetteBuilder: 
-  knitr,
-  BiocStyle
+  knitr
 LinkingTo: Rcpp
 biocViews: Regression, DifferentialExpression, GeneExpression, Spatial
 Encoding: UTF-8

@@ -2,7 +2,7 @@
 % Please edit documentation in R/data_gen.R
 \name{generate_data_one_area_spNNGP}
 \alias{generate_data_one_area_spNNGP}
-\title{Generate data for one area from the spNNGP model.}
+\title{Simulate spatial count data via spNNGP}
 \usage{
 generate_data_one_area_spNNGP(
   n_points,
@@ -18,84 +18,82 @@ generate_data_one_area_spNNGP(
 )
 }
 \arguments{
-\item{n_points}{Number of points in the area.}
+\item{n_points}{Integer: Number of points/observations in the area.}
 
-\item{nb_dist}{Distance threshold for determining if two points are neighbors.
-Coordinates are samples in (0, 1)^2 so 0.03 is a reasonable value for ~1000 points.}
+\item{nb_dist}{Numeric: Distance threshold for determining adjacency (if needed
+for secondary lattice structures). Coordinates are sampled in \eqn{(0, 1)^2}.}
 
-\item{cov_type}{Which model for the Gaussian process covariance.
-"Exp", "Mat", "Gau", and "Sph" are the valid options, for
-Exponential, Matern, Gaussian, and Spherical, respectively.}
+\item{cov_type}{Character: The covariance kernel for the Gaussian process.
+Options are "Exp" (Exponential), "Mat" (Matern), "Gau" (Gaussian),
+and "Sph" (Spherical).}
 
-\item{cov_params}{Variogram/covariance parameters.}
+\item{cov_params}{Numeric vector: Parameters for the covariance kernel
+(typically sigma^2/sill, tau^2/nugget, phi/range, and optionally nu/smoothness).}
 
-\item{nngp_k}{Number of nearest neighbors.}
+\item{nngp_k}{Integer: The number of nearest neighbors used in the spNNGP
+approximation.}
 
-\item{beta_true}{True fixed effects.}
+\item{beta_true}{Numeric vector: True fixed effect coefficients \eqn{\beta}.}
 
-\item{X_type}{How to generate the covariates X.
-Note that the coordinates are sorted by x then by y, so nearby points are
-more likely to be neighbors.
-"rand_bern": X_\{i, j\} ~ 2 ( sign(N(0, 1)) + 1 ) in \{0, 1\}
-"rand_unif": X_\{i, j\} ~ U(0, 1)
-"rand_norm": X_\{i, j\} ~ N(0, 1)
-"ar1": X_\{:, j\} follows an AR(1) process.
-"ar1_bern": Generate the AR(1) as above, and apply the same sign transformation
-as in "rand_bern"
-"intercept": Constant column of all 1s}
+\item{X_type}{Character: Method for generating the design matrix \eqn{X}.
+Options include:
+\itemize{
+\item \strong{"rand_bern"}: Bernoulli-style covariates \eqn{X_{i, j} \in \{0, 1\}}.
+\item \strong{"rand_unif"}: Uniformly distributed \eqn{X_{i, j} \sim U(0, 1)}.
+\item \strong{"rand_norm"}: Normally distributed \eqn{X_{i, j} \sim N(0, 1)}.
+\item \strong{"ar1"}: \eqn{X} follows an AR(1) process across sorted coordinates.
+\item \strong{"ar1_bern"}: AR(1) process transformed into binary values.
+\item \strong{"intercept"}: A constant column of 1s.
+}}
 
-\item{ar_gamma}{Autocorrelation parameter for X if needed.}
+\item{ar_gamma}{Numeric: Autocorrelation parameter for \eqn{X} (used if \code{X_type}
+is "ar1" or "ar1_bern").}
 
-\item{X}{Instead of passing in X_type, pass in a pre-defined matrix X.}
+\item{X}{Optional matrix: A pre-defined design matrix to use instead of generating one.}
 
-\item{library_size}{Instead of using all 1s, pass in a pre-specified library size.
-Expected value/offset for each point.}
+\item{library_size}{Optional numeric vector: Pre-specified library sizes
+(offsets). Defaults to a vector of 1s.}
 }
 \value{
-A list with the following fields:
-
-X: Binary covariates.
-
-W: Adjacency matrix.
-
-D: Diagonal degree matrix (row-sums of W).
-
-eig_list: List of eigenvalues of Z = D^\{-1\} W (CAR/SAR) or D - W (Leroux).
-
-library_size: Scaling for theta.
-
-x_coords: x-coordinates of points.
-
-y_coords: y-coordinates of points.
-
-coords: Matrix of coordinates (rows are x, y).
-
-Sparse precision matrix Q.
-
-Eigenvalues Dinv.
-
-Lower triangular factor A.
-
-phi_true: True sampled random effects.
-(multivariate normal with mean zero and covariance tau^2 Q^\{-1\}).
-
-eta_true: phi + X beta.
-
-theta_true: exp(eta).
-
-z: Sampled counts Pois(theta x lib size).
+A list containing the following components:
+\itemize{
+\item \strong{X}: The generated design matrix of covariates.
+\item \strong{W}: The sparse adjacency matrix (if calculated).
+\item \strong{D}: The diagonal degree matrix.
+\item \strong{eig_list}: Eigenvalues for comparison lattice structures (if calculated).
+\item \strong{coords}: A matrix of \eqn{(x, y)} coordinates.
+\item \strong{Q}: The sparse precision matrix \eqn{Q = (I - A)^T D^{-1} (I - A)}.
+\item \strong{Dinv}: The diagonal variance matrix \eqn{D^{-1}} from the NNGP decomposition.
+\item \strong{A}: The sparse lower triangular matrix representing neighbor weights.
+\item \strong{phi_true}: The sampled spatial random effects \eqn{\phi \sim N(0, Q^{-1})}.
+\item \strong{eta_true}: The linear predictor \eqn{\eta = X\beta + \phi}.
+\item \strong{theta_true}: The relative abundance \eqn{\theta = \exp(\eta)}.
+\item \strong{z}: The observed count vector sampled from \eqn{Pois(library\_size * \theta)}.
+}
 }
 \description{
-Generate data for one area from the spNNGP model.
+Generates synthetic spatial transcriptomics data using a Poisson
+Generalized Linear Mixed Model (\eqn{GLMM}) with a Sparse Nearest Neighbor
+Gaussian Process (\eqn{spNNGP}) prior for the random effects. This function
+approximates a Gaussian Process by using a specified number of nearest
+neighbors to construct a sparse precision matrix.
 }
 \note{
-Requires the Matrix library.
-
-Calls the nngp_prec_mat creation functions.
+This function requires the \code{Matrix} package for handling sparse precision
+structures. The spNNGP approach is significantly more memory-efficient than
+full Gaussian Processes for large \eqn{n}.
 }
 \examples{
 set.seed(2026)
-generate_data_one_area_spNNGP(1000, 0.03, "Mat", c(1.0, 1.0, 10, 2), 20, c(1, 0, -1))
+# Generate data using a Matern kernel with 20 nearest neighbors
+sim_data <- generate_data_one_area_spNNGP(
+  n_points = 1000,
+  nb_dist = 0.03,
+  cov_type = "Mat",
+  cov_params = c(1.0, 0.1, 10, 2), # sill, nugget, range, smoothness
+  nngp_k = 20,
+  beta_true = c(1, 0, -1)
+)
 }
 \author{
 Florica J Constantine, florica AT berkeley.edu

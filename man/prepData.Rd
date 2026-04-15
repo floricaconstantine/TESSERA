@@ -35,8 +35,10 @@ prepData(x, ...)
 )
 }
 \arguments{
-\item{x}{Variables x samples (genes x cells) count matrix (can be sparse)
+\item{x}{Variables x measurements (genes x cells) count matrix (can be sparse),
 OR a \code{SpatialExperiment} object.}
+
+\item{...}{Additional arguments passed to methods.}
 
 \item{meta_data}{Dataframe with metadata/covariates.
 Ensure that rownames(meta_data) == colnames(x) (if x is a matrix).}
@@ -72,22 +74,16 @@ The value "ALL" will prepare the data for all four methods.}
 }
 \value{
 A list comprised of the following:
-
-coords_list: A list with a matrix of coordinates for each sample.
-
-covariates_list: A list with a dataframe of metadata for each sample.
-
-library_size_list: A list with a vector of library sizes for each sample.
-
-X_list: A list with a matrix of design matrices for each sample.
-
-W_list: A list with measurement adjacency matrix for each sample.
-
-D_list: A list with measurement degree matrix for each sample.
-
-eig_CS_list: A list with CAR/SAR model eigenvalues for each sample.
-
-eig_L_list: A list with Leroux model eigenvalues for each sample.
+\itemize{
+\item \strong{coords_list}: A list with a matrix of coordinates for each sample.
+\item \strong{covariates_list}: A list with a dataframe of metadata for each sample.
+\item \strong{library_size_list}: A list with a vector of library sizes for each sample.
+\item \strong{X_list}: A list with a matrix of design matrices for each sample.
+\item \strong{W_list}: A list with measurement adjacency matrix for each sample.
+\item \strong{D_list}: A list with measurement degree matrix for each sample.
+\item \strong{eig_CS_list}: A list with CAR/SAR model eigenvalues for each sample.
+\item \strong{eig_L_list}: A list with Leroux model eigenvalues for each sample.
+}
 }
 \description{
 Prepare data for the TESSERA method.
@@ -126,7 +122,8 @@ for (idx in seq_len(n_samples)) {
 ## Prepare for TESSERA
 
 # This is how you'd go about preparing data manually
-# See the prepDataSpatialExperiment for a much more streamlined workflow
+# See the prepData for a much more streamlined workflow with 
+# a SpatialExperiment object
 
 # Count matrix: one gene per row
 count_matrix <- matrix(Reduce(c, sapply(data_list, function (x) {
@@ -158,13 +155,13 @@ colnames(W) <- colnames(count_matrix)
 
 # Prepare data
 TESSERA_data <- prepData(
-  count_matrix = count_matrix,
+  x = count_matrix,
   meta_data = meta_data,
   sample_col = "sample",
   design_mat = design_mat,
   coord_data = coords,
   adj_mat = W,
-  compute_eigs = "L"
+  model = "Leroux"
 )
 
 # Optional checks for data objects

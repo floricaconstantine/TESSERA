@@ -2,7 +2,7 @@
 % Please edit documentation in R/data_gen.R
 \name{prepSynthData}
 \alias{prepSynthData}
-\title{Prepare synthetic data for the TESSERA method.}
+\title{Generate synthetic multi-sample spatial count data}
 \usage{
 prepSynthData(
   TESSERAData_obj,
@@ -17,58 +17,57 @@ prepSynthData(
 )
 }
 \arguments{
-\item{TESSERAData_obj}{Object containing data.
-Created by the prepData method.}
+\item{TESSERAData_obj}{Object containing the experimental structure,
+typically created by the \code{prepData} method.}
 
-\item{gene_list}{Which gene/measurement to fit.
-I.e., Which row in the count data matrix to fit.
-Rownames of \code{TESSERAData_obj$counts_list[[idx]]}.
-A string (single gene) or a vector of strings (multiple genes).}
+\item{gene_list}{Character vector: The names of the genes/measurements to
+simulate. These must correspond to row names in the original count data.}
 
-\item{data_gen_model}{Which model to fit for the random effects.
-"CAR", "SAR", and "Leroux" are the valid Lattice model options,
-"spNNGP" is the only non-Lattice option.}
+\item{data_gen_model}{Character: The spatial model to use for simulations.
+Options include "CAR", "SAR", "Leroux" (Lattice models), or "spNNGP".}
 
-\item{tau2_true}{Spatial scale parameters.
-A vector (single gene) or a matrix (genes x samples, rows are genes).
-Only needed for lattice models.
-Warning: 0 <= tau^2 is necessary.}
+\item{tau2_true}{Spatial scale parameters \eqn{\tau^2}. Provide a numeric vector
+(for a single gene) or a matrix of dimensions (genes x samples) (for
+multiple genes). Required only for Lattice models.
+\strong{Note:} \eqn{\tau^2 \ge 0} is required.}
 
-\item{gamma_true}{Spatial correlation parameters.
-A vector (single gene) or a matrix (genes x samples, rows are genes).
-Only needed for lattice models.
-Warning: For CAR/SAR models, -1 < gamma < 1 is necessary.
-Warning: For Leroux models, 0 <= gamma < 1 is necessary.
-If these ranges are exceeded, errors are likely.}
+\item{gamma_true}{Spatial correlation parameters \eqn{\gamma}. Provide a numeric
+vector (single gene) or a matrix of dimensions (genes x samples).
+Required only for Lattice models.
+\itemize{
+\item \strong{CAR/SAR}: \eqn{-1 < \gamma < 1} required.
+\item \strong{Leroux}: \eqn{0 \le \gamma < 1} required.
+}}
 
-\item{cov_params}{Spatial correlation parameters.
-A matrix (samples x 3/4 parameters) or array (genes x samples x 3/4 parameters).
-Only needed for spNNGP.
-Parameters are (nugget, sill, range, and an optional smoothness (Matern)).}
+\item{cov_params}{Spatial covariance parameters for spNNGP. Provide a matrix
+(samples x 3/4 parameters) for a single gene, or an array
+(genes x samples x 3/4 parameters) for multiple genes.
+Parameters must be ordered as (nugget, sill, range, and optional smoothness).}
 
-\item{cov_type}{Spatial correlation kernel.
-Only needed for spNNGP.
-"Exp", "Mat", "Gau", and "Sph" are the valid options, for
-Exponential, Matern, Gaussian, and Spherical, respectively.}
+\item{cov_type}{Character: The spatial correlation kernel for spNNGP.
+Options are "Exp", "Mat", "Gau", and "Sph".}
 
-\item{nngp_k}{How many neighbors to use for the spNNGP kernel.}
+\item{nngp_k}{Integer: The number of nearest neighbors to use for the
+spNNGP kernel approximation.}
 
-\item{beta_true}{Coefficients.
-A vector (single gene) or a matrix (genes x covariates, rows are genes).}
+\item{beta_true}{True fixed effect coefficients \eqn{\beta}. Provide a numeric
+vector (single gene) or a matrix of dimensions (genes x covariates).}
 }
 \value{
-A list comprised of the following.
-
-new_TESSERAData_obj Object containing data.
-Has all of the same information and values as TESSERAData_obj,
-except for new counts_list values.
-
-synthetic_count_summary: A dataframe summarizing statistics of the
-generated counts and computing various similarity statistics between the
-generated and original counts.
+A list containing the following components:
+\itemize{
+\item \strong{new_TESSERAData_obj}: A \code{TESSERAData_obj} where the
+\code{counts_list} has been replaced with synthetic values.
+\item \strong{synthetic_count_summary}: A data frame summarizing the
+generated counts and computing similarity metrics between the
+synthetic and original data.
+}
 }
 \description{
-Prepare synthetic data for the TESSERA method.
+Replaces the observed counts in a \code{TESSERAData_obj} with synthetic counts
+generated from specified true parameters. This utility is designed for
+benchmarking and power analyses, allowing users to simulate data over
+existing tissue architectures and experimental designs.
 }
 \examples{
 # Load package
@@ -99,7 +98,8 @@ for (idx in seq_len(n_samples)) {
 ## Prepare for TESSERA
 
 # This is how you'd go about preparing data manually
-# See the prepDataSpatialExperiment for a much more streamlined workflow
+# See the prepData for a much more streamlined workflow with 
+# a SpatialExperiment object
 
 # Count matrix: one gene per row
 count_matrix <- matrix(Reduce(c, sapply(data_list, function (x) {
@@ -131,13 +131,13 @@ colnames(W) <- colnames(count_matrix)
 
 # Prepare data
 TESSERA_data <- prepData(
-  count_matrix = count_matrix,
+  x = count_matrix,
   meta_data = meta_data,
   sample_col = "sample",
   design_mat = design_mat,
   coord_data = coords,
   adj_mat = W,
-  compute_eigs = "L"
+  model = "Leroux"
 )
 
 # Optional checks for data objects

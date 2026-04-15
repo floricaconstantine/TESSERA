@@ -5,113 +5,79 @@
 # Rcpp dependencies: calc_moran.cpp.
 
 
-#' Fit multi-area Poisson spatial generalized linear model.
-#'  Allows for sparse nearest neighbor Gaussian process random effects.
-#'  Exponential, Gaussian, Matern, and Spherical covariance structures
-#'  are supported.
-#'  Fits a common set of fixed effects across areas.
+#' Fit Multi-Sample Poisson Spatial GLMM via spNNGP
+#'
+#' Fits a multi-sample Poisson spatial generalized linear mixed model (GLMM) 
+#' using a shared set of fixed effects across all samples while permitting 
+#' sample-specific spatial random effects modeled via a Sparse Nearest Neighbor 
+#' Gaussian Process (spNNGP). Supports Exponential, Matern, Gaussian, and 
+#' Spherical covariance kernels.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param TESSERAData_obj Object containing data.
-#'  Created by the prepData method.
-#' @param gene_name Which gene/measurement to fit.
-#'  I.e., Which row in the count data matrix to fit.
-#' @param cov_type Which model to fit for the Gaussian process covariance.
-#'    "Exp", "Mat", "Gau", and "Sph" are the valid options, for
-#'    Exponential, Matern, Gaussian, and Spherical, respectively.
-#' @param nngp_k How many neighbors to use for the spNNGP kernel.
-#' @param em_iters Number of E(C)M iterations to run.
-#' @param opt_iters Number of inner M-step iterations to run.
-#'    The M-step is technically a CM step, i.e., a conditional maximization.
-#'    That is, we perform block coordinate ascent wherein we maximize the
-#'    expected likelihood in tau^2 and then in gamma for each area, and then
-#'    in beta, where each maximization holds all other parameters constant.
-#'    This approach leads to a slower convergence in terms of the number of
-#'    iterations (em_iters) but faster computation in each iteration.
-#' @param em_min_iters Minimum number of E(C)M iterations to run.
-#' @param em_tol Tolerance for early stopping the E(C)M algorithm.
-#' @param em_stopping How to decide to stop early.
-#'    NULL: Don't stop early.
-#'    "abs_loglike": Difference in absolute data log likelihood, |old - new|.
-#'    "rel_loglike": Relative difference in data log likelihood, |old - new|/|old|.
-#'      Data log likelihood taken across alll areas.
-#'    "abs_beta_norm": Absolute L2 norm of difference in beta, ||old - new||_2.
-#'    "rel_beta_norm": Relative L2 norm of difference in beta,
-#'      ||old - new||_2 / ||old||_2.
-#' @param beta_init How to initialize beta.
-#'    "glm": Stack up all the observed counts z and covariate matrices X and
-#'      fit a Poisson GLM z ~ 0 + X using base R's glm function.
-#'    "random": Initialize with standard normal random variables.
-#'    A vector or matrix: Initialize with provided value.
-#' @param cov_init How to initialize covariance parameters.
-#'    "BRISC": Call BRISC on log(0.5 + z) - X beta_init.
-#'    "variogram": log(0.5 + z) - X beta_init.
-#'    A vector of matrix: Initialize with provided value.
-#' @param cov_fit_method "BRISC" or "variogram": How to perform the M-step
-#'    estimation/update of covariance parameters.
-#' @param verbose Boolean of whether to print out updates.
-#' @param dense_matrices Boolean of whether to treat Q as a dense matrix when
-#'    computing certain quantities in the E-step. This will increase memory usage
-#'    (e.g., ~2 -> 8 GB for 3k cells per sample and 20 neighbors), but will dramatically
-#'    speed up computation (around a 60-80% decrease).
+#' @param TESSERAData_obj An object containing prepared data, typically 
+#'   created by \code{\link{prepData}}.
+#' @param gene_name Character: The name of the gene/measurement (row) to fit.
+#' @param cov_type Character: The covariance kernel for the Gaussian process. 
+#'   Options are "Exp", "Mat", "Gau", and "Sph".
+#' @param nngp_k Integer: The number of nearest neighbors to use for the 
+#'   spNNGP kernel approximation.
+#' @param em_iters Integer: Maximum number of ECM iterations.
+#' @param opt_iters Integer: Number of inner CM steps (Conditional Maximization) 
+#'   per iteration. The algorithm maximizes the expected likelihood for 
+#'   the covariance parameters, then \eqn{\beta}, holding other parameters constant.
+#' @param em_min_iters Integer: Minimum number of ECM iterations to perform 
+#'   before allowing early stopping.
+#' @param em_tol Numeric: Convergence tolerance for early stopping.
+#' @param em_stopping Character: Metric used for early stopping:
+#' \itemize{
+#'   \item \code{NULL}: No early stopping.
+#'   \item "abs_loglike": Absolute change in total log-likelihood.
+#'   \item "rel_loglike": Relative change in total log-likelihood.
+#'   \item "abs_beta_norm": Absolute \eqn{L_2} norm of the change in \eqn{\beta}.
+#'   \item "rel_beta_norm": Relative \eqn{L_2} norm of the change in \eqn{\beta}.
+#' }
+#' @param beta_init Initial value for \eqn{\beta}. Options: "glm" (fit a Poisson GLM), 
+#'   "random" (standard normal), or a numeric vector.
+#' @param cov_init Method for initializing covariance parameters. Options: 
+#'   "BRISC" (calls BRISC on residuals), "variogram" (initializes via empirical 
+#'   variogram), or a numeric vector/matrix.
+#' @param cov_fit_method Character: The method used for the M-step update 
+#'   of covariance parameters. Options are "BRISC" or "variogram".
+#' @param verbose Logical: Whether to print iteration-wise parameter updates.
+#' @param dense_matrices Logical: If \code{TRUE}, treats the precision matrix \eqn{Q} 
+#'   as dense during specific E-step calculations. This dramatically increases 
+#'   memory usage but can lead to a 60 to 80 percent decrease in computation time.
 #'
-#' @return A list comprised of the following:
-#' @return beta_hat: Estimated coefficients.
-#' @return cov_param_hat: Estimated spatial covariance parameters.
-#' @returns predictions: Predicted values.
-#'    Vector of all values (corresponds to z_list stacked together).
-#' @returns eta_hat: Estimated random effects.
-#'    Vector of all values (corresponds to z_list stacked together).
-#' @returns theta_hat: Estimated Poisson parameters.
-#'    Vector of all values (corresponds to z_list stacked together).
-#' @returns phi_hat: Estimated spatial random effects.
-#'    Vector of all values (corresponds to z_list stacked together).
-#' @returns cov_param_tracker: Estimated correlation parameters.
-#'    areas x EM iterations x (Nugget, Sill, Range, Smoothness)---history across iterations.
-#' @returns beta_tracker: Estimated fixed effects.
-#'    coefficients x EM iterations matrix---history across iterations.
-#' @returns R2_tracker: Squared correlation between predictions and observations.
-#'    areas x EM Iterations matrix---history across iterations.
-#' @returns MSE_tracker: Mean-Square Error between predictions and observations.
-#'    areas x EM Iterations matrix---history across iterations.
-#' @returns data_log_like_tracker: Log likelihood of observations.
-#'    areas x EM Iterations matrix---history across iterations.
-#' @returns expected_log_like_tracker: Expected log likelihood at current parameters.
-#'    areas x EM Iterations matrix---history across iterations.
-#' @returns resid_moran_nb: Moran's I for each area computed using neighbor
-#'   adjacency as weights.
-#'   areas x EM Iterations matrix---history across iterations.
-#' @returns resid_moran: Moran's I for each area computed using coordinates.
-#'   areas x EM Iterations x (value, expectation, sd) array.
-#'   NULL unless coordinates are supplied.
-#' @returns start_idx_list: Indices where each area's values start in predictions, etc.
-#'    E.g., if area 1 has 100 points and area 2 has 50, we would have
-#'    c(1, 101, 151, ...).
-#' @returns time: Total time taken by function.
-#' @returns beta_neghessian: Negative Hessian of final value of beta.
-#'    Matrix.
-#' @returns run_settings: A list with the parameter settings used to run the algorithm.
-#' @returns performanceSummary: A dataframe with summary statistics for each sample.
-#'  See [summarizeTESSERAPerformance()] for more details.
+#' @return A list containing the following components:
+#' \itemize{
+#'   \item \strong{beta_hat}: Estimated fixed effect coefficients.
+#'   \item \strong{cov_param_hat}: Estimated spatial covariance parameters 
+#'     (nugget, sill, range, and optionally smoothness).
+#'   \item \strong{phi_hat}: Estimated spatial random effects.
+#'   \item \strong{theta_hat}: Estimated Poisson rate parameters \eqn{exp(X\beta + \phi)}.
+#'   \item \strong{beta_tracker}: Matrix of \eqn{\beta} estimates across iterations.
+#'   \item \strong{cov_param_tracker}: Array of covariance parameter history 
+#'     (areas x iterations x parameters).
+#'   \item \strong{data_log_like_tracker}: Total log-likelihood across iterations.
+#'   \item \strong{MSE_tracker}: Mean Squared Error history across iterations.
+#'   \item \strong{beta_neghessian}: Negative Hessian of the final \eqn{\beta} estimate.
+#'   \item \strong{performanceSummary}: A summary data frame for each sample; 
+#'     see \code{\link{summarizeTESSERAPerformance}}.
+#'   \item \strong{time}: Total execution time.
+#'   \item \strong{run_settings}: List of parameters used for the run.
+#' }
 #'
-#' @references Meng, Xiao-Li, and Donald B. Rubin.
-#'                "Maximum likelihood estimation via the ECM algorithm: A general framework."
-#'                Biometrika 80.2 (1993): 267-278.
+#' @references Meng, Xiao-Li, and Donald B. Rubin. "Maximum likelihood estimation via the ECM algorithm: A general framework." Biometrika 80.2 (1993): 267-278.
+#' @references Saha, Arkajyoti, and Abhirup Datta. "BRISC: bootstrap for rapid inference on spatial covariances." Stat 7.1 (2018): e184.
 #'
-#' @note Requires the Matrix library.
+#' @note The spNNGP approach is designed for scalability in datasets where 
+#'   traditional lattice adjacency is difficult to define.
 #'
 #' @import Matrix
-#' @importFrom stats coef
-#' @importFrom stats cor
-#' @importFrom stats dpois
-#' @importFrom stats poisson
-#' @importFrom stats rnorm
-#' @importFrom stats var
-#' @importFrom Rcpp sourceCpp
-#' @importFrom Rcpp evalCpp
+#' @importFrom stats coef cor dpois poisson predict rnorm var
+#' @importFrom Rcpp sourceCpp evalCpp
 #' @useDynLib TESSERA
-#'
 #' @export
 #' 
 #' @example inst/examples/gen_data_and_run.R
@@ -604,9 +570,9 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
 #'
 #' @returns Nothing.
 #' @import Matrix
-#' 
+#'
 #' @export
-#' 
+#'
 #' @example inst/examples/gen_data_and_run.R
 checkInputsTESSERAspNNGP <- function (TESSERAData_obj) {
   # Check that the bare minimum is present
