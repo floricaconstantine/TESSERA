@@ -7,3 +7,6 @@ poisECM.BiocCheck/00BiocCheck.log
 inst/extdata/vignette_processed_input_data.rds
 inst/extdata/vignette_processed_input_data2.rds
 vignettes/vignette.html
+/doc/
+/Meta/
+

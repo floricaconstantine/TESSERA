@@ -1,0 +1,291 @@
+# Fit Multi-Sample Poisson Spatial GLMM via ECM Algorithm
+
+Fits a multi-sample Poisson spatial generalized linear mixed model
+(GLMM) using a shared set of fixed effects across all samples while
+permitting sample-specific spatial random effects (CAR, SAR, or Leroux).
+Parameter estimation is performed via an Expectation-Conditional
+Maximization (ECM) algorithm.
+
+## Usage
+
+``` r
+TESSERA_lattice(
+  TESSERAData_obj,
+  gene_name,
+  model_type = "Leroux",
+  em_iters = 200,
+  opt_iters = 5,
+  em_min_iters = 15,
+  em_tol = 0.001,
+  em_stopping = NULL,
+  beta_init = "glm",
+  gamma_init = "moran",
+  tau2_init = "var",
+  verbose = TRUE,
+  dense_matrices = FALSE
+)
+```
+
+## Arguments
+
+- TESSERAData_obj:
+
+  An object containing prepared data, typically created by
+  [`prepData`](prepData.md).
+
+- gene_name:
+
+  Character: The name of the gene/measurement (row) to fit.
+
+- model_type:
+
+  Character: The spatial model for random effects. Options are "CAR",
+  "SAR", or "Leroux".
+
+- em_iters:
+
+  Integer: Maximum number of ECM iterations.
+
+- opt_iters:
+
+  Integer: Number of inner CM steps (Conditional Maximization) per
+  iteration. The algorithm maximizes the expected likelihood for
+  \\\tau^2\\, then \\\gamma\\ for each area, and finally \\\beta\\ while
+  holding other parameters constant.
+
+- em_min_iters:
+
+  Integer: Minimum number of ECM iterations to perform before allowing
+  early stopping.
+
+- em_tol:
+
+  Numeric: Convergence tolerance for early stopping.
+
+- em_stopping:
+
+  Character: Metric used for early stopping:
+
+  - `NULL`: No early stopping.
+
+  - "abs_loglike": Absolute change in total log-likelihood.
+
+  - "rel_loglike": Relative change in total log-likelihood.
+
+  - "abs_beta_norm": Absolute \\L_2\\ norm of the change in \\\beta\\.
+
+  - "rel_beta_norm": Relative \\L_2\\ norm of the change in \\\beta\\.
+
+- beta_init:
+
+  Initial value for \\\beta\\. Options: "glm" (fit a Poisson GLM),
+  "random" (standard normal), or a numeric vector.
+
+- gamma_init:
+
+  Initial value for \\\gamma\\. Options: "moran" (absolute Moran's I of
+  residuals), "random" (standard uniform), or numeric.
+
+- tau2_init:
+
+  Initial value for \\\tau^2\\. Options: "lognormal" (approximate
+  Poisson-lognormal variance), "var" (variance of residuals), "random",
+  or numeric.
+
+- verbose:
+
+  Logical: Whether to print iteration-wise parameter updates.
+
+- dense_matrices:
+
+  Logical: If `TRUE`, treats the precision matrix \\Q\\ as dense during
+  specific E-step calculations. This increases memory usage but can
+  improve computation speed by 10 to 20 percent.
+
+## Value
+
+A list containing the following components:
+
+- **beta_hat**: Estimated fixed effect coefficients.
+
+- **gamma_hat**: Estimated spatial correlation parameters (per area).
+
+- **tau2_hat**: Estimated spatial scale parameters (per area).
+
+- **phi_hat**: Estimated spatial random effects.
+
+- **theta_hat**: Estimated Poisson rate parameters \\exp(X\beta +
+  \phi)\\.
+
+- **beta_tracker**: Matrix of \\\beta\\ estimates across iterations.
+
+- **gamma_tracker**: Matrix of \\\gamma\\ estimates across iterations.
+
+- **tau2_tracker**: Matrix of \\\tau^2\\ estimates across iterations.
+
+- **performanceSummary**: A summary data frame for each sample.
+
+- **time**: Total execution time.
+
+## Note
+
+For CAR and SAR models, ensure the adjacency structure \\W\\ contains no
+isolated points (every observation must have \\\ge 1\\ neighbor) to
+ensure invertibility.
+
+## References
+
+Meng, Xiao-Li, and Donald B. Rubin. "Maximum likelihood estimation via
+the ECM algorithm: A general framework." Biometrika 80.2 (1993):
+267-278.
+
+## Author
+
+Florica J Constantine, florica AT berkeley.edu
+
+## Examples
+
+``` r
+# Load package
+library(TESSERA)
+
+set.seed(2026)
+
+## Generate synthetic data
+
+data_list <- list()
+n_samples <- 3 #
+gamma_list <- c(0.1, 0.5, 0.9) # Spatial correlation parameter
+tau2_list <- c(2.0, 0.1, 1.0) # Spatial variance parameter
+beta_true <- c(1, 0, -1) # True fixed effects
+n_list <- c(200, 300, 400) # Number of measurements per sample
+nb_dist <- 0.05 # Distance to determine if a point is a neighbor
+for (idx in seq_len(n_samples)) {
+  data_list[[idx]] <- generate_data_one_area(
+    n_points = n_list[idx],
+    nb_dist = nb_dist,
+    model_type = "Leroux",
+    beta_true = beta_true,
+    gamma_true = gamma_list[idx],
+    tau2_true = tau2_list[idx]
+  )
+}
+
+## Prepare for TESSERA
+
+# This is how you'd go about preparing data manually
+# See the prepData for a much more streamlined workflow with 
+# a SpatialExperiment object
+
+# Count matrix: one gene per row
+count_matrix <- matrix(Reduce(c, sapply(data_list, function (x) {
+  x$z
+})), nrow = 1)
+rownames(count_matrix) <- c("example")
+colnames(count_matrix) <- 1:ncol(count_matrix)
+# Meta data
+meta_data <- data.frame(sample = Reduce(c, sapply(seq_len(n_samples), function (x) {
+  rep(x, n_list[x])
+})))
+rownames(meta_data) <- colnames(count_matrix)
+# Coordinates
+coords <- Reduce(rbind, sapply(data_list, function (x) {
+  x$coords
+}))
+rownames(coords) <- colnames(count_matrix)
+# Design matrix
+design_mat <- Reduce(rbind, sapply(data_list, function (x) {
+  x$X
+}))
+rownames(design_mat) <- colnames(count_matrix)
+# Adjacency matrix
+W <- Matrix::bdiag(sapply(data_list, function (x) {
+  x$W
+}))
+rownames(W) <- colnames(count_matrix)
+colnames(W) <- colnames(count_matrix)
+
+# Prepare data
+TESSERA_data <- prepData(
+  x = count_matrix,
+  meta_data = meta_data,
+  sample_col = "sample",
+  design_mat = design_mat,
+  coord_data = coords,
+  adj_mat = W,
+  model = "Leroux"
+)
+#> Model type: Leroux
+#> Using supplied adjacency matrix.
+#> Estimating distance threshold: 0.0904206905630113
+#> Subsetting provided adjacency matrix.
+#> Starting Leroux eigenvalue computation for area 1 at 2026-04-15 02:03:28.359992 
+#> Starting Leroux eigenvalue computation for area 2 at 2026-04-15 02:03:28.361885 
+#> Starting Leroux eigenvalue computation for area 3 at 2026-04-15 02:03:28.366564 
+
+# Optional checks for data objects
+checkInputsTESSERA(TESSERA_data)
+checkInputsTESSERAspNNGP(TESSERA_data)
+
+## Fit models
+
+# Note: In these examples we only run 2 iterations with 1 inner CM iteration.
+# In practice, more iterations are needed.
+suppressMessages(suppressWarnings({
+  # Run TESSERA with a Leroux (lattice) model
+  TESSERA_out_Leroux <- TESSERA_lattice(
+    TESSERAData_obj = TESSERA_data,
+    gene_name = "example",
+    model_type = "Leroux",
+    em_iters = 2,
+    opt_iters = 1,
+    verbose = FALSE
+  )
+  
+  # Run TESSERA with a spNNGP (sparse Gaussian kernel) model
+  TESSERA_out_spNNGP <- TESSERA_spNNGP(
+    TESSERAData_obj = TESSERA_data,
+    gene_name = "example",
+    cov_type = "Mat",
+    em_iters = 2,
+    opt_iters = 1,
+    verbose = FALSE
+  )
+}))
+
+## Inference
+
+# To get Wald statistics
+waldTestStastics(TESSERAOutput_obj = TESSERA_out_Leroux,
+                 contrast_mat = matrix(c(1, 0, 0), nrow = 1))
+#>      gene fit_model kernel_type contrast_string contrast_indices contrast_val
+#> 1 example    Leroux          NA        1*+0*+0*                1     1.021903
+#>   contrast_se wald_stat_t
+#> 1  0.05245812    19.48037
+
+## Resampling / parametric data generation
+
+# Resample the data using the same coordinates and covariates
+# but with the fitted parameters
+TESSERA_resampled_data <- prepSynthData(
+  TESSERAData_obj = TESSERA_data,
+  gene_list = "example",
+  data_gen_model = "Leroux",
+  tau2_true = TESSERA_out_Leroux$tau2_hat,
+  gamma_true = TESSERA_out_Leroux$gamma_hat,
+  beta_true = TESSERA_out_Leroux$beta_hat
+)$new_TESSERAData_obj
+# Refit on the synthetically generated data
+# Note: In these examples we only run 2 iterations with 1 inner CM iteration.
+# In practice, more iterations are needed.
+suppressMessages(suppressWarnings({
+  TESSERA_out_Leroux <- TESSERA_lattice(
+    TESSERAData_obj = TESSERA_resampled_data,
+    gene_name = "example",
+    model_type = "Leroux",
+    em_iters = 2,
+    opt_iters = 1,
+    verbose = FALSE
+  )
+}))
+```
