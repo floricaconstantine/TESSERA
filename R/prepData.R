@@ -63,7 +63,22 @@
 #'
 #' @export
 #'
-#' @example inst/examples/gen_data_and_run.R
+#' @examples
+#' # Locate the raw data in inst/extdata
+#' rds_path <- system.file("extdata", "example_raw_data.rds", package = "TESSERA")
+#' # Load the raw data list
+#' raw_data <- readRDS(rds_path)
+#'
+#' # Prepare data
+#' TESSERA_data <- prepData(
+#'   x = raw_data$count_matrix,
+#'   meta_data = raw_data$meta_data,
+#'   sample_col = "sample",
+#'   design_mat = raw_data$design_mat,
+#'   coord_data = raw_data$coords,
+#'   adj_mat = raw_data$W,
+#'   model_type = "Leroux"
+#' )
 methods::setGeneric("prepData", function(x, ...) {
   standardGeneric("prepData")
 })
@@ -74,7 +89,7 @@ methods::setMethod(
   signature = signature(x = "ANY"),
   definition = function(x,
                         meta_data,
-                        sample_col,
+                        sample_col = "sample_id",
                         design_formula = NULL,
                         design_mat = NULL,
                         coord_data = NULL,
@@ -129,7 +144,7 @@ methods::setMethod(
     }
     
     # Sample names
-    sample_names <- unique(meta_data[, sample_col])
+    sample_names <- unique(meta_data[[sample_col]])
     # Gene names
     gene_names <- rownames(count_matrix)
     
@@ -176,7 +191,7 @@ methods::setMethod(
     # Extract the counts and library sizes for each sample
     for (samp in sample_names) {
       # Indices for cells in sample
-      idx_local <- which(meta_data[, sample_col] == samp)
+      idx_local <- which(meta_data[[sample_col]] == samp)
       cell_names_local <- rownames(meta_data)[idx_local]
       
       # Coordinates
@@ -186,7 +201,7 @@ methods::setMethod(
       }
       
       # Covariates
-      covariates_list[[1 + length(covariates_list)]] <- meta_data[idx_local, ]
+      covariates_list[[1 + length(covariates_list)]] <- meta_data[idx_local, , drop = FALSE]
       
       # Counts and library size
       counts_list[[1 + length(counts_list)]] <- count_matrix[, idx_local, drop =
@@ -439,7 +454,7 @@ methods::setMethod(
   f = "prepData",
   signature = signature(x = "SpatialExperiment"),
   definition = function(x,
-                        sample_col,
+                        sample_col = "sample_id",
                         design_formula = NULL,
                         design_mat = NULL,
                         model_type = "Leroux",

@@ -74,7 +74,23 @@
 #' @useDynLib TESSERA
 #' @export
 #' 
-#' @example inst/examples/gen_data_and_run.R
+#' @examples
+#' # Locate the prepped TESSERAData object in inst/extdata
+#' rds_path <- system.file("extdata", "example_prepData.rds", package = "TESSERA")
+#' # Load the TESSERAData object
+#' TESSERA_data <- readRDS(rds_path)
+#'
+#' # Fit the Poisson generalized spatial linear model
+#' TESSERA_out_Leroux <- suppressMessages(suppressWarnings(
+#'   TESSERA_lattice(
+#'     TESSERAData_obj = TESSERA_data,
+#'     gene_name = "example",
+#'     model_type = "Leroux",
+#'     em_iters = 2,
+#'     opt_iters = 1,
+#'     verbose = FALSE
+#'   )
+#' ))
 TESSERA_lattice <- function(TESSERAData_obj,
                             gene_name,
                             model_type = "Leroux",
@@ -772,7 +788,14 @@ TESSERA_lattice <- function(TESSERAData_obj,
 #'
 #' @export
 #'
-#' @example inst/examples/gen_data_and_run.R
+#' @examples
+#' # Locate the prepped TESSERAData object in inst/extdata
+#' rds_path <- system.file("extdata", "example_prepData.rds", package = "TESSERA")
+#' # Load the TESSERAData object
+#' TESSERA_data <- readRDS(rds_path)
+#'
+#' # Validate inputs for the lattice-based TESSERA model
+#' checkInputsTESSERA(TESSERA_data)
 checkInputsTESSERA <- function (TESSERAData_obj) {
   # Check that the bare minimum is present
   stopifnot(!is.null(TESSERAData_obj$counts_list))

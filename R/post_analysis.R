@@ -206,7 +206,15 @@ summarizeTESSERAPerformance <- function(TESSERAData_obj, TESSERAOutput_obj) {
 #'
 #' @export
 #'
-#' @example inst/examples/gen_data_and_run.R
+#' @examples
+#' # Locate the saved model results in inst/extdata
+#' rds_path <- system.file("extdata", "example_TESSERA_out_Leroux.rds", package = "TESSERA")
+#' # Load the results object
+#' TESSERA_out_Leroux <- readRDS(rds_path)
+#'
+#' # Run the Wald test
+#' waldTestStastics(TESSERAOutput_obj = TESSERA_out_Leroux,
+#'                  contrast_mat = matrix(c(1, 0, 0), nrow = 1))
 waldTestStastics <- function (TESSERAOutput_obj, contrast_mat) {
   # Extract coefficients and negative hessian and check dimensions
   beta_hat <- TESSERAOutput_obj$beta_hat

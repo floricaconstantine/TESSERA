@@ -26,7 +26,7 @@ for (idx in seq_len(n_samples)) {
 ## Prepare for TESSERA
 
 # This is how you'd go about preparing data manually
-# See the prepData for a much more streamlined workflow with 
+# See the prepData for a much more streamlined workflow with
 # a SpatialExperiment object
 
 # Count matrix: one gene per row
@@ -57,6 +57,17 @@ W <- Matrix::bdiag(sapply(data_list, function (x) {
 rownames(W) <- colnames(count_matrix)
 colnames(W) <- colnames(count_matrix)
 
+saveRDS(
+  list(
+    count_matrix = count_matrix,
+    meta_data = meta_data,
+    design_mat = design_mat,
+    coords = coords,
+    W = W
+  ),
+  file.path("..", "extdata", "example_raw_data.rds")
+)
+
 # Prepare data
 TESSERA_data <- prepData(
   x = count_matrix,
@@ -68,9 +79,13 @@ TESSERA_data <- prepData(
   model = "Leroux"
 )
 
+saveRDS(TESSERA_data,
+        file.path("..", "extdata", "example_prepData.rds"))
+
 # Optional checks for data objects
 checkInputsTESSERA(TESSERA_data)
 checkInputsTESSERAspNNGP(TESSERA_data)
+
 
 ## Fit models
 
@@ -98,11 +113,16 @@ suppressMessages(suppressWarnings({
   )
 }))
 
+saveRDS(TESSERA_out_Leroux,
+        file.path("..", "extdata", "example_TESSERA_out_Leroux.rds"))
+
+
 ## Inference
 
 # To get Wald statistics
 waldTestStastics(TESSERAOutput_obj = TESSERA_out_Leroux,
                  contrast_mat = matrix(c(1, 0, 0), nrow = 1))
+
 
 ## Resampling / parametric data generation
 

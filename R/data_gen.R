@@ -662,7 +662,26 @@ sample_Poisson_spNNGP <- function(cov_type,
 #'
 #' @export
 #'
-#' @example inst/examples/gen_data_and_run.R
+#' @examples
+#' # Locate the prepped TESSERAData object in inst/extdata
+#' rds_path <- system.file("extdata", "example_prepData.rds", package = "TESSERA")
+#' # Load the TESSERAData object
+#' TESSERA_data <- readRDS(rds_path)
+#' 
+#' #' # Locate the saved model results in inst/extdata
+#' rds_path <- system.file("extdata", "example_TESSERA_out_Leroux.rds", package = "TESSERA")
+#' # Load the results object
+#' TESSERA_out_Leroux <- readRDS(rds_path)
+#'
+#' # Run the synthetic data generation
+#' TESSERA_resampled_data <- prepSynthData(
+#'   TESSERAData_obj = TESSERA_data,
+#'   gene_list = "example",
+#'   data_gen_model = "Leroux",
+#'   tau2_true = TESSERA_out_Leroux$tau2_hat,
+#'   gamma_true = TESSERA_out_Leroux$gamma_hat,
+#'   beta_true = TESSERA_out_Leroux$beta_hat
+#' )$new_TESSERAData_obj
 prepSynthData <- function(TESSERAData_obj,
                           gene_list,
                           data_gen_model,

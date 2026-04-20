@@ -80,7 +80,23 @@
 #' @useDynLib TESSERA
 #' @export
 #' 
-#' @example inst/examples/gen_data_and_run.R
+#' @examples
+#' # Locate the prepped TESSERAData object in inst/extdata
+#' rds_path <- system.file("extdata", "example_prepData.rds", package = "TESSERA")
+#' # Load the TESSERAData object
+#' TESSERA_data <- readRDS(rds_path)
+#'
+#' # Fit the Poisson generalized spatial linear model using spNNGP
+#' TESSERA_out_spNNGP <- suppressMessages(suppressWarnings(
+#'   TESSERA_spNNGP(
+#'     TESSERAData_obj = TESSERA_data,
+#'     gene_name = "example",
+#'     cov_type = "Mat",
+#'     em_iters = 2,
+#'     opt_iters = 1,
+#'     verbose = FALSE
+#'   )
+#' ))
 TESSERA_spNNGP <- function(TESSERAData_obj,
                            gene_name,
                            cov_type = "Exp",
@@ -573,7 +589,14 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
 #'
 #' @export
 #'
-#' @example inst/examples/gen_data_and_run.R
+#' @examples
+#' # Locate the prepped TESSERAData object in inst/extdata
+#' rds_path <- system.file("extdata", "example_prepData.rds", package = "TESSERA")
+#' # Load the TESSERAData object
+#' TESSERA_data <- readRDS(rds_path)
+#'
+#' # Validate inputs for the spNNGP-based TESSERA model
+#' checkInputsTESSERAspNNGP(TESSERA_data)
 checkInputsTESSERAspNNGP <- function (TESSERAData_obj) {
   # Check that the bare minimum is present
   stopifnot(!is.null(TESSERAData_obj$counts_list))
