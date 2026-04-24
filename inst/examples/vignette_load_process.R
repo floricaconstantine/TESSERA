@@ -117,8 +117,8 @@ stopifnot(Matrix::rankMatrix(X_mat)[1] == ncol(X_mat))
 
 # Prepare data for the TESSERA package
 # Simple design: Look at annotated region in v. out
-TESSERA_data <- TESSERA::prepDataSpatialExperiment(
-  spDataObject = spe,
+TESSERA_data <- TESSERA::prep_data(
+  x = spe,
   sample_col = sample_col,
   design_mat = X_mat,
   model_type = "Leroux",

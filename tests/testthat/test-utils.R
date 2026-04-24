@@ -48,24 +48,25 @@ test_that("variables_from_list instantiates variables in the target environment"
             expect_equal(test_env$gamma, c(1, 2, 3))
           })
 
-# --- sparseDist & sparseDist_LT ---
-test_that("sparseDist functions return correct dimensions and distances", {
-  # Coordinates for a 3-4-5 triangle
-  # A(0,0), B(3,0), C(0,4)
-  coords <- matrix(c(0, 0, 3, 0, 0, 4), nrow = 3, byrow = TRUE)
-  k <- 1
-  
-  # sparseDist (Upper Triangular)
-  res_ut <- sparseDist(coords, k)
-  expect_equal(dim(res_ut), c(2 * k, 2))
-  
-  # Use as.numeric() to drop the "d1" name attribute
-  expect_equal(as.numeric(res_ut[1, 1]), 3)
-  
-  # sparseDist_LT (Lower Triangular)
-  res_lt <- sparseDist_LT(coords, k)
-  expect_equal(dim(res_lt), c(2 * k, 2))
-  
-  # Use as.numeric() to drop the "d1" name attribute
-  expect_equal(as.numeric(res_lt[1, 2]), 4)
-})
+# --- sparse_dist & sparse_dist_LT ---
+test_that("sparse_dist functions return correct dimensions and distances",
+          {
+            # Coordinates for a 3-4-5 triangle
+            # A(0,0), B(3,0), C(0,4)
+            coords <- matrix(c(0, 0, 3, 0, 0, 4), nrow = 3, byrow = TRUE)
+            k <- 1
+            
+            # sparse_dist (Upper Triangular)
+            res_ut <- sparse_dist(coords, k)
+            expect_equal(dim(res_ut), c(2 * k, 2))
+            
+            # Use as.numeric() to drop the "d1" name attribute
+            expect_equal(as.numeric(res_ut[1, 1]), 3)
+            
+            # sparse_dist_LT (Lower Triangular)
+            res_lt <- sparse_dist_LT(coords, k)
+            expect_equal(dim(res_lt), c(2 * k, 2))
+            
+            # Use as.numeric() to drop the "d1" name attribute
+            expect_equal(as.numeric(res_lt[1, 2]), 4)
+          })

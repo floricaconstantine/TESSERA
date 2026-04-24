@@ -7,26 +7,26 @@
 
 #' Fit Multi-Sample Poisson Spatial GLMM via spNNGP
 #'
-#' Fits a multi-sample Poisson spatial generalized linear mixed model (GLMM) 
-#' using a shared set of fixed effects across all samples while permitting 
-#' sample-specific spatial random effects modeled via a Sparse Nearest Neighbor 
-#' Gaussian Process (spNNGP). Supports Exponential, Matern, Gaussian, and 
+#' Fits a multi-sample Poisson spatial generalized linear mixed model (GLMM)
+#' using a shared set of fixed effects across all samples while permitting
+#' sample-specific spatial random effects modeled via a Sparse Nearest Neighbor
+#' Gaussian Process (spNNGP). Supports Exponential, Matern, Gaussian, and
 #' Spherical covariance kernels.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param TESSERAData_obj An object containing prepared data, typically 
-#'   created by \code{\link{prepData}}.
+#' @param TESSERAData_obj An object containing prepared data, typically
+#'   created by \code{\link{prep_data}}.
 #' @param gene_name Character: The name of the gene/measurement (row) to fit.
-#' @param cov_type Character: The covariance kernel for the Gaussian process. 
+#' @param cov_type Character: The covariance kernel for the Gaussian process.
 #'   Options are "Exp", "Mat", "Gau", and "Sph".
-#' @param nngp_k Integer: The number of nearest neighbors to use for the 
+#' @param nngp_k Integer: The number of nearest neighbors to use for the
 #'   spNNGP kernel approximation.
 #' @param em_iters Integer: Maximum number of ECM iterations.
-#' @param opt_iters Integer: Number of inner CM steps (Conditional Maximization) 
-#'   per iteration. The algorithm maximizes the expected likelihood for 
+#' @param opt_iters Integer: Number of inner CM steps (Conditional Maximization)
+#'   per iteration. The algorithm maximizes the expected likelihood for
 #'   the covariance parameters, then \eqn{\beta}, holding other parameters constant.
-#' @param em_min_iters Integer: Minimum number of ECM iterations to perform 
+#' @param em_min_iters Integer: Minimum number of ECM iterations to perform
 #'   before allowing early stopping.
 #' @param em_tol Numeric: Convergence tolerance for early stopping.
 #' @param em_stopping Character: Metric used for early stopping:
@@ -37,33 +37,33 @@
 #'   \item "abs_beta_norm": Absolute \eqn{L_2} norm of the change in \eqn{\beta}.
 #'   \item "rel_beta_norm": Relative \eqn{L_2} norm of the change in \eqn{\beta}.
 #' }
-#' @param beta_init Initial value for \eqn{\beta}. Options: "glm" (fit a Poisson GLM), 
+#' @param beta_init Initial value for \eqn{\beta}. Options: "glm" (fit a Poisson GLM),
 #'   "random" (standard normal), or a numeric vector.
-#' @param cov_init Method for initializing covariance parameters. Options: 
-#'   "BRISC" (calls BRISC on residuals), "variogram" (initializes via empirical 
+#' @param cov_init Method for initializing covariance parameters. Options:
+#'   "BRISC" (calls BRISC on residuals), "variogram" (initializes via empirical
 #'   variogram), or a numeric vector/matrix.
-#' @param cov_fit_method Character: The method used for the M-step update 
+#' @param cov_fit_method Character: The method used for the M-step update
 #'   of covariance parameters. Options are "BRISC" or "variogram".
 #' @param verbose Logical: Whether to print iteration-wise parameter updates.
-#' @param dense_matrices Logical: If \code{TRUE}, treats the precision matrix \eqn{Q} 
-#'   as dense during specific E-step calculations. This dramatically increases 
+#' @param dense_matrices Logical: If \code{TRUE}, treats the precision matrix \eqn{Q}
+#'   as dense during specific E-step calculations. This dramatically increases
 #'   memory usage but can lead to a 60 to 80 percent decrease in computation time.
 #'
 #' @return A list containing the following components:
 #' \itemize{
 #'   \item \strong{beta_hat}: Estimated fixed effect coefficients.
-#'   \item \strong{cov_param_hat}: Estimated spatial covariance parameters 
+#'   \item \strong{cov_param_hat}: Estimated spatial covariance parameters
 #'     (nugget, sill, range, and optionally smoothness).
 #'   \item \strong{phi_hat}: Estimated spatial random effects.
 #'   \item \strong{theta_hat}: Estimated Poisson rate parameters \eqn{exp(X\beta + \phi)}.
 #'   \item \strong{beta_tracker}: Matrix of \eqn{\beta} estimates across iterations.
-#'   \item \strong{cov_param_tracker}: Array of covariance parameter history 
+#'   \item \strong{cov_param_tracker}: Array of covariance parameter history
 #'     (areas x iterations x parameters).
 #'   \item \strong{data_log_like_tracker}: Total log-likelihood across iterations.
 #'   \item \strong{MSE_tracker}: Mean Squared Error history across iterations.
 #'   \item \strong{beta_neghessian}: Negative Hessian of the final \eqn{\beta} estimate.
-#'   \item \strong{performanceSummary}: A summary data frame for each sample; 
-#'     see \code{\link{summarizeTESSERAPerformance}}.
+#'   \item \strong{performanceSummary}: A summary data frame for each sample;
+#'     see \code{\link{summarize_TESSERA}}.
 #'   \item \strong{time}: Total execution time.
 #'   \item \strong{run_settings}: List of parameters used for the run.
 #' }
@@ -71,7 +71,7 @@
 #' @references Meng, Xiao-Li, and Donald B. Rubin. "Maximum likelihood estimation via the ECM algorithm: A general framework." Biometrika 80.2 (1993): 267-278.
 #' @references Saha, Arkajyoti, and Abhirup Datta. "BRISC: bootstrap for rapid inference on spatial covariances." Stat 7.1 (2018): e184.
 #'
-#' @note The spNNGP approach is designed for scalability in datasets where 
+#' @note The spNNGP approach is designed for scalability in datasets where
 #'   traditional lattice adjacency is difficult to define.
 #'
 #' @import Matrix
@@ -79,7 +79,7 @@
 #' @importFrom Rcpp sourceCpp evalCpp
 #' @useDynLib TESSERA
 #' @export
-#' 
+#'
 #' @examples
 #' # Locate the prepped TESSERAData object in inst/extdata
 #' rds_path <- system.file("extdata", "example_prepData.rds", package = "TESSERA")
@@ -116,7 +116,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
   t0_EM <- Sys.time()
   
   # Check inputs
-  checkInputsTESSERAspNNGP(TESSERAData_obj)
+  check_inputs_TESSERA_spNNGP(TESSERAData_obj)
   
   # Extract gene of interest and associated counts
   gene_idx <- which(rownames(TESSERAData_obj$counts_list[[1]]) == gene_name)
@@ -144,7 +144,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
   # Set up nearest neighbor tracker and associated distances
   sp_dist_list <- list()
   for (idx in 1:length(TESSERAData_obj$coords_list)) {
-    sp_dist_list[[idx]] <- sparseDist(TESSERAData_obj$coords_list[[idx]], nngp_k)
+    sp_dist_list[[idx]] <- sparse_dist(TESSERAData_obj$coords_list[[idx]], nngp_k)
   }
   
   # Store parameter estimates and track
@@ -568,7 +568,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     class = "TESSERAOutput"
   ))
   
-  out$performanceSummary <- summarizeTESSERAPerformance(TESSERAData_obj, out)
+  out$performanceSummary <- summarize_TESSERA(TESSERAData_obj, out)
   return(out)
 }
 
@@ -578,26 +578,15 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
 #' @param TESSERAData_obj Object containing data.
-#'  Created by the prepData method.
+#'  Created by the prep_data method.
 #'
 #' @note Does not return anything.
 #' @note This method can be used to check a hand-created input object.
-#'  E.g., if a user does not want to use prepData.
+#'  E.g., if a user does not want to use prep_data.
 #'
 #' @returns Nothing.
 #' @import Matrix
-#'
-#' @export
-#'
-#' @examples
-#' # Locate the prepped TESSERAData object in inst/extdata
-#' rds_path <- system.file("extdata", "example_prepData.rds", package = "TESSERA")
-#' # Load the TESSERAData object
-#' TESSERA_data <- readRDS(rds_path)
-#'
-#' # Validate inputs for the spNNGP-based TESSERA model
-#' checkInputsTESSERAspNNGP(TESSERA_data)
-checkInputsTESSERAspNNGP <- function (TESSERAData_obj) {
+check_inputs_TESSERA_spNNGP <- function (TESSERAData_obj) {
   # Check that the bare minimum is present
   stopifnot(!is.null(TESSERAData_obj$counts_list))
   stopifnot(!is.null(TESSERAData_obj$X_list))

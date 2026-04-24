@@ -43,7 +43,7 @@ Q_matrix_SAR <- function(W, D, gamma_val) {
   id_mat <- Matrix::Diagonal(dim(W)[1], 1)
   # I - gamma Z = I - gamma D^\{-1\} W
   I_gamma_Z <- id_mat - ((gamma_val * D_inv) %*% W)
-
+  
   # (I - gamma Z)^\top D (I - gamma Z)
   return((t(I_gamma_Z) %*% D) %*% I_gamma_Z)
 }
@@ -67,7 +67,7 @@ Q_matrix_SAR <- function(W, D, gamma_val) {
 Q_matrix_Leroux <- function(W, D, gamma_val) {
   # Identity matrix
   id_mat <- Matrix::Diagonal(dim(W)[1], 1)
-
+  
   # gamma (D - W) + (1 - gamma) I
   return(gamma_val * (D - W) + (1 - gamma_val) * id_mat)
 }
@@ -98,7 +98,7 @@ Q_matrix_Leroux <- function(W, D, gamma_val) {
 neg_hessian_beta <- function(Q_list, tau2_list, X_list) {
   # Dimension of beta
   n_dim <- ncol(X_list[[1]])
-
+  
   # Create empty matrix
   B <- matrix(0, nrow = n_dim, ncol = n_dim)
   for (idx in 1:length(Q_list)) {
@@ -127,19 +127,19 @@ neg_hessian_beta <- function(Q_list, tau2_list, X_list) {
 neg_hessian_tau2 <- function(Vhat, eta_hat, Q, tau2_hat, beta_hat, X) {
   # eta - X beta
   vector_term <- eta_hat - (X %*% beta_hat)
-
+  
   # (eta - X beta)^\top Q (eta - X beta)
   # term1 <- as.numeric((t(vector_term) %*% Q) %*% vector_term)
   # Speed
   term1 <- as.numeric(crossprod(Q %*% vector_term, vector_term))
-
+  
   # Trace[Q V]
   # term2 <- sum(diag(Q %*% Vhat))
   # Trace tricks: Tr(A B) = <vec(A), vec(B^T)>
   # Faster for sparse Q
   term2 <- sum(Q * t(Vhat))
   # term2 <- crossprod(as.vector(Q), as.vector(t(Vhat)))
-
+  
   return((term1 + term2) / (tau2_hat^3) - (0.5 * nrow(X)) / (tau2_hat^2))
 }
 
@@ -198,20 +198,20 @@ neg_hessian_gamma_SAR <- function(Vhat,
   eig_term <- sum((eig_vals / (1.0 - (
     gamma_hat * eig_vals
   )))^2)
-
+  
   # D^\{-1\}
   D_inv <-
     Matrix::Diagonal(dim(W)[1], 1 / Matrix::diag(D))
   # Z = D^\{-1\} W
   Z <- D_inv %*% W
-
+  
   # eta - X beta
   vector_term <- eta_hat - (X %*% beta_hat)
-
+  
   # (eta - X beta)^\top W Z (eta - X beta)
   # zeta2 <- as.numeric((t(vector_term) %*% W) %*% (Z %*% vector_term))
   zeta2 <- as.numeric(crossprod(W %*% vector_term, Z %*% vector_term))
-
+  
   # Tr[W Z V]
   # zeta4 <- sum(diag((W %*% Z) %*% Vhat))
   # Trace tricks: Tr(A B) = <vec(A), vec(B^T)>
@@ -220,7 +220,7 @@ neg_hessian_gamma_SAR <- function(Vhat,
   zeta4 <- sum(W * t(Z %*% Vhat))
   # An even faster method
   # zeta4 <- crossprod(as.vector(W), as.vector(t(Z %*% Vhat)))
-
+  
   return(eig_term + (zeta2 + zeta4) / tau2)
 }
 
@@ -281,14 +281,14 @@ expected_loglike <- function(Vhat,
                              model_type) {
   # (-n / 2) log tau^2
   term1 <- (-0.5 * nrow(X)) * log(tau2)
-
+  
   # eta - X beta
   vector_term <- eta_hat - (X %*% beta_hat)
   # (eta - X beta)^\top Q (eta - X beta)
   term3 <- as.numeric(crossprod(Q %*% vector_term, vector_term))
   # (-1/2 tau^2) x above
   term3 <- (-0.5 / tau2) * term3
-
+  
   # Trace[Q V]
   # Trace tricks: Tr(A B) = <vec(A), vec(B^T)>
   # For sparse Q this is actually faster than crossprod?
@@ -296,7 +296,7 @@ expected_loglike <- function(Vhat,
   # term4 <- crossprod(as.vector(Q), as.vector(t(Vhat)))
   # (-1/2 tau^2) x above
   term4 <- (-0.5 / tau2) * term4
-
+  
   # (1/2) log det Q
   # CAR: Q = D - gamma W = D[I - gamma Z]
   # Log det Q = log det D + log det[I - gamma Z]
@@ -331,7 +331,7 @@ expected_loglike <- function(Vhat,
   else {
     stop("Invalid model_type")
   }
-
+  
   return(term1 + term2 + term3 + term4)
 }
 
@@ -350,10 +350,10 @@ expected_loglike <- function(Vhat,
 #' @param nu (kappa) Order of kernel.
 #'
 #' @returns A vector of covariance values.
-kernel.matern <- function(d, sigma2, rho, nu) {
+kernel_matern <- function(d, sigma2, rho, nu) {
   # Scaled distance
   z <- (sqrt(2.0 * nu) / rho) * abs(d)
-
+  
   # sigma^2 2^(1 - nu) / gamma(nu), but logged
   constant_term <- log(sigma2) + (1.0 - nu) * log(2.0) - lgamma(nu)
   # z^nu but logged
@@ -361,7 +361,7 @@ kernel.matern <- function(d, sigma2, rho, nu) {
   # Exponentiate to undo log and multiple with Bessel
   result <- exp(constant_term + z_term) * besselK(z, nu)
   result[d == 0.0] <- sigma2 # Handle zero distances
-
+  
   return(result)
 }
 
@@ -376,7 +376,7 @@ kernel.matern <- function(d, sigma2, rho, nu) {
 #' @param rho Range parameter.
 #'
 #' @returns A vector of covariance values.
-kernel.exp <- function(d, sigma2, rho) {
+kernel_exp <- function(d, sigma2, rho) {
   return(sigma2 * exp(-abs(d / rho)))
 }
 
@@ -391,7 +391,7 @@ kernel.exp <- function(d, sigma2, rho) {
 #' @param rho Range parameter.
 #'
 #' @returns A vector of covariance values.
-kernel.gauss <- function(d, sigma2, rho) {
+kernel_gauss <- function(d, sigma2, rho) {
   return(sigma2 * exp(-0.5 * (d / rho)^2))
 }
 
@@ -406,16 +406,16 @@ kernel.gauss <- function(d, sigma2, rho) {
 #' @param rho Range parameter.
 #'
 #' @returns A vector of covariance values.
-kernel.sph <- function(d, sigma2, rho) {
+kernel_sph <- function(d, sigma2, rho) {
   # Scaled distance values
   z <- abs(d / rho)
   # Cap at 1.0
   z <- pmin(z, 1)
-
+  
   # 1 - (3/2) z + (1/2) z^3
   result <- 1.0 - 1.5 * z + 0.5 * z^3
   result <- sigma2 * result
-
+  
   return(result)
 }
 
@@ -426,7 +426,7 @@ kernel.sph <- function(d, sigma2, rho) {
 #'
 #' @note Applies to a single area.
 #'
-#' @param sp_dist Output of sparseDist_LT function.
+#' @param sp_dist Output of sparse_dist_LT function.
 #'  Basically, top few rows are nearest distances, bottom few rows are indices.
 #'  CALL THAT FUNCTION OR SEE IT FOR MORE DETAILS.
 #' @param coords Matrix (x, y) of coordinates.
@@ -452,7 +452,7 @@ kernel.sph <- function(d, sigma2, rho) {
 nngp_prec_mat <- function(sp_dist, coords, cov_type, cov_params) {
   # Assumed format of sp_dist
   nngp_k <- nrow(sp_dist) / 2
-
+  
   # Entries of lower triangular matrix A
   A_col <- list()
   A_row <- list()
@@ -465,48 +465,48 @@ nngp_prec_mat <- function(sp_dist, coords, cov_type, cov_params) {
     if (0 == length(keep_idx)) {
       next
     }
-
+    
     # C(point, neighbors) vector
     cov_nb <- sp_dist[keep_idx, idx] # Extract distances
     # C(neighbors, neighbors) matrix
     if (1 < length(keep_idx)) {
       cov_nb_mat <- as.matrix(stats::dist(coords[sp_dist[nngp_k + keep_idx, idx], ], diag =
-                                     TRUE, upper = TRUE))
+                                            TRUE, upper = TRUE))
     } else {
       cov_nb_mat <- as.matrix(0.0)
     }
-
+    
     # Call spatial covariance functions
     if ("Mat" == cov_type) {
-      cov_nb <- kernel.matern(cov_nb, cov_params[2], cov_params[3], cov_params[4])
-      cov_nb_mat <- kernel.matern(cov_nb_mat, cov_params[2], cov_params[3], cov_params[4])
+      cov_nb <- kernel_matern(cov_nb, cov_params[2], cov_params[3], cov_params[4])
+      cov_nb_mat <- kernel_matern(cov_nb_mat, cov_params[2], cov_params[3], cov_params[4])
     } else if ("Exp" == cov_type) {
-      cov_nb <- kernel.exp(cov_nb, cov_params[2], cov_params[3])
-      cov_nb_mat <- kernel.exp(cov_nb_mat, cov_params[2], cov_params[3])
+      cov_nb <- kernel_exp(cov_nb, cov_params[2], cov_params[3])
+      cov_nb_mat <- kernel_exp(cov_nb_mat, cov_params[2], cov_params[3])
     } else if ("Gau" == cov_type) {
-      cov_nb <- kernel.gauss(cov_nb, cov_params[2], cov_params[3])
-      cov_nb_mat <- kernel.gauss(cov_nb_mat, cov_params[2], cov_params[3])
+      cov_nb <- kernel_gauss(cov_nb, cov_params[2], cov_params[3])
+      cov_nb_mat <- kernel_gauss(cov_nb_mat, cov_params[2], cov_params[3])
     } else if ("Sph" == cov_type) {
-      cov_nb <- kernel.sph(cov_nb, cov_params[2], cov_params[3])
-      cov_nb_mat <- kernel.sph(cov_nb_mat, cov_params[2], cov_params[3])
+      cov_nb <- kernel_sph(cov_nb, cov_params[2], cov_params[3])
+      cov_nb_mat <- kernel_sph(cov_nb_mat, cov_params[2], cov_params[3])
     } else {
       stop("Invalid or unimplemented covariance structure.")
     }
-
+    
     # (C(nb, nb) + tau^2)^{-1} C(point, nb)
     vector_term <- Matrix::solve(cov_nb_mat + diag(cov_params[1], length(cov_nb)), cov_nb)
-
+    
     # Store elements in A
     A_row[[idx]] <- rep(idx + 1, length(keep_idx))
     A_col[[idx]] <- sp_dist[nngp_k + keep_idx, idx]
     A_val[[idx]] <- as.vector(vector_term)
-
+    
     # D: C(point, point) + tau^2 - C(point, nb)^\top (C(nb, nb) + tau^2)^{-1} C(point, nb)
     Dinv_val[idx] <- 1.0 / (cov_params[1] + cov_params[2] - crossprod(cov_nb, vector_term))
   }
   # Add last point
   Dinv_val[length(Dinv_val)] <- 1.0 / (cov_params[1] + cov_params[2])
-
+  
   # Create lower triangular matrix A
   A_col <- unlist(A_col)
   A_row <- unlist(A_row)
@@ -518,13 +518,13 @@ nngp_prec_mat <- function(sp_dist, coords, cov_type, cov_params) {
     dims = 1 + c(ncol(sp_dist), ncol(sp_dist)),
     triangular = TRUE
   )
-
+  
   # Identity matrix
   id_mat <- Matrix::Diagonal(dim(A_mat)[1], 1)
-
+  
   # (I - A)^\top D^\{-1\} (I - A)
   Q <- crossprod(id_mat - A_mat,
                  Matrix::Diagonal(length(Dinv_val), Dinv_val) %*% (id_mat - A_mat))
-
+  
   return(list(Q = Q, Dinv = Dinv_val, A = A_mat))
 }

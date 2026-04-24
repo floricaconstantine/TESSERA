@@ -37,18 +37,18 @@ names(mock_output$beta_hat) <- c("intercept", "treatment")
 
 # --- Tests ---
 
-test_that("summarizeTESSERAPerformance aggregates metrics correctly", {
+test_that("summarize_TESSERA aggregates metrics correctly", {
   # suppressMessages silences internal Moran's I logs
-  res <- suppressMessages(summarizeTESSERAPerformance(mock_data, mock_output))
+  res <- suppressMessages(summarize_TESSERA(mock_data, mock_output))
   
   expect_s3_class(res, "data.frame")
   expect_equal(nrow(res), 1)
   expect_true("Moran_phi" %in% colnames(res))
 })
 
-test_that("waldTestStastics computes correct dimensions", {
+test_that("calc_Wald_statistics computes correct dimensions", {
   contrast <- matrix(c(0, 1), nrow = 1)
-  res <- waldTestStastics(mock_output, contrast)
+  res <- calc_Wald_statistics(mock_output, contrast)
   
   expect_s3_class(res, "data.frame")
   # Use as.numeric to strip the 'treatment' name coming from beta_hat
@@ -58,15 +58,15 @@ test_that("waldTestStastics computes correct dimensions", {
   )
 })
 
-test_that("inversePrecisionMatrixWald handles singular matrices", {
+test_that("invert_precision_matrix handles singular matrices", {
   A_good <- matrix(c(2, 0, 0, 2), 2, 2)
-  expect_silent(inversePrecisionMatrixWald(A_good))
+  expect_silent(invert_precision_matrix(A_good))
   
   # When A is all zeros, solve() fails (Warning 1), then pinv() succeeds.
   # We catch the first warning that actually fires.
   A_bad <- matrix(0, 2, 2)
   expect_warning(
-    inversePrecisionMatrixWald(A_bad),
+    invert_precision_matrix(A_bad),
     "INVERSION.*FAILED" # Regex match to handle potential newlines
   )
 })
@@ -78,27 +78,25 @@ test_that("fit_scaled_noncentral_chi2 handles insufficient data", {
   expect_true(all(is.na(res)))
 })
 
-test_that("selectWaldStatisticThreshold identifies an optimal threshold",
-          {
-            # Large dataset to ensure the optimizer converges and doesn't spam NaNs
-            null_stats <- 2 * stats::rchisq(200, df = 1, ncp = 2)
-            signal_stats <- stats::rchisq(50, df = 1, ncp = 50)
-            wald_all <- c(null_stats, signal_stats)
-            
-            # Silence numerical warnings from the optimizer during threshold search
-            res <- suppressWarnings(selectWaldStatisticThreshold(wald_all, quantile_spacing = 0.2))
-            
-            expect_named(res, c("threshold", "chi2_params", "threshold_results"))
-            expect_gt(res$threshold, 0)
-          })
-
-test_that("waldStatisticPValuesThreshold computes p-values properly", {
-  # Stats vector must have >10 points below threshold to satisfy fit_scaled_noncentral_chi2[source: 6]
-  stats <- c(stats::rchisq(15, 1, ncp = 2), 100, 200)
-  pvals <- waldStatisticPValuesThreshold(stats, threshold = 50)
+test_that("select_Wald_threshold identifies an optimal threshold", {
+  # Large dataset to ensure the optimizer converges and doesn't spam NaNs
+  null_stats <- 2 * stats::rchisq(200, df = 1, ncp = 2)
+  signal_stats <- stats::rchisq(50, df = 1, ncp = 50)
+  wald_all <- c(null_stats, signal_stats)
   
-  expect_length(pvals, 17)
-  expect_true(all(pvals >= 0 & pvals <= 1, na.rm = TRUE))
+  # Silence numerical warnings from the optimizer during threshold search
+  res <- suppressWarnings(select_Wald_threshold(wald_all, quantile_spacing = 0.2))
+  
+  expect_named(res, c("threshold", "chi2_params", "threshold_results"))
+  expect_gt(res$threshold, 0)
 })
 
-
+test_that("calc_Wald_pvalue_from_threshold computes p-values properly",
+          {
+            # Stats vector must have >10 points below threshold to satisfy fit_scaled_noncentral_chi2[source: 6]
+            stats <- c(stats::rchisq(15, 1, ncp = 2), 100, 200)
+            pvals <- calc_Wald_pvalue_from_threshold(stats, threshold = 50)
+            
+            expect_length(pvals, 17)
+            expect_true(all(pvals >= 0 & pvals <= 1, na.rm = TRUE))
+          })

@@ -1,3 +1,5 @@
+## Script to generate data for runnable examples. 
+
 # Load package
 library(TESSERA)
 
@@ -69,7 +71,7 @@ saveRDS(
 )
 
 # Prepare data
-TESSERA_data <- prepData(
+TESSERA_data <- prep_data(
   x = count_matrix,
   meta_data = meta_data,
   sample_col = "sample",
@@ -81,10 +83,6 @@ TESSERA_data <- prepData(
 
 saveRDS(TESSERA_data,
         file.path("..", "extdata", "example_prepData.rds"))
-
-# Optional checks for data objects
-checkInputsTESSERA(TESSERA_data)
-checkInputsTESSERAspNNGP(TESSERA_data)
 
 
 ## Fit models
@@ -120,15 +118,15 @@ saveRDS(TESSERA_out_Leroux,
 ## Inference
 
 # To get Wald statistics
-waldTestStastics(TESSERAOutput_obj = TESSERA_out_Leroux,
-                 contrast_mat = matrix(c(1, 0, 0), nrow = 1))
+calc_Wald_statistics(TESSERAOutput_obj = TESSERA_out_Leroux,
+                     contrast_mat = matrix(c(1, 0, 0), nrow = 1))
 
 
 ## Resampling / parametric data generation
 
 # Resample the data using the same coordinates and covariates
 # but with the fitted parameters
-TESSERA_resampled_data <- prepSynthData(
+TESSERA_resampled_data <- prep_synth_data(
   TESSERAData_obj = TESSERA_data,
   gene_list = "example",
   data_gen_model = "Leroux",

@@ -7,25 +7,25 @@
 
 #' Fit Multi-Sample Poisson Spatial GLMM via ECM Algorithm
 #'
-#' Fits a multi-sample Poisson spatial generalized linear mixed model (GLMM) 
-#' using a shared set of fixed effects across all samples while permitting 
-#' sample-specific spatial random effects (CAR, SAR, or Leroux). Parameter 
-#' estimation is performed via an Expectation-Conditional Maximization (ECM) 
+#' Fits a multi-sample Poisson spatial generalized linear mixed model (GLMM)
+#' using a shared set of fixed effects across all samples while permitting
+#' sample-specific spatial random effects (CAR, SAR, or Leroux). Parameter
+#' estimation is performed via an Expectation-Conditional Maximization (ECM)
 #' algorithm.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param TESSERAData_obj An object containing prepared data, typically 
-#'   created by \code{\link{prepData}}.
+#' @param TESSERAData_obj An object containing prepared data, typically
+#'   created by \code{\link{prep_data}}.
 #' @param gene_name Character: The name of the gene/measurement (row) to fit.
-#' @param model_type Character: The spatial model for random effects. 
+#' @param model_type Character: The spatial model for random effects.
 #'   Options are "CAR", "SAR", or "Leroux".
 #' @param em_iters Integer: Maximum number of ECM iterations.
-#' @param opt_iters Integer: Number of inner CM steps (Conditional Maximization) 
-#'   per iteration. The algorithm maximizes the expected likelihood for 
-#'   \eqn{\tau^2}, then \eqn{\gamma} for each area, and finally \eqn{\beta} while 
+#' @param opt_iters Integer: Number of inner CM steps (Conditional Maximization)
+#'   per iteration. The algorithm maximizes the expected likelihood for
+#'   \eqn{\tau^2}, then \eqn{\gamma} for each area, and finally \eqn{\beta} while
 #'   holding other parameters constant.
-#' @param em_min_iters Integer: Minimum number of ECM iterations to perform 
+#' @param em_min_iters Integer: Minimum number of ECM iterations to perform
 #'   before allowing early stopping.
 #' @param em_tol Numeric: Convergence tolerance for early stopping.
 #' @param em_stopping Character: Metric used for early stopping:
@@ -36,16 +36,16 @@
 #'   \item "abs_beta_norm": Absolute \eqn{L_2} norm of the change in \eqn{\beta}.
 #'   \item "rel_beta_norm": Relative \eqn{L_2} norm of the change in \eqn{\beta}.
 #' }
-#' @param beta_init Initial value for \eqn{\beta}. Options: "glm" (fit a Poisson GLM), 
+#' @param beta_init Initial value for \eqn{\beta}. Options: "glm" (fit a Poisson GLM),
 #'   "random" (standard normal), or a numeric vector.
-#' @param gamma_init Initial value for \eqn{\gamma}. Options: "moran" (absolute 
+#' @param gamma_init Initial value for \eqn{\gamma}. Options: "moran" (absolute
 #'   Moran's I of residuals), "random" (standard uniform), or numeric.
-#' @param tau2_init Initial value for \eqn{\tau^2}. Options: "lognormal" (approximate 
-#'   Poisson-lognormal variance), "var" (variance of residuals), "random", 
+#' @param tau2_init Initial value for \eqn{\tau^2}. Options: "lognormal" (approximate
+#'   Poisson-lognormal variance), "var" (variance of residuals), "random",
 #'   or numeric.
 #' @param verbose Logical: Whether to print iteration-wise parameter updates.
-#' @param dense_matrices Logical: If \code{TRUE}, treats the precision matrix \eqn{Q} 
-#'   as dense during specific E-step calculations. This increases memory usage 
+#' @param dense_matrices Logical: If \code{TRUE}, treats the precision matrix \eqn{Q}
+#'   as dense during specific E-step calculations. This increases memory usage
 #'   but can improve computation speed by 10 to 20 percent.
 #'
 #' @return A list containing the following components:
@@ -64,8 +64,8 @@
 #'
 #' @references Meng, Xiao-Li, and Donald B. Rubin. "Maximum likelihood estimation via the ECM algorithm: A general framework." Biometrika 80.2 (1993): 267-278.
 #'
-#' @note For CAR and SAR models, ensure the adjacency structure \eqn{W} contains no 
-#'   isolated points (every observation must have \eqn{\ge 1} neighbor) to ensure 
+#' @note For CAR and SAR models, ensure the adjacency structure \eqn{W} contains no
+#'   isolated points (every observation must have \eqn{\ge 1} neighbor) to ensure
 #'   invertibility.
 #'
 #' @import Matrix
@@ -73,7 +73,7 @@
 #' @importFrom Rcpp sourceCpp evalCpp
 #' @useDynLib TESSERA
 #' @export
-#' 
+#'
 #' @examples
 #' # Locate the prepped TESSERAData object in inst/extdata
 #' rds_path <- system.file("extdata", "example_prepData.rds", package = "TESSERA")
@@ -108,7 +108,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
   t0_EM <- Sys.time()
   
   # Check inputs
-  checkInputsTESSERA(TESSERAData_obj)
+  check_inputs_TESSERA(TESSERAData_obj)
   
   # Extract gene of interest and associated counts
   gene_idx <- which(rownames(TESSERAData_obj$counts_list[[1]]) == gene_name)
@@ -766,7 +766,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
     class = "TESSERAOutput"
   ))
   
-  out$performanceSummary <- summarizeTESSERAPerformance(TESSERAData_obj, out)
+  out$performanceSummary <- summarize_TESSERA(TESSERAData_obj, out)
   return(out)
 }
 
@@ -776,27 +776,16 @@ TESSERA_lattice <- function(TESSERAData_obj,
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
 #' @param TESSERAData_obj Object containing data.
-#'  Created by the prepData method.
+#'  Created by the prep_data method.
 #'
 #' @note Does not return anything.
 #' @note This method can be used to check a hand-created input object.
-#'  E.g., if a user does not want to use prepData.
+#'  E.g., if a user does not want to use prep_data.
 #'
 #' @returns Nothing.
 #'
 #' @import Matrix
-#'
-#' @export
-#'
-#' @examples
-#' # Locate the prepped TESSERAData object in inst/extdata
-#' rds_path <- system.file("extdata", "example_prepData.rds", package = "TESSERA")
-#' # Load the TESSERAData object
-#' TESSERA_data <- readRDS(rds_path)
-#'
-#' # Validate inputs for the lattice-based TESSERA model
-#' checkInputsTESSERA(TESSERA_data)
-checkInputsTESSERA <- function (TESSERAData_obj) {
+check_inputs_TESSERA <- function (TESSERAData_obj) {
   # Check that the bare minimum is present
   stopifnot(!is.null(TESSERAData_obj$counts_list))
   stopifnot(!is.null(TESSERAData_obj$W_list))

@@ -70,7 +70,7 @@
 #' raw_data <- readRDS(rds_path)
 #'
 #' # Prepare data
-#' TESSERA_data <- prepData(
+#' TESSERA_data <- prep_data(
 #'   x = raw_data$count_matrix,
 #'   meta_data = raw_data$meta_data,
 #'   sample_col = "sample",
@@ -79,13 +79,13 @@
 #'   adj_mat = raw_data$W,
 #'   model_type = "Leroux"
 #' )
-methods::setGeneric("prepData", function(x, ...) {
-  standardGeneric("prepData")
+methods::setGeneric("prep_data", function(x, ...) {
+  standardGeneric("prep_data")
 })
 
-#' @rdname prepData
+#' @rdname prep_data
 methods::setMethod(
-  f = "prepData",
+  f = "prep_data",
   signature = signature(x = "ANY"),
   definition = function(x,
                         meta_data,
@@ -282,7 +282,7 @@ methods::setMethod(
     # Adjacency matrix
     # No distance threshold supplied, so we need to figure one out
     if (is.null(D_THRESH) && !is.null(expected_num_neighbors)) {
-      nb_data <- visualizeNeighborDistances(
+      nb_data <- plot_neighbor_distances(
         meta_data = meta_data,
         sample_col = sample_col,
         coord_data = coord_data,
@@ -449,9 +449,9 @@ methods::setMethod(
   }
 )
 
-#' @rdname prepData
+#' @rdname prep_data
 methods::setMethod(
-  f = "prepData",
+  f = "prep_data",
   signature = signature(x = "SpatialExperiment"),
   definition = function(x,
                         sample_col = "sample_id",
@@ -482,9 +482,9 @@ methods::setMethod(
       )
     }
     
-    # Call generic prepData (which will dispatch to ANY method)
-    message("Extracting fields and calling generic prepData function.\n")
-    TESSERA_data <- methods::selectMethod("prepData", "ANY")(
+    # Call generic prep_data (which will dispatch to ANY method)
+    message("Extracting fields and calling generic prep_data function.\n")
+    TESSERA_data <- methods::selectMethod("prep_data", "ANY")(
       x = SingleCellExperiment::counts(spDataObject),
       meta_data = data.frame(SummarizedExperiment::colData(spDataObject)),
       sample_col = sample_col,
@@ -515,10 +515,10 @@ methods::setMethod(
 #'
 #' @return A list comprised of distances and a ggplot2 visualization.
 #' @export
-visualizeNeighborDistances <- function(meta_data,
-                                       sample_col,
-                                       coord_data,
-                                       k_search = 20) {
+plot_neighbor_distances <- function(meta_data,
+                                    sample_col,
+                                    coord_data,
+                                    k_search = 20) {
   ## List of spatial coordinates for each sample
   coords_list <- lapply(unique(meta_data[, sample_col]), function (x) {
     coord_data[meta_data[, sample_col] == x, ]

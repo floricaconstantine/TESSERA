@@ -343,7 +343,7 @@ generate_data_one_area_spNNGP <- function(n_points,
   stopifnot(0 == sum(Matrix::rowSums(W) == 0))
   
   # Generate inverse precision (unscaled) of random effects
-  sp_dist <- sparseDist_LT(coords, nngp_k)
+  sp_dist <- sparse_dist_LT(coords, nngp_k)
   close_to_zero_const <- 2.0 * .Machine$double.eps
   if ((close_to_zero_const >= cov_params[1]) &&
       (close_to_zero_const >= cov_params[2])) {
@@ -573,7 +573,7 @@ sample_Poisson_spNNGP <- function(cov_type,
                                   nngp_k,
                                   beta_true) {
   # Generate inverse precision (unscaled) of random effects
-  sp_dist <- sparseDist_LT(coords, nngp_k)
+  sp_dist <- sparse_dist_LT(coords, nngp_k)
   close_to_zero_const <- 2.0 * .Machine$double.eps
   if ((close_to_zero_const >= cov_params[1]) &&
       (close_to_zero_const >= cov_params[2])) {
@@ -667,14 +667,14 @@ sample_Poisson_spNNGP <- function(cov_type,
 #' rds_path <- system.file("extdata", "example_prepData.rds", package = "TESSERA")
 #' # Load the TESSERAData object
 #' TESSERA_data <- readRDS(rds_path)
-#' 
+#'
 #' #' # Locate the saved model results in inst/extdata
 #' rds_path <- system.file("extdata", "example_TESSERA_out_Leroux.rds", package = "TESSERA")
 #' # Load the results object
 #' TESSERA_out_Leroux <- readRDS(rds_path)
 #'
 #' # Run the synthetic data generation
-#' TESSERA_resampled_data <- prepSynthData(
+#' TESSERA_resampled_data <- prep_synth_data(
 #'   TESSERAData_obj = TESSERA_data,
 #'   gene_list = "example",
 #'   data_gen_model = "Leroux",
@@ -682,22 +682,22 @@ sample_Poisson_spNNGP <- function(cov_type,
 #'   gamma_true = TESSERA_out_Leroux$gamma_hat,
 #'   beta_true = TESSERA_out_Leroux$beta_hat
 #' )$new_TESSERAData_obj
-prepSynthData <- function(TESSERAData_obj,
-                          gene_list,
-                          data_gen_model,
-                          tau2_true = NULL,
-                          gamma_true = NULL,
-                          cov_params = NULL,
-                          cov_type = NULL,
-                          nngp_k = NULL,
-                          beta_true = NULL) {
+prep_synth_data <- function(TESSERAData_obj,
+                            gene_list,
+                            data_gen_model,
+                            tau2_true = NULL,
+                            gamma_true = NULL,
+                            cov_params = NULL,
+                            cov_type = NULL,
+                            nngp_k = NULL,
+                            beta_true = NULL) {
   # Make sure object is correct/usable
   if ("spNNGP" == data_gen_model) {
-    checkInputsTESSERAspNNGP(TESSERAData_obj)
+    check_inputs_TESSERA_spNNGP(TESSERAData_obj)
   } else if (("CAR" == data_gen_model) ||
              ("SAR" == data_gen_model) ||
              ("Leroux" == data_gen_model)) {
-    checkInputsTESSERA(TESSERAData_obj)
+    check_inputs_TESSERA(TESSERAData_obj)
   } else {
     stop("Invalid data_gen_model.")
   }

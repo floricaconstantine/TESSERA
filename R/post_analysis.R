@@ -40,7 +40,7 @@
 #' @useDynLib TESSERA
 #'
 #' @export
-summarizeTESSERAPerformance <- function(TESSERAData_obj, TESSERAOutput_obj) {
+summarize_TESSERA <- function(TESSERAData_obj, TESSERAOutput_obj) {
   # Loop over samples to aggregate metrics
   inner_MSE_df <- list()
   for (s_idx in 1:length(TESSERAData_obj$coords_list)) {
@@ -213,9 +213,9 @@ summarizeTESSERAPerformance <- function(TESSERAData_obj, TESSERAOutput_obj) {
 #' TESSERA_out_Leroux <- readRDS(rds_path)
 #'
 #' # Run the Wald test
-#' waldTestStastics(TESSERAOutput_obj = TESSERA_out_Leroux,
+#' calc_Wald_statistics(TESSERAOutput_obj = TESSERA_out_Leroux,
 #'                  contrast_mat = matrix(c(1, 0, 0), nrow = 1))
-waldTestStastics <- function (TESSERAOutput_obj, contrast_mat) {
+calc_Wald_statistics <- function (TESSERAOutput_obj, contrast_mat) {
   # Extract coefficients and negative hessian and check dimensions
   beta_hat <- TESSERAOutput_obj$beta_hat
   beta_names <- names(beta_hat)
@@ -244,7 +244,7 @@ waldTestStastics <- function (TESSERAOutput_obj, contrast_mat) {
     gene <- NA
   }
   
-  V_hat <- inversePrecisionMatrixWald(TESSERAOutput_obj$beta_neghessian)
+  V_hat <- invert_precision_matrix(TESSERAOutput_obj$beta_neghessian)
   wald_contrast_df <- list()
   for (c_idx in 1:nrow(contrast_mat)) {
     # Find indices involved in contrast and subset
@@ -256,7 +256,7 @@ waldTestStastics <- function (TESSERAOutput_obj, contrast_mat) {
     Rbeta <- sum(R * beta_hat)
     
     # Contrast SE
-    # V_hat <- inversePrecisionMatrixWald(TESSERAOutput_obj$beta_neghessian[subset_idx, subset_idx])
+    # V_hat <- invert_precision_matrix(TESSERAOutput_obj$beta_neghessian[subset_idx, subset_idx])
     RVR_inv <- sqrt(as.numeric(R %*% V_hat %*% R))
     
     wald_contrast_df[[1 + length(wald_contrast_df)]] <-
@@ -291,7 +291,7 @@ waldTestStastics <- function (TESSERAOutput_obj, contrast_mat) {
 #' @import Matrix
 #' @importFrom Matrix solve
 #' @importFrom pracma pinv
-inversePrecisionMatrixWald <- function(A) {
+invert_precision_matrix <- function(A) {
   # Try basic inversion first
   err_flag <- tryCatch({
     Ainv <- Matrix::solve(A)
@@ -443,13 +443,13 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, wald_thresh) {
 #' a non-centrality parameter might be a good model for the statistics under
 #' the null hypothesis, where we note that an unscaled chi-squared or F distribution
 #' are the standard asymptotic distributions for Wald statistics.
-#' As we test a single hypothesis, we use a single degree of freedom. 
+#' As we test a single hypothesis, we use a single degree of freedom.
 #' To use this function, the Wald statistics as well as a threshold are required.
 #' The threshold is a rough upper bound for the statistics coming from the null
 #' distribution--it need not be exact, but it should be greater than most of the
 #' null distributed statistics and smaller than most of the non-null distributed
 #' statistics.
-#' In the absence of oracle knowledge, we recommend the `selectWaldStatisticThreshold`
+#' In the absence of oracle knowledge, we recommend the `select_Wald_threshold`
 #' function in this package for choosing an optimal threshold value.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
@@ -465,11 +465,11 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, wald_thresh) {
 #' @export
 #'
 #' @examples
-#' waldStatisticPValuesThreshold(c(
+#' calc_Wald_pvalue_from_threshold(c(
 #'   5 * stats::rchisq(2000, 1, ncp = 10),
 #'   200 + 5 * stats::rchisq(2000, 1, ncp = 10)
 #'  ), 200)
-waldStatisticPValuesThreshold <- function(wald_stats, threshold) {
+calc_Wald_pvalue_from_threshold <- function(wald_stats, threshold) {
   chi2_params <- fit_scaled_noncentral_chi2(wald_stats[wald_stats < threshold], threshold)
   
   # RETURN UNCONDITIONAL P-VALUES
@@ -495,13 +495,13 @@ waldStatisticPValuesThreshold <- function(wald_stats, threshold) {
 #' a non-centrality parameter might be a good model for the statistics under
 #' the null hypothesis, where we note that an unscaled chi-squared or F distribution
 #' are the standard asymptotic distributions for Wald statistics.
-#' As we test a single hypothesis, we use a single degree of freedom. 
+#' As we test a single hypothesis, we use a single degree of freedom.
 #' To use this function, the Wald statistics as well as a threshold are required.
 #' The threshold is a rough upper bound for the statistics coming from the null
 #' distribution--it need not be exact, but it should be greater than most of the
 #' null distributed statistics and smaller than most of the non-null distributed
 #' statistics.
-#' In the absence of oracle knowledge, we recommend the `selectWaldStatisticThreshold`
+#' In the absence of oracle knowledge, we recommend the `select_Wald_threshold`
 #' function in this package for choosing an optimal threshold value and parameters.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
@@ -516,11 +516,11 @@ waldStatisticPValuesThreshold <- function(wald_stats, threshold) {
 #' @export
 #'
 #' @examples
-#' scaledNonCentralChi2PValues(c(
+#' calc_scaled_noncentral_chi2_pvalues(c(
 #'   5 * stats::rchisq(2000, 1, ncp = 10),
 #'   200 + 5 * stats::rchisq(2000, 1, ncp = 10)
 #'  ), c(5, 10))
-scaledNonCentralChi2PValues <- function(wald_stats, chi2_params) {
+calc_scaled_noncentral_chi2_pvalues <- function(wald_stats, chi2_params) {
   # RETURN UNCONDITIONAL P-VALUES
   return(stats::pchisq(
     wald_stats / chi2_params[1],
@@ -579,10 +579,10 @@ scaledNonCentralChi2PValues <- function(wald_stats, chi2_params) {
 #' wald_vec <- c(null_stats, alt_stats)
 #'
 #' # Select optimal threshold
-#' selectWaldStatisticThreshold(wald_vec, quantile_spacing = 0.05)
-selectWaldStatisticThreshold <- function (wald_stats,
-                                          quantile_spacing = 0.01,
-                                          metric = "Raw_MSE") {
+#' select_Wald_threshold(wald_vec, quantile_spacing = 0.05)
+select_Wald_threshold <- function (wald_stats,
+                                   quantile_spacing = 0.01,
+                                   metric = "Raw_MSE") {
   # Function to get errors and fits at a given threshold value
   wrapper_function <- function(wald_thresh, wald_data) {
     # Subset to statistics under threshold

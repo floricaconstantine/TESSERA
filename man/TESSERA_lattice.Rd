@@ -22,7 +22,7 @@ TESSERA_lattice(
 }
 \arguments{
 \item{TESSERAData_obj}{An object containing prepared data, typically
-created by \code{\link{prepData}}.}
+created by \code{\link{prep_data}}.}
 
 \item{gene_name}{Character: The name of the gene/measurement (row) to fit.}
 

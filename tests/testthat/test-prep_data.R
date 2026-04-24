@@ -19,14 +19,14 @@ meta <- data.frame(
 coords <- matrix(runif(n_cells * 2), ncol = 2)
 rownames(coords) <- colnames(counts)
 
-# --- prepData Tests ---
+# --- prep_data Tests ---
 
-test_that("prepData validates design and dimension arguments", {
+test_that("prep_data validates design and dimension arguments", {
   # Must supply exactly one of design_formula or design_mat
-  expect_error(prepData(counts, meta, "sample"),
+  expect_error(prep_data(counts, meta, "sample"),
                "Must supply one of design formula")
   expect_error(
-    prepData(
+    prep_data(
       counts,
       meta,
       "sample",
@@ -37,14 +37,14 @@ test_that("prepData validates design and dimension arguments", {
   )
   
   # Dimension mismatch (counts vs meta)
-  expect_error(prepData(counts[, 1:5], meta, "sample", design_formula = ~ batch))
+  expect_error(prep_data(counts[, 1:5], meta, "sample", design_formula = ~ batch))
 })
 
-test_that("prepData creates a valid TESSERAData object with multiple samples",
+test_that("prep_data creates a valid TESSERAData object with multiple samples",
           {
             # suppressMessages silences adjacency and eigenvalue logs
             res <- suppressMessages(
-              prepData(
+              prep_data(
                 x = counts,
                 meta_data = meta,
                 sample_col = "sample",
@@ -64,10 +64,10 @@ test_that("prepData creates a valid TESSERAData object with multiple samples",
             expect_length(res$eig_L_list$S1, 5)
           })
 
-test_that("prepData handles model_type dispatch and match.arg logic", {
+test_that("prep_data handles model_type dispatch and match.arg logic", {
   # Test "ALL" model type
   res_all <- suppressMessages(
-    prepData(
+    prep_data(
       counts,
       meta,
       "sample",
@@ -82,7 +82,7 @@ test_that("prepData handles model_type dispatch and match.arg logic", {
   
   # Test "spNNGP" which should set compute_eigs to "NONE"
   expect_warning(suppressMessages(
-    prepData(
+    prep_data(
       counts,
       meta,
       "sample",
@@ -96,7 +96,7 @@ test_that("prepData handles model_type dispatch and match.arg logic", {
   
   # Test invalid model type triggers match.arg error
   expect_error(
-    prepData(
+    prep_data(
       counts,
       meta,
       "sample",
@@ -107,10 +107,10 @@ test_that("prepData handles model_type dispatch and match.arg logic", {
   )
 })
 
-test_that("prepData automatically estimates D_THRESH if missing", {
+test_that("prep_data automatically estimates D_THRESH if missing", {
   # We use expected_num_neighbors = 2 because each sample only has 5 cells
   expect_message(suppressWarnings(
-    prepData(
+    prep_data(
       counts,
       meta,
       "sample",
@@ -122,10 +122,10 @@ test_that("prepData automatically estimates D_THRESH if missing", {
   "Estimating distance threshold")
 })
 
-test_that("prepData handles library size normalization logic", {
+test_that("prep_data handles library size normalization logic", {
   # Pass coord_data and D_THRESH to avoid the automatic thresholding crash
   res_multi <- suppressWarnings(suppressMessages(
-    prepData(
+    prep_data(
       counts,
       meta,
       "sample",
@@ -138,7 +138,7 @@ test_that("prepData handles library size normalization logic", {
   
   # Single-gene: library size is set to 1
   res_single <- suppressWarnings(suppressMessages(
-    prepData(
+    prep_data(
       counts[1, , drop = FALSE],
       meta,
       "sample",
@@ -150,13 +150,13 @@ test_that("prepData handles library size normalization logic", {
   expect_equal(as.numeric(res_single$library_size_list$S1[1]), 1)
 })
 
-test_that("prepData triggers warnings for poor design matrices", {
+test_that("prep_data triggers warnings for poor design matrices", {
   bad_mat_zero <- matrix(c(rep(1, 5), rep(0, 5)), ncol = 2)
   rownames(bad_mat_zero) <- colnames(counts)[1:5]
   
   expect_warning(
     expect_warning(suppressMessages(
-      prepData(
+      prep_data(
         counts[, 1:5],
         meta[1:5, ],
         "sample",
@@ -173,7 +173,7 @@ test_that("prepData triggers warnings for poor design matrices", {
   rownames(bad_mat_rank) <- colnames(counts)[1:5]
   
   expect_warning(suppressMessages(
-    prepData(
+    prep_data(
       counts[, 1:5],
       meta[1:5, ],
       "sample",
@@ -184,12 +184,12 @@ test_that("prepData triggers warnings for poor design matrices", {
   ), "not full rank", fixed = TRUE)
 })
 
-# --- visualizeNeighborDistances Tests ---
+# --- plot_neighbor_distances Tests ---
 
-test_that("visualizeNeighborDistances returns the correct visualization list",
+test_that("plot_neighbor_distances returns the correct visualization list",
           {
             # Use k_search = 3 because each sample only has 5 cells
-            res <- visualizeNeighborDistances(meta, "sample", coords, k_search = 3)
+            res <- plot_neighbor_distances(meta, "sample", coords, k_search = 3)
             
             expect_named(res,
                          c("nb_dist", "mean_nb_dist", "std_nb_dist", "distances_plot"))
@@ -199,7 +199,7 @@ test_that("visualizeNeighborDistances returns the correct visualization list",
 
 # --- SpatialExperiment Method Tests ---
 
-test_that("prepData handles SpatialExperiment objects via S4 dispatch", {
+test_that("prep_data handles SpatialExperiment objects via S4 dispatch", {
   skip_if_not_installed("SpatialExperiment")
   skip_if_not_installed("SingleCellExperiment")
   
@@ -213,7 +213,7 @@ test_that("prepData handles SpatialExperiment objects via S4 dispatch", {
   # Dispatch to SpatialExperiment method
   # Use expected_num_neighbors = 2 to avoid nndist extent errors
   res <- suppressMessages(
-    prepData(
+    prep_data(
       x = se,
       sample_col = "sample",
       design_formula = ~ batch,

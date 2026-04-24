@@ -10,19 +10,19 @@
 #'
 #' @returns Moran's I (spatial autocorrelation).
 #' @export
-#' 
+#'
 #' @examples
 #' set.seed(2026)
 #' tau2_true <- 1.0
 #' gamma_true <- 0.5
-#' beta_true <- c(1, 0, -1) 
-#' ex_data <- generate_data_one_area(1000, 0.03, "Leroux", beta_true, 
+#' beta_true <- c(1, 0, -1)
+#' ex_data <- generate_data_one_area(1000, 0.03, "Leroux", beta_true,
 #'   gamma_true, tau2_true, "rand_bern")
 #' moran_I_nb(ex_data$z, ex_data$W)
 moran_I_nb <- function(y, W) {
   # Subtract mean
   ym <- y - mean(y)
-
+  
   # Numerator: Quadratic form
   MI <- (t(ym) %*% W) %*% ym
   # Denominator: Sum of squares
@@ -31,7 +31,7 @@ moran_I_nb <- function(y, W) {
   MI <- MI * (length(ym) / sum(W))
   # Ensure is a number not a 1x1 matrix
   MI <- as.numeric(MI)
-
+  
   return(MI)
 }
 
@@ -54,7 +54,7 @@ poisson_loglike <- function(z, theta_hat) {
   tmp_ll <- pmax(0.0, z) * log(pmax(0.0, theta_hat)) - pmax(0.0, theta_hat)
   tmp_ll[is.infinite(tmp_ll)] <- 0.0
   tmp_ll[is.nan(tmp_ll)] <- 0.0
-
+  
   return(sum(tmp_ll))
 }
 
@@ -90,12 +90,12 @@ variables_from_list <- function(lst, target_environ = parent.frame()) {
 #' @returns 2 k x n points matrix.
 #'  First k rows are distances, last k are indices of nearest neighbors.
 #'  Only Upper Triangular part is formed.
-sparseDist <- function(coords, k) {
+sparse_dist <- function(coords, k) {
   # Transpose coordinates so that columns are samples
   coords <- t(coords)
   # Number of samples
   n <- ncol(coords)
-
+  
   d <- vapply(seq_len(n - 1L), function(i) {
     # Squared L2 distances to all points with higher indices
     d <- colSums((coords[, seq(i + 1L, n), drop = FALSE] - coords[, i])^2)
@@ -118,12 +118,12 @@ sparseDist <- function(coords, k) {
 #' @returns 2 k x n points matrix.
 #'  First k rows are distances, last k are indices of nearest neighbors.
 #'  Only Lower Triangular part is formed.
-sparseDist_LT <- function(coords, k) {
+sparse_dist_LT <- function(coords, k) {
   # Transpose coordinates so that columns are samples
   coords <- t(coords)
   # Number of samples
   n <- ncol(coords)
-
+  
   d <- vapply(seq(2, n), function(i) {
     # Squared L2 distances to all points with lower indices
     d <- colSums((coords[, seq(1, i - 1), drop = FALSE] - coords[, i])^2)

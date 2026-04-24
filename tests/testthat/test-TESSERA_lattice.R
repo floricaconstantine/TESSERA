@@ -46,12 +46,12 @@ rownames(mock_data$counts_list$A2) <- "Gene1"
 
 # --- Tests ---
 
-test_that("checkInputsTESSERA validates object structure correctly", {
-  expect_silent(checkInputsTESSERA(mock_data))
+test_that("check_inputs_TESSERA validates object structure correctly", {
+  expect_silent(check_inputs_TESSERA(mock_data))
   
   broken_data <- mock_data
   broken_data$W_list <- NULL
-  expect_error(checkInputsTESSERA(broken_data))
+  expect_error(check_inputs_TESSERA(broken_data))
 })
 
 test_that("TESSERA_lattice fits multiple model types and handles eigs", {

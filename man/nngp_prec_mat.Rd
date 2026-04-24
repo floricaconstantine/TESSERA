@@ -8,7 +8,7 @@ See https://mc-stan.org/users/documentation/case-studies/nngp.html.}
 nngp_prec_mat(sp_dist, coords, cov_type, cov_params)
 }
 \arguments{
-\item{sp_dist}{Output of sparseDist_LT function.
+\item{sp_dist}{Output of sparse_dist_LT function.
 Basically, top few rows are nearest distances, bottom few rows are indices.
 CALL THAT FUNCTION OR SEE IT FOR MORE DETAILS.}
 

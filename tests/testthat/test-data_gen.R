@@ -109,7 +109,7 @@ test_that("sample_Poisson_lattice is consistent with generated structures",
             expect_equal(length(res$z), 20)
           })
 
-test_that("prepSynthData integrates counts into TESSERA objects", {
+test_that("prep_synth_data integrates counts into TESSERA objects", {
   # Create a minimal mock TESSERAData object
   # (Assuming the object has counts_list, X_list, W_list, etc.)
   mock_obj <- list(
@@ -123,7 +123,7 @@ test_that("prepSynthData integrates counts into TESSERA objects", {
   rownames(mock_obj$counts_list$S1) <- "GeneA"
   
   expect_error(
-    prepSynthData(mock_obj, "GeneA", "INVALID_MODEL", beta_true = 1),
+    prep_synth_data(mock_obj, "GeneA", "INVALID_MODEL", beta_true = 1),
     "Invalid data_gen_model"
   )
 })

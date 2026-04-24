@@ -85,14 +85,14 @@ Install the latest release version of `TESSERA` from [Bioconductor](https://bioc
 ```{r install, eval=FALSE}
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
-BiocManager::install("TESSERA")
+BiocManager::install("TESSERA", dependencies = TRUE)
 ```
 
 Alternatively, `TESSERA` can be installed from [GitHub](https://github.com/floricaconstantine/TESSERA):
 ```{r install_git, eval=FALSE}
 if (!require("remotes", quietly = TRUE))
     install.packages("remotes")
-remotes::install_github("floricaconstantine/TESSERA")
+remotes::install_github("floricaconstantine/TESSERA", dependencies = TRUE)
 ```
 
 ## Input Data
@@ -420,12 +420,12 @@ For structured grid-based datasets, such as next-generation sequencing datasets 
 Ultimately, `expected_num_neighbors` serves to automate the discovery of a valid `D_THRESH` argument for structured data, while `D_THRESH` itself offers the manual control required for more complex or non-grid tissue architectures.
 
 In particular, for imaging-based or irregularly spaced data, determining adjacency is often more nuanced. 
-We provide the `visualizeNeighborDistances()` function as a diagnostic tool; it generates box-plots of the distance to the $k$-th nearest neighbor for every cell. 
+We provide the `plot_neighbor_distances()` function as a diagnostic tool; it generates box-plots of the distance to the $k$-th nearest neighbor for every cell. 
 A sharp "jump" in distance typically indicates the boundary where cells are no longer physically adjacent. 
 For example, a jump after the sixth neighbor suggests that the seventh closest cell is likely not a direct neighbor.
 ```{r visualize_neighbors, out.width="100%", fig.height=4, fig.width=6}
 # Inspect distances to identify the neighbor threshold
-nb_data <- TESSERA::visualizeNeighborDistances(
+nb_data <- TESSERA::plot_neighbor_distances(
   meta_data = SummarizedExperiment::colData(spe),
   sample_col = sample_col,
   coord_data = SpatialExperiment::spatialCoords(spe)
@@ -446,9 +446,9 @@ However, in highly irregular or "noisy" spatial layouts, these plots may become 
 In such cases, you may need to manually inspect your spatial coordinates, or process associated images of your data where available, to determine a reasonable distance threshold. 
 This value can be passed directly to `prepData()` via the `D_THRESH` argument. 
 
-### The `prepData` function
+### The `prep_data` function
 
-The `prepData` function acts as a wrapper that converts your data into the structured format `TESSERA` expects. 
+The `prep_data` function acts as a wrapper that converts your data into the structured format `TESSERA` expects. 
 You can provide data either as a `SpatialExperiment` object or as raw matrices and data frames.
 
 #### Function Inputs
@@ -456,9 +456,9 @@ You can provide data either as a `SpatialExperiment` object or as raw matrices a
 #### 1. Data Input (Choose One)
 | Argument | Description |
 | :--- | :--- |
-| `spDataObject` | A `SpatialExperiment` object. If provided, counts, metadata, and coordinates are extracted automatically. |
+| `x` | A `SpatialExperiment` object. If provided, counts, metadata, and coordinates are extracted automatically. |
 | **OR** | |
-| `count_matrix` | A variables $\times$ measurements (e.g., genes $\times$ cells) count matrix. Rownames must be variable names. Colnames must be measurement IDs |
+| `x` | A variables $\times$ measurements (e.g., genes $\times$ cells) count matrix. Rownames must be variable names. Colnames must be measurement IDs |
 | `meta_data` | Data frame of covariates where `rownames(meta_data)` matches `colnames(count_matrix)`. |
 | `coord_data` | Coordinates for observations. Required for `spNNGP` or when computing adjacency from scratch. |
 
@@ -491,7 +491,7 @@ The following code block illustrates the exact code used to perform the data pre
 If you wish to run the code locally, simply change the chunk header to `eval = TRUE`.
 ```{r prep_data, eval=FALSE}
 # Prepare data for the TESSERA package
-TESSERA_data <- TESSERA::prepData(
+TESSERA_data <- TESSERA::prep_data(
   x = spe,
   sample_col = sample_col,
   design_mat = X_mat,
@@ -766,7 +766,7 @@ head(celltype_contrast_mat[, 1:6], 2)
 We now view the results of the between-cell type contrasts for the gene *ACTA2* below.
 ```{r between_wald_stats}
 # Compute Wald statistics
-one_gene_ct_wald <- TESSERA::waldTestStastics(TESSERA_out, celltype_contrast_mat)
+one_gene_ct_wald <- TESSERA::calc_Wald_statistics(TESSERA_out, celltype_contrast_mat)
 # Remove the raw contrast string for a cleaner display
 one_gene_ct_wald <- dplyr::select(one_gene_ct_wald, -c("contrast_string"))
 # Preview the first few rows
@@ -835,7 +835,7 @@ head(contrast_mat[, 1:5], 2)
 We now view the results of the between-conditions within-cell type contrasts for the gene *ACTA2* below.
 ```{r within_wald_stats}
 # Compute Wald statistics
-one_gene_wald <- TESSERA::waldTestStastics(TESSERA_out, contrast_mat)
+one_gene_wald <- TESSERA::calc_Wald_statistics(TESSERA_out, contrast_mat)
 # Remove the raw contrast string for a cleaner display
 one_gene_wald <- dplyr::select(one_gene_wald, -c("contrast_string"))
 # Preview the first few rows
@@ -883,7 +883,7 @@ Please note that the estimated runtime is approximately 12 minutes on an M1 MacB
 t0 <- Sys.time()
 # Empirical Null Estimation
 # Sweep over thresholds to find the optimal distribution parameters for the empirical null
-wald_thresh_selection <- TESSERA::selectWaldStatisticThreshold(
+wald_thresh_selection <- TESSERA::select_Wald_threshold(
   wald_stats = wald_df$wald_stat_t^2,
   quantile_spacing = 0.01,
   metric = "Raw_MSE"
@@ -918,8 +918,8 @@ We compute the $p$-values and apply the Benjamini-Hochberg (BH) adjustment withi
 PVAL_THRESH <- 0.05
 
 # Compute p-values using the estimated empirical null distribution
-wald_df$wald_pval <- TESSERA::scaledNonCentralChi2PValues(wald_stats = wald_df$wald_stat_t^2,
-                                                          chi2_params = wald_thresh_selection$chi2_params)
+wald_df$wald_pval <- TESSERA::calc_scaled_noncentral_chi2_pvalues(wald_stats = wald_df$wald_stat_t^2,
+                                                                  chi2_params = wald_thresh_selection$chi2_params)
 # Adjust p-values for multiple testing per contrast
 for (cd in unique(wald_df$contrast_description)) {
   wald_df$wald_pval_adj[wald_df$contrast_description == cd] <- p.adjust(wald_df$wald_pval[wald_df$contrast_description == cd], method = "BH")

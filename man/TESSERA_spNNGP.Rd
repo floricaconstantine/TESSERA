@@ -23,7 +23,7 @@ TESSERA_spNNGP(
 }
 \arguments{
 \item{TESSERAData_obj}{An object containing prepared data, typically
-created by \code{\link{prepData}}.}
+created by \code{\link{prep_data}}.}
 
 \item{gene_name}{Character: The name of the gene/measurement (row) to fit.}
 
@@ -84,7 +84,7 @@ A list containing the following components:
 \item \strong{MSE_tracker}: Mean Squared Error history across iterations.
 \item \strong{beta_neghessian}: Negative Hessian of the final \eqn{\beta} estimate.
 \item \strong{performanceSummary}: A summary data frame for each sample;
-see \code{\link{summarizeTESSERAPerformance}}.
+see \code{\link{summarize_TESSERA}}.
 \item \strong{time}: Total execution time.
 \item \strong{run_settings}: List of parameters used for the run.
 }
