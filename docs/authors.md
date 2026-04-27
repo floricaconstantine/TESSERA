@@ -8,11 +8,13 @@
 ## Citation
 
 Constantine F (2026). *TESSERA: Poisson generalized spatial linear model
-for analyzing multi-sample count data*. R package version 0.99.1.
+for analyzing multi-sample count data*. R package version 0.99.1,
+<https://floricaconstantine.github.io/TESSERA/>.
 
     @Manual{,
       title = {TESSERA: Poisson generalized spatial linear model for analyzing multi-sample count data},
       author = {Florica Constantine},
       year = {2026},
       note = {R package version 0.99.1},
+      url = {https://floricaconstantine.github.io/TESSERA/},
     }

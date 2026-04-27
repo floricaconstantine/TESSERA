@@ -3,4 +3,5 @@
 ### All vignettes
 
 - [TESSERA: Tool for Estimating Spatial and Sample-level Effects via
-  Regression Analysis](vignette.md):
+  Regression
+  Analysis](https://floricaconstantine.github.io/TESSERA/articles/vignette.md):

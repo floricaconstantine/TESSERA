@@ -185,6 +185,20 @@
 
         <dt>
 
+          <code><a href="calc_Wald_pvalue_from_threshold.html">calc_Wald_pvalue_from_threshold()</a></code>
+
+        </dt>
+        <dd>Given Wald statistics, compute p-values.</dd>
+
+        <dt>
+
+          <code><a href="calc_Wald_statistics.html">calc_Wald_statistics()</a></code>
+
+        </dt>
+        <dd>Given the output of the TESSERA algorithms and a contrast matrix, compute Wald T-statistics.</dd>
+
+        <dt>
+
           <code><a href="calc_moran.html">calc_moran()</a></code>
 
         </dt>
@@ -192,14 +206,21 @@
 
         <dt>
 
-          <code><a href="checkInputsTESSERA.html">checkInputsTESSERA()</a></code>
+          <code><a href="calc_scaled_noncentral_chi2_pvalues.html">calc_scaled_noncentral_chi2_pvalues()</a></code>
+
+        </dt>
+        <dd>Given Wald statistics, compute p-values.</dd>
+
+        <dt>
+
+          <code><a href="check_inputs_TESSERA.html">check_inputs_TESSERA()</a></code>
 
         </dt>
         <dd>Check inputs for the TESSERA method. Make sure that the input object has everything needed to run without error.</dd>
 
         <dt>
 
-          <code><a href="checkInputsTESSERAspNNGP.html">checkInputsTESSERAspNNGP()</a></code>
+          <code><a href="check_inputs_TESSERA_spNNGP.html">check_inputs_TESSERA_spNNGP()</a></code>
 
         </dt>
         <dd>Check inputs for the TESSERA_spNNGP method. Make sure that the input object has everything needed to run without error.</dd>
@@ -210,6 +231,27 @@
 
         </dt>
         <dd>Helper function for Moran's I.</dd>
+
+        <dt>
+
+          <code><a href="example_TESSERA_out_Leroux.rds.html">example_TESSERA_out_Leroux.rds</a></code>
+
+        </dt>
+        <dd>Fitted TESSERA Leroux Model Object</dd>
+
+        <dt>
+
+          <code><a href="example_prepData.rds.html">example_prepData.rds</a></code>
+
+        </dt>
+        <dd>Pre-processed TESSERA Data Object</dd>
+
+        <dt>
+
+          <code><a href="example_raw_data.rds.html">example_raw_data.rds</a></code>
+
+        </dt>
+        <dd>Raw Synthetic Spatial Data</dd>
 
         <dt>
 
@@ -241,35 +283,35 @@
 
         <dt>
 
-          <code><a href="inversePrecisionMatrixWald.html">inversePrecisionMatrixWald()</a></code>
+          <code><a href="invert_precision_matrix.html">invert_precision_matrix()</a></code>
 
         </dt>
         <dd>Helper function for Wald stat covariances.</dd>
 
         <dt>
 
-          <code><a href="kernel.exp.html">kernel.exp()</a></code>
+          <code><a href="kernel_exp.html">kernel_exp()</a></code>
 
         </dt>
         <dd>Exponential Kernel Function.</dd>
 
         <dt>
 
-          <code><a href="kernel.gauss.html">kernel.gauss()</a></code>
+          <code><a href="kernel_gauss.html">kernel_gauss()</a></code>
 
         </dt>
         <dd>Gaussian (Squared Exponential) Kernel Function.</dd>
 
         <dt>
 
-          <code><a href="kernel.matern.html">kernel.matern()</a></code>
+          <code><a href="kernel_matern.html">kernel_matern()</a></code>
 
         </dt>
         <dd>Matern Kernel Function.</dd>
 
         <dt>
 
-          <code><a href="kernel.sph.html">kernel.sph()</a></code>
+          <code><a href="kernel_sph.html">kernel_sph()</a></code>
 
         </dt>
         <dd>Spherical Kernel Function.</dd>
@@ -332,6 +374,13 @@
 
         <dt>
 
+          <code><a href="plot_neighbor_distances.html">plot_neighbor_distances()</a></code>
+
+        </dt>
+        <dd>Prepare data for the TESSERA method: Choose a distance threshold for adjacency matrices.</dd>
+
+        <dt>
+
           <code><a href="poisson_loglike.html">poisson_loglike()</a></code>
 
         </dt>
@@ -339,14 +388,14 @@
 
         <dt>
 
-          <code><a href="prepData.html">prepData()</a></code>
+          <code><a href="prep_data.html">prep_data()</a></code>
 
         </dt>
         <dd>Prepare data for the TESSERA method.</dd>
 
         <dt>
 
-          <code><a href="prepSynthData.html">prepSynthData()</a></code>
+          <code><a href="prep_synth_data.html">prep_synth_data()</a></code>
 
         </dt>
         <dd>Generate synthetic multi-sample spatial count data</dd>
@@ -367,38 +416,38 @@
 
         <dt>
 
-          <code><a href="scaledNonCentralChi2PValues.html">scaledNonCentralChi2PValues()</a></code>
-
-        </dt>
-        <dd>Given Wald statistics, compute p-values.</dd>
-
-        <dt>
-
-          <code><a href="selectWaldStatisticThreshold.html">selectWaldStatisticThreshold()</a></code>
+          <code><a href="select_Wald_threshold.html">select_Wald_threshold()</a></code>
 
         </dt>
         <dd>Optimal threshold selection for empirical null estimation</dd>
 
         <dt>
 
-          <code><a href="sparseDist.html">sparseDist()</a></code>
+          <code><a href="sparse_dist.html">sparse_dist()</a></code>
 
         </dt>
         <dd>Get k nearest neighbors/distances given coordinates. Taken from: https://stackoverflow.com/questions/5560218/computing-sparse-pairwise-distance-matrix-in-r</dd>
 
         <dt>
 
-          <code><a href="sparseDist_LT.html">sparseDist_LT()</a></code>
+          <code><a href="sparse_dist_LT.html">sparse_dist_LT()</a></code>
 
         </dt>
         <dd>Get k nearest neighbors/distances given coordinates. Modified from: https://stackoverflow.com/questions/5560218/computing-sparse-pairwise-distance-matrix-in-r</dd>
 
         <dt>
 
-          <code><a href="summarizeTESSERAPerformance.html">summarizeTESSERAPerformance()</a></code>
+          <code><a href="summarize_TESSERA.html">summarize_TESSERA()</a></code>
 
         </dt>
         <dd>Summarizes the results of the TESSERA algorithms for a single gene.</dd>
+
+        <dt>
+
+          <code><a href="tessera_example_data.html">tessera_example_data</a></code>
+
+        </dt>
+        <dd>Synthetic TESSERA Example Data Files</dd>
 
         <dt>
 
@@ -406,27 +455,6 @@
 
         </dt>
         <dd>Utility function to instantiate variables from elements in a named list. E.g., call this function on list(a=1, b=2) would result in variables a and b with values 1 and 2, respectively, in the calling frame/environment.</dd>
-
-        <dt>
-
-          <code><a href="visualizeNeighborDistances.html">visualizeNeighborDistances()</a></code>
-
-        </dt>
-        <dd>Prepare data for the TESSERA method: Choose a distance threshold for adjacency matrices.</dd>
-
-        <dt>
-
-          <code><a href="waldStatisticPValuesThreshold.html">waldStatisticPValuesThreshold()</a></code>
-
-        </dt>
-        <dd>Given Wald statistics, compute p-values.</dd>
-
-        <dt>
-
-          <code><a href="waldTestStastics.html">waldTestStastics()</a></code>
-
-        </dt>
-        <dd>Given the output of the TESSERA algorithms and a contrast matrix, compute Wald T-statistics.</dd>
       </dl></div>
   </main></div>
 

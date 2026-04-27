@@ -5,21 +5,20 @@ count data where independent components or disconnected segments
 function as individual samples. This methodology allows for the
 estimation of a common set of fixed effects across multiple samples
 while simultaneously accounting for the unique, independent spatial
-correlation structure native to each sample. By explicitly modeling
-these spatial dependencies, **TESSERA** provides a more rigorous
-statistical foundation for inference compared to models that treat
-observations as independent or those that fail to account for the
-spatial context of the data.
+correlation structure inherent to each sample. By modeling these spatial
+dependencies, **TESSERA** provides a rigorous statistical foundation for
+inference compared to models that treat observations as independent or
+those that fail to account for the spatial context of the data.
 
 While this method was developed primarily to facilitate multi-sample
-differential expression analysis in spatial transcriptomics, the
+gene differential expression analysis in spatial transcriptomics, the
 underlying statistical approach is broadly applicable to any count-based
 spatial data structured into discrete units. Because the method
 estimates a shared set of fixed effects across all samples, it enables
-the use of hypothesis testing to address complex comparative questions,
-such as identifying significant differences between distinct
-experimental conditions, that would be statistically infeasible if each
-sample were analyzed in isolation.
+the use of hypothesis testing to address complex comparative questions.
+For example, identifying significant differences between distinct
+experimental conditions would be statistically infeasible if each sample
+were analyzed in isolation.
 
 ## Installation
 
@@ -29,6 +28,7 @@ Until the official release, please install the development version from
 following code:
 
 ``` r
+
 if (!require("remotes", quietly = TRUE))
     install.packages("remotes")
 remotes::install_github("floricaconstantine/TESSERA")
@@ -39,6 +39,7 @@ on [Bioconductor](https://bioconductor.org/packages/TESSERA) and can be
 installed with the following code:
 
 ``` r
+
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 BiocManager::install("TESSERA")
@@ -47,8 +48,13 @@ BiocManager::install("TESSERA")
 ## Documentation
 
 A detailed vignette demonstrating the application of **TESSERA** to
-multi-sample spatial transcriptomics data is available in the
-[`vignettes/`](vignettes/) folder.
+multi-sample spatial transcriptomics data is available as a [rendered
+HTML
+article](https://floricaconstantine.github.io/TESSERA/articles/TESSERA.html).
+
+The raw source code for the vignette can be found in the
+[`vignettes/`](https://floricaconstantine.github.io/TESSERA/vignettes/vignette.Rmd)
+folder.
 
 ## Citation
 

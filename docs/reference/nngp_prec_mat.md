@@ -13,7 +13,7 @@ nngp_prec_mat(sp_dist, coords, cov_type, cov_params)
 
 - sp_dist:
 
-  Output of sparseDist_LT function. Basically, top few rows are nearest
+  Output of sparse_dist_LT function. Basically, top few rows are nearest
   distances, bottom few rows are indices. CALL THAT FUNCTION OR SEE IT
   FOR MORE DETAILS.
 

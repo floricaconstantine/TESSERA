@@ -53,8 +53,8 @@
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header"><h1 id="tessera-tool-for-estimating-spatial-and-sample-level-effects-via-regression-analysis">TESSERA: Tool for Estimating Spatial and Sample-level Effects via Regression Analysis<a class="anchor" aria-label="anchor" href="#tessera-tool-for-estimating-spatial-and-sample-level-effects-via-regression-analysis"></a>
 </h1></div>
-<p><strong>TESSERA</strong> is a method based on a spatial generalized linear model for count data where independent components or disconnected segments function as individual samples. This methodology allows for the estimation of a common set of fixed effects across multiple samples while simultaneously accounting for the unique, independent spatial correlation structure native to each sample. By explicitly modeling these spatial dependencies, <strong>TESSERA</strong> provides a more rigorous statistical foundation for inference compared to models that treat observations as independent or those that fail to account for the spatial context of the data.</p>
-<p>While this method was developed primarily to facilitate multi-sample differential expression analysis in spatial transcriptomics, the underlying statistical approach is broadly applicable to any count-based spatial data structured into discrete units. Because the method estimates a shared set of fixed effects across all samples, it enables the use of hypothesis testing to address complex comparative questions, such as identifying significant differences between distinct experimental conditions, that would be statistically infeasible if each sample were analyzed in isolation.</p>
+<p><strong>TESSERA</strong> is a method based on a spatial generalized linear model for count data where independent components or disconnected segments function as individual samples. This methodology allows for the estimation of a common set of fixed effects across multiple samples while simultaneously accounting for the unique, independent spatial correlation structure inherent to each sample. By modeling these spatial dependencies, <strong>TESSERA</strong> provides a rigorous statistical foundation for inference compared to models that treat observations as independent or those that fail to account for the spatial context of the data.</p>
+<p>While this method was developed primarily to facilitate multi-sample gene differential expression analysis in spatial transcriptomics, the underlying statistical approach is broadly applicable to any count-based spatial data structured into discrete units. Because the method estimates a shared set of fixed effects across all samples, it enables the use of hypothesis testing to address complex comparative questions. For example, identifying significant differences between distinct experimental conditions would be statistically infeasible if each sample were analyzed in isolation.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -72,7 +72,8 @@
 <div class="section level2">
 <h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a>
 </h2>
-<p>A detailed vignette demonstrating the application of <strong>TESSERA</strong> to multi-sample spatial transcriptomics data is available in the <a href="vignettes/"><code>vignettes/</code></a> folder.</p>
+<p>A detailed vignette demonstrating the application of <strong>TESSERA</strong> to multi-sample spatial transcriptomics data is available as a <a href="https://floricaconstantine.github.io/TESSERA/articles/TESSERA.html">rendered HTML article</a>.</p>
+<p>The raw source code for the vignette can be found in the <a href="vignettes/vignette.Rmd"><code>vignettes/</code></a> folder.</p>
 </div>
 <div class="section level2">
 <h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
