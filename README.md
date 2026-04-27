@@ -26,7 +26,7 @@ BiocManager::install("TESSERA")
 
 ## Documentation
 
-A detailed vignette demonstrating the application of **TESSERA** to multi-sample spatial transcriptomics data is available as a [rendered HTML article](https://floricaconstantine.github.io/TESSERA/articles/TESSERA.html). 
+A detailed vignette demonstrating the application of **TESSERA** to multi-sample spatial transcriptomics data is available as a [rendered HTML article]([https://floricaconstantine.github.io/TESSERA/articles/TESSERA.html](https://floricaconstantine.github.io/TESSERA/articles/vignette.html)). 
 
 The raw source code for the vignette can be found in the [`vignettes/`](vignettes/vignette.Rmd) folder.
 
