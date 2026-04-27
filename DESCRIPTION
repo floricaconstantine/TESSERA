@@ -40,6 +40,7 @@ Suggests:
   BiocStyle,
   MASS,
   MatrixGenerics,
+  sparseMatrixStats,
   SpatialExperiment,
   SingleCellExperiment,
   SummarizedExperiment,
