@@ -1,0 +1,1569 @@
+# TESSERA: Tool for Estimating Spatial and Sample-level Effects via Regression Analysis
+
+## Introduction
+
+`TESSERA` is a method for fitting multi-sample spatial generalized
+linear mixed models (GLMM). In this context, “multi-sample” refers to
+datasets comprising multiple distinct areas or regions, such as
+independent tissue slices, each characterized by its own unique spatial
+covariance structure and coordinate system.
+
+### Motivation: Spatial Transcriptomics
+
+The development of this package is driven by the rapid growth of spatial
+transcriptomics, where multi-sample or multi-tissue datasets are
+increasingly common. In this context, samples often consist of
+independent tissue slices with disparate coordinate systems, varying
+cell type distributions, and differing underlying tissue architectures.
+These factors often preclude the use of traditional spatial methods that
+rely on the assumption of a single, continuous coordinate plane.
+`TESSERA` bridges this gap by allowing for sample-specific spatial
+modeling within a unified global inference framework. This allows
+investigators to ask different types of differential expression
+questions, both within and between samples. For more details on the
+underlying methodology, please see our `TESSERA` methodological
+manuscript ([Constantine et al. 2026](#ref-constantine2026tessera)).
+
+### The Statistical Model
+
+`TESSERA` fits an overdispersed Poisson GLM. For an observation $j$ in
+sample $i$, the counts $Z_{i,j}$ are modeled as:
+$$Z_{i,j} \sim \text{Pois}\left( C_{i,j}\exp\left( \mathbf{X}_{i,j}^{\top}{\mathbf{β}} + \phi_{i,j} \right) \right),$$
+where
+
+- $C_{i,j}$ is the offset (e.g., library size),
+- $\mathbf{X}_{i,j}$ represents the covariates,
+- $\mathbf{β}$ represents the fixed effects,
+- $\phi_{i,j}$ represents the spatial random effects.
+
+For each sample $i$, the spatial random effects follow:
+$${\mathbf{ϕ}}_{i} \sim N\left( \mathbf{0},\mathbf{\Sigma}_{i} \right),$$
+where $\mathbf{\Sigma}_{i}$ is a sample-specific covariance matrix. This
+parameterization accounts for within-sample spatial autocorrelation
+while permitting different samples to have their own unique, independent
+spatial covariance structures.
+
+A defining feature of `TESSERA` is its ability to estimate a **single
+set of fixed effects**, $\mathbf{β}$, across the entire dataset, even
+while permitting each individual sample its own independent spatial
+covariance structure. This provides a rigorous foundation for addressing
+differential expression across experimental conditions–such as comparing
+diseased versus healthy tissue–while simultaneously accounting for the
+spatial autocorrelation inherent within each sample.
+
+### Supported Spatial Covariance Structures
+
+`TESSERA` supports two primary classes of spatial covariance structures,
+categorized by how they handle spatial dependencies.
+
+#### Lattice Models
+
+These models are designed for data where spatial relationships are
+defined via measurement-to-measurement adjacency matrices. Supported
+structures include:
+
+- Leroux
+- CAR (Conditional Autoregressive)
+- SAR (Simultaneous Autoregressive)
+
+#### Sparse Nearest-Neighbor Gaussian Process
+
+`TESSERA` uses the sparse nearest-neighbor Gaussian process (spNNGP)
+framework to model dependencies via a sparsified kernel matrix derived
+from pairwise distances between measurements. Supported kernel functions
+include:
+
+- Matern (“Mat”)
+- Exponential (“Exp”)
+- Gaussian (“Gau”)
+- Spherical (“Sph”)
+
+#### Implementation Recommendations
+
+Selecting the appropriate covariance model depends on the geometry of
+the dataset under consideration:
+
+- **Grid-like or regularly sampled data**: If adjacency can be clearly
+  defined, we recommend the Leroux lattice model as generally the most
+  robust choice given its flexible decomposition of spatial
+  vs. non-spatial variance.
+- **Irregularly-sampled data**: For data where measurements do not
+  follow a strict grid and adjacency of measurements cannot be
+  determined, the spNNGP model with either the Matern or Exponential
+  kernel is recommended.
+
+## Installation
+
+Install the latest release version of `TESSERA` from
+[Bioconductor](https://bioconductor.org/packages/TESSERA) using the
+following code:
+
+``` r
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("TESSERA", dependencies = TRUE)
+```
+
+Alternatively, `TESSERA` can be installed from
+[GitHub](https://github.com/floricaconstantine/TESSERA):
+
+``` r
+if (!require("remotes", quietly = TRUE))
+    install.packages("remotes")
+remotes::install_github("floricaconstantine/TESSERA", dependencies = TRUE)
+```
+
+## Input Data
+
+`TESSERA` accepts either Bioconductor `SpatialExperiment` objects or
+standard R matrices as input. If you are not using a `SpatialExperiment`
+object, you can provide your data as a numeric count matrix, a numeric
+matrix of spatial coordinates, and an accompanying metadata data frame.
+
+For detailed specifications on these formats, please refer to the
+[Format Data for `TESSERA`](#format-data) section.
+
+## Load and Inspect Data
+
+To get started, load TESSERA along with the necessary data containers
+and utility packages:
+
+``` r
+# TESSERA
+library(TESSERA)
+
+# Data Downloading
+library(BiocFileCache)
+
+# Data Structures
+library(SummarizedExperiment)
+library(SingleCellExperiment)
+library(SpatialExperiment)
+
+# Data Manipulation and Matrix Utilities
+library(dplyr)
+library(reshape2)
+library(Matrix)
+library(MatrixGenerics)
+
+# Statistics
+library(MASS)
+library(fdrtool)
+
+# Visualization
+library(ggplot2)
+```
+
+To keep the package lightweight while providing realistic,
+high-resolution spatial datasets, the data for this vignette is hosted
+externally. The following helper function uses `BiocFileCache` to
+download the necessary files from the `TESSERA_manuscript` repository
+and store them locally, ensuring that subsequent runs are fast and do
+not require an active internet connection.
+
+``` r
+# Define helper function to grab data files from the TESSERA_manuscript repository
+get_my_data <- function(file_name) {
+  # Define the URL (using the /raw/ path to handle Git LFS redirects)
+  base_url <- "https://github.com/floricaconstantine/TESSERA_manuscript/raw/main/data/vignette_data/"
+  target_url <- paste0(base_url, file_name)
+  
+  # Initialize the cache (ask = FALSE prevents interactive prompts during build)
+  bfc <- BiocFileCache(ask = FALSE)
+  
+  # Check if the file is already in the cache, if not, download it
+  # bfcrpath returns the LOCAL path to the cached file
+  local_path <- bfcrpath(bfc, target_url)
+  
+  # Read the RDS from the local cached path
+  return(readRDS(local_path))
+}
+```
+
+We demonstrate the workflow using a pre-processed kidney dataset
+([Abedini et al. 2024](#ref-abedini2024single)), which contains 12,511
+genes across 37,143 cells. This dataset is stored as a
+`SpatialExperiment` object.
+
+``` r
+# Load Data
+spe <- get_my_data("kidney_data_spe.rds")
+```
+
+    > adding rname 'https://github.com/floricaconstantine/TESSERA_manuscript/raw/main/data/vignette_data/kidney_data_spe.rds'
+
+``` r
+dim(spe)
+```
+
+    > [1] 12511 37143
+
+The dataset consists of 14 samples across three experimental conditions.
+
+``` r
+# Column containing sample IDs
+sample_col <- "orig.ident"
+# Column containing disease condition
+condition_col <- "Group"
+# Column containing cell type
+celltype_col <- "celltype"
+
+as.data.frame(SummarizedExperiment::colData(spe)) %>%
+  dplyr::distinct(dplyr::pick(dplyr::all_of(c(sample_col, condition_col)))) %>%
+  dplyr::count(dplyr::pick(dplyr::all_of(condition_col)))
+```
+
+    >     Group n
+    > 1 Control 3
+    > 2     DKD 6
+    > 3     HKD 5
+
+We examine the number of cells per sample. Each sample contains several
+thousand cells.
+
+``` r
+# Number of cells per sample
+sort(table(SummarizedExperiment::colData(spe)[, sample_col]))
+```
+
+    > 
+    > HK2873_ST HK2770_ST HK2671_ST HK3035_ST HK2852_ST HK2871_ST HK2844_ST HK2877_ST 
+    >      1411      1736      2013      2027      2262      2404      2445      2960 
+    > HK2529_ST HK2874_ST HK3432_ST HK3444_ST HK3513_ST HK3437_ST 
+    >      2970      3027      3028      3198      3759      3903
+
+``` r
+# Convert table to a data frame
+df_samp_counts <- as.data.frame(table(SummarizedExperiment::colData(spe)[, sample_col]))
+colnames(df_samp_counts) <- c("sample", "count")
+
+# Plot number of cells per sample
+p <- ggplot2::ggplot(df_samp_counts, ggplot2::aes(x = reorder(sample, count), y = count)) 
+p <- p + ggplot2::geom_bar(stat = "identity", fill = "steelblue") 
+p <- p + ggplot2::theme_bw() 
+p <- p + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1)) 
+p <- p + ggplot2::labs(x = "Sample ID", y = "Number of cells")
+p
+```
+
+![](vignette_files/figure-html/plot_num_cells_samp-1.png)
+
+We examine the number of cells per cell type across all cells and see
+that it varies widely by cell type.
+
+``` r
+# Number of cells per cell type
+sort(table(SummarizedExperiment::colData(spe)[, celltype_col]))
+```
+
+    > 
+    >                     RBC                Endo_Lym Dedifferentiated_Tubule 
+    >                      24                      84                     221 
+    >                   M_TAL                  Endo_G        Endo_Peritubular 
+    >                     334                     359                     516 
+    >                   PT_S2                    CD4T                     Mes 
+    >                     545                     566                     614 
+    >                    Podo                     DCT                     PEC 
+    >                     643                     732                     820 
+    >                     CNT           VSMC/Pericyte                    Mono 
+    >                     879                     892                     939 
+    >                      IC                     Mac                  MyoFib 
+    >                     969                    1099                    1121 
+    >            Plasma_Cells                      PC              GS_Stromal 
+    >                    1501                    1601                    2243 
+    >                   PT_S1                     iPT                     Fib 
+    >                    2289                    2851                    3183 
+    >                   PT_S3                   C_TAL 
+    >                    3427                    8691
+
+``` r
+# Convert table to a data frame
+df_cty_counts <- as.data.frame(table(SummarizedExperiment::colData(spe)[, celltype_col]))
+colnames(df_cty_counts) <- c("celltype", "count")
+
+# Plot number of cells per sample
+p <- ggplot2::ggplot(df_cty_counts, ggplot2::aes(x = reorder(celltype, count), y = count)) 
+p <- p + ggplot2::geom_bar(stat = "identity", fill = "steelblue") 
+p <- p + ggplot2::theme_bw() 
+p <- p + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1)) 
+p <- p + ggplot2::labs(x = "Cell type", y = "Number of cells")
+p
+```
+
+![](vignette_files/figure-html/plot_num_cells_ctyp-1.png)
+
+For compatibility with standard visualization tools, we append the
+spatial coordinates directly to the metadata.
+
+**Note**: It is essential for the row names of the coordinates in a
+SpatialExperiment object to match the row names of the metadata and the
+column names of the count matrix; it is not necessary to add the
+coordinates to the metadata, but it is necessary for the row names to
+match.
+
+``` r
+# Add the spatial coordinates into the metadata (convenience)
+SummarizedExperiment::colData(spe) <- cbind(SummarizedExperiment::colData(spe), 
+                                            SpatialExperiment::spatialCoords(spe))
+```
+
+To focus our analysis on the most informative features, we sort the
+genes by raw count variance. In a typical workflow, you might subset the
+data object to the top $N$ genes (e.g., the top 3,000 or 5,000 genes)
+before fitting the model.
+
+``` r
+# Calculate variance across all spots for each gene
+rv <- MatrixGenerics::rowVars(SingleCellExperiment::counts(spe))
+names(rv) <- rownames(spe)
+
+# Order the entire object by raw count variance (highest to lowest)
+spe <- spe[order(rv, decreasing = TRUE), ]
+```
+
+Finally, we visualize the spatial distribution of cell types across all
+14 samples.
+
+``` r
+# Extract metadata
+plot_df <- as.data.frame(SummarizedExperiment::colData(spe))
+
+# Cell type colors
+set.seed(200)
+P26 <- Polychrome::createPalette(26, c("#ff0000", "#00ff00", "#0000ff"))
+names(P26) <- unique(plot_df$celltype)
+
+# Create the spatial plot
+p <- ggplot2::ggplot(
+  data = plot_df,
+  mapping = ggplot2::aes(x = pxl_col_in_fullres, y = pxl_row_in_fullres, color = celltype)
+)
+p <- p + ggplot2::geom_point(size = 0.25)
+p <- p + ggplot2::scale_colour_manual(name = "Cell type", values = P26)
+p <- p + ggplot2::facet_wrap( ~ orig.ident)
+p <- p + ggplot2::scale_y_reverse()
+p <- p + ggplot2::guides(color = ggplot2::guide_legend(override.aes = list(size = 4), ncol = 1))
+p <- p + ggplot2::theme_void()
+p <- p + ggplot2::theme(
+  panel.background = ggplot2::element_rect(fill = "white", color = NA),
+  text = ggplot2::element_text(size = 15),
+  plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
+)
+p
+```
+
+![](vignette_files/figure-html/visualize_covariates-1.png)
+
+## Construct Design Matrix
+
+In this analysis, we account for three primary factors: cell type,
+experimental condition, and sample identity. Because gene expression
+patterns often vary across conditions in a cell type-specific manner,
+our design explicitly models these interactions. This allows us to test
+for differential expression within specific cell types while
+simultaneously controlling for sample-level biological and technical
+variation.
+
+To achieve this, we use an intercept-free, interaction-only design. This
+formulation treats every combination of condition and cell type as a
+distinct state, which simplifies the construction of contrasts (e.g.,
+comparing DKD vs. Control within a specific cell type) for hypothesis
+testing (detailed in the [Hypothesis Testing](#hyp-test) section).
+
+Additionally, we account for sample-specific effects representing the
+individual-level biological or technical variation. Because each sample
+belongs to only one experimental condition, we must nest the sample ID
+within the condition, following a framework similar to the
+*[DESeq2](https://bioconductor.org/packages/3.23/DESeq2)* package
+([Love, Huber, and Anders 2014](#ref-love2014moderated)) multi-factor
+approach.
+
+We first map metadata columns to experimental factors and specify
+reference levels for each. This keeps the design matrix columns in a
+consistent order, making it much easier to compare specific cell types
+or conditions during the hypothesis testing step.
+
+``` r
+# Define covariate columns in metadata
+celltype_col <- "celltype"
+sample_col <- "orig.ident"
+group_col <- "Group"
+coord_cols <- c("pxl_row_in_fullres", "pxl_col_in_fullres")
+covariates_keep <- c(group_col, celltype_col) # Use when creating design formula
+
+# Define reference levels (baselines) for each factor (celltype, sample, and condition)
+ref_celltype <- "C_TAL"
+ref_sample <- "HK2874_ST"
+ref_group <- "Control"
+
+# Re-level factors to ensure the model uses the correct baseline
+SummarizedExperiment::colData(spe)[, sample_col] <- relevel(factor(SummarizedExperiment::colData(spe)[, sample_col]), ref = ref_sample)
+SummarizedExperiment::colData(spe)[, celltype_col] <- relevel(factor(SummarizedExperiment::colData(spe)[, celltype_col]), ref = ref_celltype)
+SummarizedExperiment::colData(spe)[, group_col] <- relevel(factor(SummarizedExperiment::colData(spe)[, group_col]), ref = ref_group)
+```
+
+Multi-sample studies often require controlling for “sample effects”
+while samples are nested within broader experimental conditions To
+account for these effects without introducing multi-collinearity, we
+assign a nested ID (1, 2, 3…) to each sample within its respective
+condition.
+
+``` r
+# Extract unique sample IDs for each experimental condition
+control_ids <- unique(SummarizedExperiment::colData(spe)[, sample_col][SummarizedExperiment::colData(spe)[, group_col]  == "Control"])
+DKD_ids <- unique(SummarizedExperiment::colData(spe)[, sample_col][SummarizedExperiment::colData(spe)[, group_col]  == "DKD"])
+HKD_ids <- unique(SummarizedExperiment::colData(spe)[, sample_col][SummarizedExperiment::colData(spe)[, group_col]  == "HKD"])
+
+# Initialize a new ID vector
+new_id <- rep(0, nrow(SummarizedExperiment::colData(spe)))
+
+# Assign a numeric index to samples within each condition
+for (idx in 1:length(control_ids)) {
+  new_id[SummarizedExperiment::colData(spe)[, sample_col] == control_ids[idx]] <- idx
+}
+for (idx in 1:length(DKD_ids)) {
+  new_id[SummarizedExperiment::colData(spe)[, sample_col] == DKD_ids[idx]] <- idx
+}
+for (idx in 1:length(HKD_ids)) {
+  new_id[SummarizedExperiment::colData(spe)[, sample_col] == HKD_ids[idx]] <- idx
+}
+
+# Store the nested ID back into the spatial experiment object
+SummarizedExperiment::colData(spe)$nested_id <- factor(new_id)
+new_nested_sample_col <- "nested_id"
+```
+
+The design matrix is constructed using the formula
+`~ 0 + Group:celltype + Group:nested_id`. The `0 +` term removes the
+global intercept, allowing the model to estimate absolute means for each
+interaction term, denoted by the `:` operator.
+
+For example, rather than modeling how the ‘DKD’ condition differs
+relative to a ‘Control’ baseline, `TESSERA` estimates the mean for each
+condition independently. This approach makes calculating differences
+between conditions much more intuitive when defining contrasts for
+hypothesis testing.
+
+``` r
+# Build the formula string: ~ 0 + Group:celltype + Group:nested_id
+design_formula <- as.formula(paste0(" ~ 0 + ", 
+                                    group_col, ":", celltype_col, " + ", 
+                                    group_col, ":nested_id"))
+print(design_formula)
+```
+
+    > ~0 + Group:celltype + Group:nested_id
+
+``` r
+# Create the design matrix
+X_mat <- model.matrix(design_formula, SummarizedExperiment::colData(spe))
+```
+
+Raw design matrices often produce messy column names (e.g.,
+GroupDKD:nested_id2). We rename these to reflect the actual sample IDs
+they represent for better interpretability in downstream analysis.
+
+``` r
+# Associate each nested ID with its sample and condition
+sample_mapping <- colData(spe) %>%
+  as.data.frame() %>%
+  distinct(pick(all_of(c(group_col, sample_col, "nested_id"))))
+
+# Map nested IDs back to original sample names for clarity
+for (i in seq_len(nrow(sample_mapping))) {
+  old_name <- paste0(group_col, sample_mapping[[group_col]][i], ":nested_id", sample_mapping$nested_id[i])
+  new_name <- paste0(group_col, sample_mapping[[group_col]][i], ":", sample_mapping[[sample_col]][i])
+  colnames(X_mat) <- gsub(old_name, new_name, colnames(X_mat), fixed = TRUE)
+}
+```
+
+We drop zero columns. This removes any columns that represent
+combinations of factors not present in the data.
+
+``` r
+# Toss out zero (empty) columns
+X_mat <- X_mat[, colSums(X_mat) != 0]
+```
+
+We ensure the matrix is full rank (i.e., that there is no
+multi-collinearity that would prevent the model from being fitted).
+
+``` r
+# Ensure the design matrix is full rank
+if (Matrix::rankMatrix(X_mat)[1] != ncol(X_mat)) {
+  stop("The design matrix is not full rank. Check for linear dependencies.")
+}
+```
+
+We examine the dimensions of the resulting design matrix, where the rows
+represent the observations and the columns represent the parameters,
+$\mathbf{β}$, to be estimated. It serves as a quick check to ensure the
+number of model coefficients matches the sum of the numbers of cell
+type/condition combinations and nested samples.
+
+``` r
+# Review the design matrix dimensions
+dim(X_mat)
+```
+
+    > [1] 37143    88
+
+The columns of the final design matrix $X$ represent the specific
+parameters, $\mathbf{β}$, to be estimated, with each column name
+corresponding to a unique cell type, group, or nested sample effect.
+
+``` r
+# Examine the design matrix column names
+head(colnames(X_mat))
+```
+
+    > [1] "GroupControl:celltypeC_TAL" "GroupDKD:celltypeC_TAL"    
+    > [3] "GroupHKD:celltypeC_TAL"     "GroupControl:celltypeCD4T" 
+    > [5] "GroupDKD:celltypeCD4T"      "GroupHKD:celltypeCD4T"
+
+## Format Data for `TESSERA`
+
+`TESSERA` employs a specialized data format designed to manage multiple
+samples while respecting the distinct spatial covariance structure
+inherent to each. A key goal of the preparation step is computational
+efficiency: we pre-compute quantities that are shared across all genes
+to drastically reduce the time required for model fitting.
+
+### Choosing a Spatial Random Effect Model
+
+The data preparation requirements depend on the spatial random effect
+model selected. `TESSERA` supports two primary classes of models, which
+differ in how they define and infer spatial correlation. The choice of
+model determines the preparation steps required.
+
+#### Lattice Models (Leroux, CAR, SAR)
+
+Lattice models define spatial correlation based on a
+measurement-measurement adjacency matrix (i.e., identifying which cells
+are physically adjacent).
+
+- **Model Varieties:**
+  - **Leroux** is our preferred default; it decomposes variance into
+    spatially correlated and uncorrelated components and offers the
+    fastest pre-computation.
+  - **CAR and SAR** are also supported but are slightly more
+    computationally demanding during the preparation phase.
+- **Pre-computation:** These models require a one-time pre-computation
+  of eigenvalues for specific sparse matrices. While this takes a few
+  seconds per sample, it makes the subsequent gene-level model fitting
+  faster.
+- **Memory Note:** The pre-computation step computes eigenvalues for an
+  $n \times n$ matrix (where $n$ is the number of cells per sample). For
+  $n < 3000$, this typically uses $< 1$ GB of RAM.
+
+#### Sparse Nearest-Neighbor Gaussian Process (spNNGP)
+
+spNNGP models define spatial correlation as a function of pairwise
+distances between cells using a kernel function (e.g., Matern,
+Exponential, Gaussian, or Spherical).
+
+- **The “Sparse” Advantage:** The “sparse nearest-neighbor” improvement
+  over a traditional Gaussian Process is an approximation that enables
+  greater scalability by discarding the correlation between far-away
+  pairs of cells.
+- **No Pre-computation:** spNNGP models do not require adjacency
+  matrices or eigenvalue pre-computation, making the initial preparation
+  faster.
+- **Computational Trade-off:** However, the inference process is more
+  intensive and may be slower than lattice models, especially when
+  processing thousands of genes.
+
+### Defining Adjacency Matrix for Lattice Models
+
+If you choose a lattice model, you must define a neighborhood structure
+by identifying which cells are physically adjacent. `TESSERA` can accept
+a pre-computed adjacency matrix. However, if the adjacency matrix is
+unknown, we provide internal utilities to determine cell-cell adjacency
+based on the data’s spatial coordinates.
+
+For structured grid-based datasets, such as next-generation sequencing
+datasets from the Visium platform, you can simply provide the
+`expected_num_neighbors` argument (typically 6 for Visium due to its
+hexagonal grid). `TESSERA` then automatically determines the distance
+threshold required to satisfy the target neighbor count, defining any
+cells within this distance as adjacent. Ultimately,
+`expected_num_neighbors` serves to automate the discovery of a valid
+`D_THRESH` argument for structured data, while `D_THRESH` itself offers
+the manual control required for more complex or non-grid tissue
+architectures.
+
+In particular, for imaging-based or irregularly spaced data, determining
+adjacency is often more nuanced. We provide the
+[`plot_neighbor_distances()`](https://floricaconstantine.github.io/TESSERA/reference/plot_neighbor_distances.md)
+function as a diagnostic tool; it generates box-plots of the distance to
+the $k$-th nearest neighbor for every cell. A sharp “jump” in distance
+typically indicates the boundary where cells are no longer physically
+adjacent. For example, a jump after the sixth neighbor suggests that the
+seventh closest cell is likely not a direct neighbor.
+
+``` r
+# Inspect distances to identify the neighbor threshold
+nb_data <- TESSERA::plot_neighbor_distances(
+  meta_data = SummarizedExperiment::colData(spe),
+  sample_col = sample_col,
+  coord_data = SpatialExperiment::spatialCoords(spe)
+)
+
+# Per the plot, we see a jump after the 6th neighbor.
+# We use the midpoint of the 6th and 7th neighbor distances as our threshold.
+nb_thresh <- mean(colMeans(nb_data$mean_nb_dist[, 6:7]))
+
+p <- nb_data$distances_plot
+p <- p + ggplot2::geom_hline(yintercept = nb_thresh, color = "red")
+p <- p + ggplot2::theme_bw()
+p <- p + ggplot2::theme(text = ggplot2::element_text(size = 15))
+p
+```
+
+![](vignette_files/figure-html/visualize_neighbors-1.png)
+
+However, in highly irregular or “noisy” spatial layouts, these plots may
+become difficult to interpret. In such cases, you may need to manually
+inspect your spatial coordinates, or process associated images of your
+data where available, to determine a reasonable distance threshold. This
+value can be passed directly to `prepData()` via the `D_THRESH`
+argument.
+
+### The `prep_data` function
+
+The `prep_data` function acts as a wrapper that converts your data into
+the structured format `TESSERA` expects. You can provide data either as
+a `SpatialExperiment` object or as raw matrices and data frames.
+
+#### Function Inputs
+
+#### 1. Data Input (Choose One)
+
+| Argument     | Description                                                                                                                                    |
+|:-------------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
+| `x`          | A `SpatialExperiment` object. If provided, counts, metadata, and coordinates are extracted automatically.                                      |
+| **OR**       |                                                                                                                                                |
+| `x`          | A variables $\times$ measurements (e.g., genes $\times$ cells) count matrix. Rownames must be variable names. Colnames must be measurement IDs |
+| `meta_data`  | Data frame of covariates where `rownames(meta_data)` matches `colnames(count_matrix)`.                                                         |
+| `coord_data` | Coordinates for observations. Required for `spNNGP` or when computing adjacency from scratch.                                                  |
+
+#### 2. Statistical Design (Choose One)
+
+| Argument         | Description                                                                  |
+|:-----------------|:-----------------------------------------------------------------------------|
+| `design_formula` | A standard R formula object (e.g., `~ 0 + Group:celltype`).                  |
+| `design_mat`     | A pre-constructed design matrix. Zero columns will be dropped automatically. |
+
+#### 3. Spatial & Model Configuration
+
+| Argument                 | Description                                                                                                                                         |
+|:-------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `sample_col`             | String identifying the column in metadata used to split data by sample.                                                                             |
+| `model_type`             | The spatial model to be used: `"Leroux"`, `"CAR"`, `"SAR"`, or `"spNNGP"`; passing in `"ALL"` prepares `TESSERA` for any of the four.               |
+| `adj_mat`                | **(Lattice only)** A pre-computed sparse adjacency matrix.                                                                                          |
+| `D_THRESH`               | **(Lattice only)** Distance threshold for assigning neighbors. Required if `adj_mat` is not provided.                                               |
+| `expected_num_neighbors` | **(Lattice only)** The average neighbors per cell (e.g., 6 for Visium). Used to automate `D_THRESH` calculation; ignored if `D_THRESH` is supplied. |
+| `k_search`               | **(Lattice only)** The maximum number of neighbors to search for when forming adjacency matrices.                                                   |
+
+The data preparation step takes approximately 2 minutes on an M1 MacBook
+with 16 GB of RAM. We will load a pre-computed result object for this
+vignette.
+
+``` r
+# Output of prepData function
+TESSERA_data <- get_my_data("TESSERA_prepData_out.rds")
+```
+
+    > adding rname 'https://github.com/floricaconstantine/TESSERA_manuscript/raw/main/data/vignette_data/TESSERA_prepData_out.rds'
+
+The following code block illustrates the exact code used to perform the
+data preparation step. If you wish to run the code locally, simply
+change the chunk header to `eval = TRUE`.
+
+``` r
+# Prepare data for the TESSERA package
+TESSERA_data <- TESSERA::prep_data(
+  x = spe,
+  sample_col = sample_col,
+  design_mat = X_mat,
+  model_type = "Leroux",
+  expected_num_neighbors = 6
+)
+```
+
+The function returns a `TESSERA_data` object: a structured list
+containing coordinates, covariates, counts, library sizes, and design
+matrices, all indexed by sample. For lattice models, this object also
+stores the pre-computed adjacency and degree matrices along with the
+eigenvalues required to accelerate the model-fitting process. This
+sample-wise organization ensures that `TESSERA` can efficiently iterate
+through the data and perform downstream calculations when performing
+statistical inference.
+
+## Running `TESSERA`
+
+`TESSERA` fits models on a single gene at a time. This independence
+means there is no information sharing between genes during the fitting
+process and allows for straightforward parallelization across genes.
+
+To fit a model, you must provide three core inputs: the processed data
+object, the specific gene name, and the desired covariance structure
+(e.g., “Leroux”).
+
+`TESSERA` uses an Expectation-Conditional Maximization (ECM) algorithm
+to estimate model parameters. While the default settings are robust for
+most spatial transcriptomics datasets, you can fine-tune the convergence
+behavior using the following settings:
+
+- **Iteration Limits:** `em_iters` sets the maximum number of allowed
+  iterations. `em_min_iters` enforces a minimum number of steps to
+  prevent the algorithm from exiting before the log-likelihood has
+  stabilized.
+
+- **Convergence Tolerance:** `em_tol` is the numerical threshold for
+  stopping, and `em_stopping` defines the metric used (typically the
+  relative change in log-likelihood). The algorithm stops when the
+  change between iterations falls below this tolerance.
+
+- **Optimization Intensity:** `opt_iters` controls the number of
+  internal Conditional-Maximization (CM) steps performed during each
+  E-step. Increasing this can reduce the total number of iterations
+  required for convergence but increases the computational cost of each
+  individual iteration.
+
+Fitting the `TESSERA` model can be computationally intensive even with
+all the implemented speed-ups, taking approximately 12 minutes for a
+single gene on an M1 MacBook with 16 GB of RAM. We will load a
+pre-computed result object for this vignette
+
+``` r
+# Output of TESSERA run with default settings for the "ACTA2" gene
+TESSERA_out <- get_my_data("TESSERA_ACTA2_example.rds")
+```
+
+    > adding rname 'https://github.com/floricaconstantine/TESSERA_manuscript/raw/main/data/vignette_data/TESSERA_ACTA2_example.rds'
+
+The following code block illustrates the exact parameters used to
+generate the model fitting results for the *ACTA2* gene. If you wish to
+run the model locally, simply change the chunk header to `eval = TRUE`.
+
+``` r
+# Which gene to run
+gene_idx <- which(rownames(spe) == "ACTA2")
+# Run TESSERA
+TESSERA_out <- TESSERA::TESSERA_lattice(
+  # Output of prepData function
+  TESSERAData_obj = TESSERA_data,
+  # Gene
+  gene_name = rownames(spe)[gene_idx],
+  # Which covariance structure to use
+  model_type = "Leroux",
+  # How many ECM iterations to run (maximum)
+  em_iters = 200,
+  # How many CM steps to run per E-Step
+  opt_iters = 5,
+  # Min ECM iterations before early stopping
+  em_min_iters = 15,
+  # Tolerance for early stopping
+  em_tol = 1e-3,
+  # How to determine early stopping: Relative change in log likelihood
+  em_stopping = "rel_loglike",
+  # Whether to print out parameter values and convergence information at each iteration
+  verbose = FALSE
+)
+
+# Output the run-time
+print(TESSERA_out$time)
+```
+
+Once the algorithm has converged, the output object provides a
+comprehensive summary of the performance in the `performanceSummary`
+data frame, allowing for a sample-wise breakdown of the results.
+
+By inspecting the fitted spatial covariance parameters, we can quantify
+the strength of the spatial dependence for the lattice models via the
+identifiable parameters `gamma_hat` or `tau2_hat`. While individual
+spNNGP model parameters are not identifiable, their estimates are
+provided in the relevant `nugget_hat`, `sill_hat`, `range_hat`, and
+`smoothness_hat` columns, with `kernel_type` specifying the Gaussian
+process kernel used.
+
+The MSE results, such as `MSE_counts_sample` relative to
+`Mean_counts2_sample`, facilitate the evaluation of fitted count
+accuracy on a per-sample basis.
+
+Finally, the Moran’s $I$ metrics, specifically `Moran_residuals`, act as
+a critical diagnostic to ensure that the spatial structure has been
+adequately captured, indicating that the model has successfully
+accounted for the spatial dependency in the data.
+
+``` r
+# Inspect a summary of the model fitting results
+head(TESSERA_out$performanceSummary, 2)
+```
+
+    >    gene fit_model    sample n_cells gamma_hat  tau2_hat kernel_type nugget_hat
+    > 1 ACTA2    Leroux HK2529_ST    2970 0.3534340 0.6471708          NA         NA
+    > 2 ACTA2    Leroux HK2671_ST    2013 0.8875726 1.4297136          NA         NA
+    >   sill_hat range_hat smoothness_hat MSE_counts_sample MSE_counts_total
+    > 1       NA        NA             NA          1.344692         1.807373
+    > 2       NA        NA             NA          1.217016         1.807373
+    >   Mean_counts2_sample Mean_counts2_total Moran_counts Moran_predictions
+    > 1            13.60236           56.69332   0.01143411        0.02921505
+    > 2            45.41083           56.69332   0.04299766        0.05003665
+    >   Moran_residuals  Moran_phi  Moran_eta Moran_Xbeta Moran_theta
+    > 1    0.0006048731 0.03196715 0.03449316  0.11150974  0.02106583
+    > 2   -0.0054987870 0.09087874 0.07396928  0.03187866  0.04924273
+    >   Moran_librarysize
+    > 1        0.08424563
+    > 2        0.09029756
+
+The estimated fixed effects are stored in the `beta_hat` field. Each
+entry corresponds to a column in your design matrix.
+
+``` r
+# Print fitted parameters
+head(TESSERA_out$beta_hat)
+```
+
+    > GroupControl:celltypeC_TAL     GroupDKD:celltypeC_TAL 
+    >                  -7.238039                  -7.045009 
+    >     GroupHKD:celltypeC_TAL  GroupControl:celltypeCD4T 
+    >                  -8.308204                  -6.931760 
+    >      GroupDKD:celltypeCD4T      GroupHKD:celltypeCD4T 
+    >                  -6.871734                  -8.129911
+
+### Parallelize `TESSERA`
+
+`TESSERA` can be run in parallel (or serial) to fit to multiple genes.
+However, `TESSERA` is computationally intensive if run on hundreds or
+thousands of genes as is typical for genomic data, so it is best to
+parallelize this process on a high performance computing cluster.
+
+The following code (not run) shows an example of how to use the
+`futures` package to parallelize `TESSERA` on 50 genes.
+
+``` r
+library(future)
+library(future.apply)
+
+# How many genes to run
+gene_idx_list <- seq(50)
+print(length(gene_idx_list))
+gene_names <- rownames(spe)[gene_idx_list] 
+
+# Setup the backend
+n_workers <- min(length(gene_names), parallel::detectCores() - 2)
+if (.Platform$OS.type == "unix") {
+  future::plan(future::multicore, workers = n_workers)
+} else {
+  future::plan(future::multisession, workers = n_workers)
+}
+
+# Increase memory limit for globals (2GB)
+options(future.globals.maxSize = 2000 * 1024^2) 
+
+t0 <- Sys.time()
+
+# Run future_lapply
+# future.chunk.size = 1 ensures workers don't "batch" these 12-minute tasks.
+TESSERA_results <- future.apply::future_lapply(gene_names, function(g_name) {
+  
+  TESSERA::TESSERA_lattice(
+    TESSERAData_obj = TESSERA_data,
+    gene_name       = g_name,
+    model_type      = "Leroux",
+    em_iters        = 200,
+    em_min_iters    = 15,
+    em_tol          = 1e-3,
+    em_stopping     = "rel_loglike",
+    verbose         = FALSE
+  )
+  
+}, future.seed = TRUE, future.chunk.size = 1)
+
+t1 <- Sys.time()
+
+# Clean up
+future::plan(future::sequential)
+
+cat("Parallel processing of", length(gene_names), "genes took:", 
+    round(difftime(t1, t0, units = "min"), 2), "minutes.\n")
+```
+
+## Hypothesis Testing
+
+After fitting models to hundreds or thousands of genes, we aim to
+identify which among them are differentially expressed. We define
+differential expression as a statistically significant difference
+between the entries of the fixed-effect vector, $\mathbf{β}$, that
+correspond to distinct experimental groups (e.g., Control vs. DKD within
+the *VSMC* cell type).
+
+Unlike standard multi-sample methods that often treat observations as
+independent, `TESSERA` accounts for the inherent spatial correlation
+between measurements. By explicitly modeling this spatial covariance
+structure, the method effectively controls the Type I error rate. This
+prevents the inflation of false positives that commonly occurs when
+spatial autocorrelation is ignored–a frequent issue in non-spatial
+models that can lead to misleading biological conclusions.
+
+For a comprehensive discussion of the model’s statistical properties,
+including power and Type I error benchmarks, please refer to the
+`TESSERA` methodological manuscript ([Constantine et al.
+2026](#ref-constantine2026tessera)).
+
+For the purposes of this vignette, we have already run `TESSERA` on the
+top 3,000 genes (selected by raw count variance). These results were
+aggregated into a single object through a simple row-binding of the
+output data frames from each individual gene’s run. We load this
+compiled object here to demonstrate downstream analysis and
+visualization.
+
+``` r
+# Load pre-computed results for the multi-gene analysis
+TESSERA_all <- get_my_data("TESSERA_model_results.rds")
+```
+
+    > adding rname 'https://github.com/floricaconstantine/TESSERA_manuscript/raw/main/data/vignette_data/TESSERA_model_results.rds'
+
+The following code block illustrates the exact parameterization used to
+generate our aggregated results. To process the full set of 3,000 genes,
+this model-fitting procedure was executed for each `gene_idx` (1 to
+3,000) as independent batch jobs on a high-performance computing (HPC)
+cluster.
+
+``` r
+# Which gene to run
+gene_idx <- 1
+# Run TESSERA
+TESSERA_out <- TESSERA::TESSERA_lattice(
+  # Output of prepData function
+  TESSERAData_obj = TESSERA_data,
+  # Gene
+  gene_name = rownames(spe)[gene_idx],
+  # Which covariance structure to use
+  model_type = "Leroux",
+  # How many ECM iterations to run (maximum)
+  em_iters = 200,
+  # How many CM steps to run per E-Step
+  opt_iters = 5,
+  # Min ECM iterations before early stopping
+  em_min_iters = 30,
+  # Tolerance for early stopping
+  em_tol = 1e-3,
+  # How to determine early stopping: Relative change in log likelihood
+  em_stopping = "rel_loglike",
+  # Initialization of beta is done via Poisson GLM
+  beta_init = "glm",
+  # Initialization of gamma is based on the Moran's I of the log-transformed counts
+  gamma_init = "moran",
+  # Initialization of tau^2 is based on the variance of the log-transformed counts
+  tau2_init = "var",
+  # Whether to print out parameter values and convergence information at each iteration
+  verbose = FALSE
+)
+
+# Output the run-time
+print(TESSERA_out$time)
+```
+
+The `performance_df` data frame provides a sample-wise breakdown of
+model performance across the entire dataset. This object follows the
+same structure as the `performanceSummary` data frame described in the
+[Run `TESSERA`](#run-tessera) section but contains rows for all
+gene-sample pairs.
+
+``` r
+# Extract sample-level performance metrics for all 3,000 genes
+performance_df <- TESSERA_all$perf_df
+```
+
+The results of the hypothesis tests, including specific contrasts,
+estimated values, associated standard errors, and Wald statistics, are
+contained in the `wald_df` data frame. Shown below are the results for
+between-condition comparisons performed within each cell type, a process
+elaborated upon in the [DE within a cell type between
+conditions](#de-within-celltype) section.
+
+``` r
+# Extract Wald test results for all gene-contrast pairs
+wald_df <- TESSERA_all$wald_df
+head(wald_df, 2)
+```
+
+    >   gene fit_model kernel_type contrast_indices contrast_val contrast_se
+    > 1  A2M    Leroux          NA              1_2   -0.1190266  0.03726227
+    > 2  A2M    Leroux          NA              1_3    0.4897356  0.06393596
+    >   wald_stat_t contrast_description
+    > 1   -3.194293    C_TAL:Control-DKD
+    > 2    7.659783    C_TAL:Control-HKD
+
+### Creating Contrasts
+
+Often, hypothesis testing is accomplished by testing contrasts of an
+estimated fixed-effects vector. The rows of the contrast matrix
+correspond to different contrasts, and the columns correspond to the
+entries of the fixed-effects vector. We assume that each contrast is
+tested separately and is of the form:
+$$\sum\limits_{k = 1}^{p}c_{k}\beta_{k} = 0,$$ where $\beta_{k}$ is the
+$k^{th}$ entry of the fixed effects vector $\beta$ and the $c_{k}$ are
+coefficients that encode the contrasts.
+
+We illustrate this approach below with two examples of contrast matrices
+designed to address distinct biological hypotheses: comparing expression
+across cell types and testing for condition-specific effects within a
+single cell type. These examples are not exhaustive; the framework is
+flexible, allowing for the construction of custom contrasts to suit a
+wide range of research objectives.
+
+#### DE between cell types
+
+We demonstrate how to construct a contrast matrix for testing
+differential expression between two cell types $c_{1}$ and $c_{2}$. The
+contrasts of interest are
+$$\frac{1}{3}\left( \beta_{c_{1},\textit{𝐶𝑜𝑛𝑡𝑟𝑜𝑙}} + \beta_{c_{1},\textit{𝐷𝐾𝐷}} + \beta_{c_{1},\textit{𝐻𝐾𝐷}} \right) - \frac{1}{3}\left( \beta_{c_{2},\textit{𝐶𝑜𝑛𝑡𝑟𝑜𝑙}} + \beta_{c_{2},\textit{𝐷𝐾𝐷}} + \beta_{c_{2},\textit{𝐻𝐾𝐷}} \right).$$
+First, we extract the cell type levels from the SpatialExperiment object
+and generate all possible pairwise combinations.
+
+``` r
+# Get list of cell types from the SpatialExperiment object
+cell_type_list <- levels(SummarizedExperiment::colData(spe)[, celltype_col])
+
+# Generate all possible pairs of cell types
+celltype_pairs <- combn(cell_type_list, 2)
+# Column names in design matrix
+covariate_names <- colnames(X_mat)
+```
+
+We iterate through each pair, identifying the corresponding columns in
+the design matrix. By assigning weights of $1/3$ (or $1/n$ depending on
+the number of conditions), we ensure we are testing the difference in
+average expression across all experimental groups.
+
+``` r
+# Initialize an empty list to store individual contrast rows
+contrast_list <- list()
+
+# Loop over cell type pairs
+for (ct_idx in 1:ncol(celltype_pairs)) {
+  # Find indices in the design matrix for each cell type in the pair
+  idx1 <- which(grepl(celltype_pairs[1, ct_idx], covariate_names))
+  idx2 <- which(grepl(celltype_pairs[2, ct_idx], covariate_names))
+  
+  # Initialize a single-row matrix with zeros
+  tmp <- matrix(data = 0, nrow = 1, ncol = length(covariate_names))
+
+  # Assign weights to represent the average across conditions
+  tmp[1, idx1] <- 1 / length(idx1)
+  tmp[1, idx2] <- -1 / length(idx2)
+  
+  # Name the row for clear identification in the output
+  rownames(tmp) <- c(paste0(celltype_pairs[1, ct_idx], "-", celltype_pairs[2, ct_idx]))
+  contrast_list[[1 + length(contrast_list)]] <- tmp
+}
+```
+
+Finally, we bind the individual rows together to create the full
+contrast matrix.
+
+``` r
+# Combine the list of rows into a single contrast matrix
+celltype_contrast_mat <- Reduce(rbind, contrast_list)
+colnames(celltype_contrast_mat) <- covariate_names
+
+# Preview the first few rows and columns
+head(celltype_contrast_mat[, 1:6], 2)
+```
+
+    >            GroupControl:celltypeC_TAL GroupDKD:celltypeC_TAL
+    > C_TAL-CD4T                  0.3333333              0.3333333
+    > C_TAL-CNT                   0.3333333              0.3333333
+    >            GroupHKD:celltypeC_TAL GroupControl:celltypeCD4T
+    > C_TAL-CD4T              0.3333333                -0.3333333
+    > C_TAL-CNT               0.3333333                 0.0000000
+    >            GroupDKD:celltypeCD4T GroupHKD:celltypeCD4T
+    > C_TAL-CD4T            -0.3333333            -0.3333333
+    > C_TAL-CNT              0.0000000             0.0000000
+
+We now view the results of the between-cell type contrasts for the gene
+*ACTA2* below.
+
+``` r
+# Compute Wald statistics
+one_gene_ct_wald <- TESSERA::calc_Wald_statistics(TESSERA_out, celltype_contrast_mat)
+# Remove the raw contrast string for a cleaner display
+one_gene_ct_wald <- dplyr::select(one_gene_ct_wald, -c("contrast_string"))
+# Preview the first few rows
+head(one_gene_ct_wald, 2)
+```
+
+    >             gene fit_model kernel_type contrast_indices contrast_val
+    > C_TAL-CD4T ACTA2    Leroux          NA      1_2_3_4_5_6   -0.2192822
+    > C_TAL-CNT  ACTA2    Leroux          NA      1_2_3_7_8_9    0.2746252
+    >            contrast_se wald_stat_t
+    > C_TAL-CD4T  0.02851594   -7.689811
+    > C_TAL-CNT   0.02020265   13.593524
+
+#### DE within a cell type between conditions
+
+Beyond comparing cell types, we can construct a contrast matrix to test
+for differential expression between experimental conditions *within* a
+specific cell type. For a given cell type $c$, the contrasts of interest
+are of the following form:
+$$\beta_{\textit{𝑐, 𝐷𝐾𝐷}} - \beta_{\textit{𝑐, 𝐶𝑜𝑛𝑡𝑟𝑜𝑙}},\qquad\beta_{\textit{𝑐, 𝐻𝐾𝐷}} - \beta_{\textit{𝑐, 𝐶𝑜𝑛𝑡𝑟𝑜𝑙}},\qquad\beta_{\textit{𝑐, 𝐻𝐾𝐷}} - \beta_{\textit{𝑐, 𝐷𝐾𝐷}}.$$
+
+First, we identify the unique conditions and generate all possible
+pairwise comparisons.
+
+``` r
+cell_type_list <- levels(SummarizedExperiment::colData(spe)[, celltype_col])
+condition_list <- levels(SummarizedExperiment::colData(spe)[, group_col])
+
+# Generate all pairs of conditions (e.g., Control-DKD, Control-HKD, etc.)
+condition_pairs <- combn(condition_list, 2)
+# Column names in design matrix
+covariate_names <- colnames(X_mat)
+```
+
+We iterate through each cell type and, within each, loop through the
+condition pairs. This identifies the specific entries in the
+fixed-effect vector $\mathbf{β}$ that correspond to the intersection of
+that cell type and those conditions.
+
+``` r
+# Initialize an empty list to store individual contrast rows
+contrast_list <- list()
+
+# Loop over cell types and condition pairs
+for (ct in cell_type_list) {
+  for (d_idx in 1:ncol(condition_pairs)) {
+    # Match the specific column names in the design matrix
+    idx1 <- which(covariate_names == paste0(group_col, condition_pairs[1, d_idx], ":", celltype_col, ct))
+    idx2 <- which(covariate_names == paste0(group_col, condition_pairs[2, d_idx], ":", celltype_col, ct))
+    
+    # Skip the contrast if data is missing for either condition in this cell type
+    if ((0 == length(idx1)) || (0 == length(idx2))) {
+      next
+    }
+    
+    # Create the contrast row
+    tmp <- matrix(data = 0, nrow = 1, ncol = length(covariate_names))
+    tmp[1, idx1] <- 1
+    tmp[1, idx2] <- -1
+    
+    # Label the row as "Celltype:Condition1-Condition2"
+    rownames(tmp) <- c(paste0(ct, ":", condition_pairs[1, d_idx], "-", condition_pairs[2, d_idx]))
+    contrast_list[[1 + length(contrast_list)]] <- tmp
+  }
+}
+```
+
+Finally, we bind the individual rows together to create the full
+contrast matrix.
+
+``` r
+# Combine the list of rows into a single contrast matrix
+contrast_mat <- Reduce(rbind, contrast_list)
+colnames(contrast_mat) <- covariate_names
+
+# Preview the first few rows and columns
+head(contrast_mat[, 1:5], 2)
+```
+
+    >                   GroupControl:celltypeC_TAL GroupDKD:celltypeC_TAL
+    > C_TAL:Control-DKD                          1                     -1
+    > C_TAL:Control-HKD                          1                      0
+    >                   GroupHKD:celltypeC_TAL GroupControl:celltypeCD4T
+    > C_TAL:Control-DKD                      0                         0
+    > C_TAL:Control-HKD                     -1                         0
+    >                   GroupDKD:celltypeCD4T
+    > C_TAL:Control-DKD                     0
+    > C_TAL:Control-HKD                     0
+
+We now view the results of the between-conditions within-cell type
+contrasts for the gene *ACTA2* below.
+
+``` r
+# Compute Wald statistics
+one_gene_wald <- TESSERA::calc_Wald_statistics(TESSERA_out, contrast_mat)
+# Remove the raw contrast string for a cleaner display
+one_gene_wald <- dplyr::select(one_gene_wald, -c("contrast_string"))
+# Preview the first few rows
+head(one_gene_wald, 2)
+```
+
+    >                    gene fit_model kernel_type contrast_indices contrast_val
+    > C_TAL:Control-DKD ACTA2    Leroux          NA              1_2   -0.1930309
+    > C_TAL:Control-HKD ACTA2    Leroux          NA              1_3    1.0701649
+    >                   contrast_se wald_stat_t
+    > C_TAL:Control-DKD  0.08324288   -2.318888
+    > C_TAL:Control-HKD  0.13379417    7.998591
+
+We can inspect the data frame created in the aggregation script, from
+running `TESSERA` on the top 3,000 genes.
+
+``` r
+# Filter and preview the aggregated multi-gene results
+wald_df <- wald_df[!is.na(wald_df$wald_stat_t), ]
+head(wald_df, 2)
+```
+
+    >   gene fit_model kernel_type contrast_indices contrast_val contrast_se
+    > 1  A2M    Leroux          NA              1_2   -0.1190266  0.03726227
+    > 2  A2M    Leroux          NA              1_3    0.4897356  0.06393596
+    >   wald_stat_t contrast_description
+    > 1   -3.194293    C_TAL:Control-DKD
+    > 2    7.659783    C_TAL:Control-HKD
+
+### Empirical Null Estimation
+
+For a generalized linear mixed model (GLMM), such as the one implemented
+in `TESSERA`, the null distribution of Wald test statistics is typically
+not known. With a sufficient number of samples (meaning independent
+experimental units, not individual cells), it will approach a normal
+distribution or a $\chi_{1}^{2}$ distribution (depending on if the
+statistics are squared). However, in the finite-sample regime, GLMMs are
+prone to biased coefficients and associated standard errors. Even with
+many samples, this bias can shift the null distribution away from
+theoretical expectations, necessitating an empirical estimation
+approach.
+
+If we are testing hundreds or thousands of genes, there is a path
+forward: we can use Efron’s idea of estimating the null distribution
+directly from the data ([Efron 2004](#ref-efron2004large)). In our case,
+we believe that the square of the Wald statistics computed previously
+can be modeled as a scaled, non-central $\chi_{1}^{2}$ distribution. The
+functions below provide functionality to find the optimal parameter
+estimates. Essentially, we look for a threshold below which most of the
+statistics come from the null distribution; for these statistics, the
+$p$-values should look uniformly distributed on $(0,1)$.
+
+In general, empirical null estimation procedures rely on having
+sufficient statistics that come from the null distribution, as
+otherwise, there will not be enough data to reliably estimate a
+distribution, or, the statistics used to estimate the distribution will
+not be from the null distribution. Moreover, having more than one
+contrast (of a similar nature, e.g., DE within a cell type) strengthens
+the procedure by providing more data and capturing a wider range of
+variability.
+
+The analysis in this section, and the resulting `wald_df`, focuses
+exclusively on the between-condition comparisons within each cell type.
+The empirical null distribution described here is derived solely from
+these specific contrasts.
+
+For this vignette, we have already performed the thresholding procedure
+using these between-condition within-cell type contrasts. We load the
+resulting object below to demonstrate the downstream analysis.
+
+``` r
+# Output of applying TESSERA's empirical null thresholding procedure
+wald_thresh_selection <- get_my_data("TESSERA_wald_threshold_out.rds")
+```
+
+    > adding rname 'https://github.com/floricaconstantine/TESSERA_manuscript/raw/main/data/vignette_data/TESSERA_wald_threshold_out.rds'
+
+To execute the full procedure, the following code can be used by setting
+`eval = TRUE` in the code chunk header. Please note that the estimated
+runtime is approximately 12 minutes on an M1 MacBook with 16 GB of RAM.
+
+``` r
+t0 <- Sys.time()
+# Empirical Null Estimation
+# Sweep over thresholds to find the optimal distribution parameters for the empirical null
+wald_thresh_selection <- TESSERA::select_Wald_threshold(
+  wald_stats = wald_df$wald_stat_t^2,
+  quantile_spacing = 0.01,
+  metric = "Raw_MSE"
+)
+t1 <- Sys.time()
+cat("Threshold selection of", nrow(wald_df), "statistics took:", 
+    round(difftime(t1, t0, units = "min"), 2), "minutes.\n")
+```
+
+We can inspect the estimated scale and shift parameters for the fitted
+scaled, non-central $\chi_{1}^{2}$ null distribution.
+
+``` r
+# View the estimated parameters for the scaled, non-central chi-squared distribution
+wald_thresh_selection$chi2_params
+```
+
+    >        scale        shift 
+    > 2.328768e+01 9.217872e-07
+
+Next, we view the selected Wald statistic threshold.
+
+``` r
+# View the selected Wald statistic threshold
+wald_thresh_selection$threshold
+```
+
+    > [1] 119.2417
+
+### Obtaining $p$-values
+
+Once the empirical null distribution is fit, we can calculate $p$-values
+and perform testing for differential expression, in this case, between
+conditions within a cell type.
+
+#### `TESSERA` $p$-values
+
+We compute the $p$-values and apply the Benjamini-Hochberg (BH)
+adjustment within each contrast to control the False Discovery Rate
+(FDR) at a level of 0.05.
+
+``` r
+# FDR level
+PVAL_THRESH <- 0.05
+
+# Compute p-values using the estimated empirical null distribution
+wald_df$wald_pval <- TESSERA::calc_scaled_noncentral_chi2_pvalues(wald_stats = wald_df$wald_stat_t^2,
+                                                                  chi2_params = wald_thresh_selection$chi2_params)
+# Adjust p-values for multiple testing per contrast
+for (cd in unique(wald_df$contrast_description)) {
+  wald_df$wald_pval_adj[wald_df$contrast_description == cd] <- p.adjust(wald_df$wald_pval[wald_df$contrast_description == cd], method = "BH")
+}
+```
+
+We summarize the results by looking at the number of significant genes
+for each comparison. As a sanity check, we see that cell types with very
+few cells in the dataset, such as RBC (red blood cells), find the fewest
+number of DE genes.
+
+``` r
+n_sig_df <- data.frame(wald_df 
+                       %>% dplyr::group_by(contrast_description) 
+                       %>% dplyr::summarise(n_sig = sum(wald_pval_adj < PVAL_THRESH, na.rm = TRUE)))
+n_sig_df$celltype <- sapply(n_sig_df$contrast_description, function (x) {strsplit(x, ":")[[1]][1]})
+n_sig_df$comparison <- sapply(n_sig_df$contrast_description, function (x) {strsplit(x, ":")[[1]][2]})
+
+p <- ggplot2::ggplot(data = n_sig_df, mapping = ggplot2::aes(x = celltype, y = n_sig, fill = comparison))
+p <- p + ggplot2::geom_col(position = ggplot2::position_dodge(preserve = "single"))
+p <- p + ggplot2::scale_fill_manual(values = c("cornflowerblue", "goldenrod", "coral"))
+p <- p + ggplot2::labs(x = "Cell type", 
+                       y = "Number of Significant Genes",
+                       fill = "Comparison")
+p <- p + ggplot2::theme_bw()
+p <- p + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = -90, hjust = 0))
+p <- p + ggplot2::theme(text = ggplot2::element_text(size = 15))
+p
+```
+
+![](vignette_files/figure-html/n_sig_plot-1.png)
+
+#### `fdrtool` $p$-values
+
+Another empirical null estimation procedure to obtain $p$-values is the
+False Non-Discovery Rate (FNDR) method from the
+*[fdrtool](https://CRAN.R-project.org/package=fdrtool)* package
+([Strimmer 2008](#ref-strimmer2008fdrtool)). While both empirical null
+estimation procedures can be used to generate $p$-values, there are key
+trade-offs to consider: `fdrtool` offers a faster runtime than
+`TESSERA`’s thresholding procedure, but `TESSERA` makes fewer underlying
+assumptions about the data distribution. Both methods achieve highly
+comparable performance on this class of spatial transcriptomics data as
+can be seen in the `TESSERA` methodological manuscript ([Constantine et
+al. 2026](#ref-constantine2026tessera)).
+
+``` r
+# Estimate p-values using fdrtool's FNDR method
+fndr_out <- fdrtool::fdrtool(wald_df$wald_stat_t,
+                             cutoff.method = "fndr",
+                             plot = FALSE)
+```
+
+    > Step 1... determine cutoff point
+    > Step 2... estimate parameters of null distribution and eta0
+    > Step 3... compute p-values and estimate empirical PDF/CDF
+    > Step 4... compute q-values and local fdr
+
+``` r
+# Store fdrtool p-values
+wald_df$wald_pval_fndr <- fndr_out$pval
+
+# Adjust fdrtool p-values for multiple testing
+wald_df$wald_pval_adj_fndr <- NA
+for (cd in unique(wald_df$contrast_description)) {
+  wald_df$wald_pval_adj_fndr[wald_df$contrast_description == cd] <- p.adjust(wald_df$wald_pval_fndr[wald_df$contrast_description == cd], method = "BH")
+}
+```
+
+## Session information
+
+``` r
+devtools::session_info()
+```
+
+    >  [1m [36m─ Session info ─────────────────────────────────────────────────────────────── [39m [22m
+    >   [3m [90msetting  [39m [23m  [3m [90mvalue [39m [23m
+    >  version  R version 4.6.0 (2026-04-24)
+    >  os       Ubuntu 24.04.4 LTS
+    >  system   x86_64, linux-gnu
+    >  ui       X11
+    >  language en
+    >  collate  C.UTF-8
+    >  ctype    C.UTF-8
+    >  tz       UTC
+    >  date     2026-04-27
+    >  pandoc   3.1.11 @ /opt/hostedtoolcache/pandoc/3.1.11/x64/ (via rmarkdown)
+    >  quarto   NA
+    > 
+    >  [1m [36m─ Packages ─────────────────────────────────────────────────────────────────── [39m [22m
+    >   [3m [90mpackage              [39m [23m  [3m [90m* [39m [23m  [3m [90mversion    [39m [23m  [3m [90mdate (UTC) [39m [23m  [3m [90mlib [39m [23m  [3m [90msource [39m [23m
+    >  abind                  1.4-8       [90m2024-09-12 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  Biobase              * 2.71.0      [90m2025-10-30 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  BiocFileCache        * 3.1.0       [90m2025-10-30 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  BiocGenerics         * 0.57.1      [90m2026-04-17 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  BiocManager            1.30.27     [90m2025-11-14 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  BiocStyle            * 2.39.0      [90m2025-10-30 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  bit                    4.6.0       [90m2025-03-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  bit64                  4.8.0       [90m2026-04-21 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  blob                   1.3.0       [90m2026-01-14 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  bookdown               0.46        [90m2025-12-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  BRISC                  1.0.6       [90m2024-10-02 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  bslib                  0.10.0      [90m2026-01-26 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  cachem                 1.1.0       [90m2024-05-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  cli                    3.6.6       [90m2026-04-09 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  colorspace             2.1-2       [90m2025-09-22 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  curl                   7.1.0       [90m2026-04-22 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  DBI                    1.3.0       [90m2026-02-25 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  dbplyr               * 2.5.2       [90m2026-02-13 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  DelayedArray           0.37.1      [90m2026-03-31 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  deldir                 2.0-4       [90m2024-02-28 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  desc                   1.4.3       [90m2023-12-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  devtools               2.5.1       [90m2026-04-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  digest                 0.6.39      [90m2025-11-19 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  dplyr                * 1.2.1       [90m2026-04-03 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  ellipsis               0.3.3       [90m2026-04-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  evaluate               1.0.5       [90m2025-08-27 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  farver                 2.1.2       [90m2024-05-13 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  fastmap                1.2.0       [90m2024-05-15 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  fdrtool              * 1.2.18      [90m2024-08-20 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  filelock               1.0.3       [90m2023-12-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  FNN                    1.1.4.1     [90m2024-09-22 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  fs                     2.1.0       [90m2026-04-18 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  generics             * 0.1.4       [90m2025-05-09 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  GenomicRanges        * 1.63.2      [90m2026-04-07 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  ggplot2              * 4.0.3       [90m2026-04-22 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  glue                   1.8.1       [90m2026-04-17 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  gstat                  2.1-6       [90m2026-03-30 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  gtable                 0.3.6       [90m2024-10-25 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  htmltools              0.5.9       [90m2025-12-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  htmlwidgets            1.6.4       [90m2023-12-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  httr2                  1.2.2       [90m2025-12-08 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  intervals              0.15.5      [90m2024-08-23 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  IRanges              * 2.45.0      [90m2025-10-31 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  jquerylib              0.1.4       [90m2021-04-26 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  jsonlite               2.0.0       [90m2025-03-27 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  knitr                  1.51        [90m2025-12-20 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  labeling               0.4.3       [90m2023-08-29 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  lattice                0.22-9      [90m2026-02-09 [39m  [90m[3] [39m  [90mCRAN (R 4.6.0) [39m
+    >  lifecycle              1.0.5       [90m2026-01-08 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  magick                 2.9.1       [90m2026-02-28 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  magrittr               2.0.5       [90m2026-04-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  MASS                 * 7.3-65      [90m2025-02-28 [39m  [90m[3] [39m  [90mCRAN (R 4.6.0) [39m
+    >  Matrix               * 1.7-5       [90m2026-03-21 [39m  [90m[3] [39m  [90mCRAN (R 4.6.0) [39m
+    >  MatrixGenerics       * 1.23.0      [90m2025-10-30 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  matrixStats          * 1.5.0       [90m2025-01-07 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  memoise                2.0.1       [90m2021-11-26 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  nloptr                 2.2.1       [90m2025-03-17 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  numDeriv                [1m [35m2016.8-1.1 [39m [22m  [90m2019-06-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  optimx                  [1m [35m2025-4.9   [39m [22m  [90m2025-04-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  otel                   0.2.0       [90m2025-08-29 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  pbapply                1.7-4       [90m2025-07-20 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  pillar                 1.11.1      [90m2025-09-17 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  pkgbuild               1.4.8       [90m2025-05-26 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  pkgconfig              2.0.3       [90m2019-09-22 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  pkgdown                2.2.0       [90m2025-11-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  pkgload                1.5.2       [90m2026-04-22 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  plyr                   1.8.9       [90m2023-10-02 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  Polychrome             1.5.4       [90m2025-04-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  polyclip               1.10-7      [90m2024-07-23 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  pracma                 2.4.6       [90m2025-10-22 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  purrr                  1.2.2       [90m2026-04-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  R6                     2.6.1       [90m2025-02-15 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  ragg                   1.5.2       [90m2026-03-23 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  RANN                   2.6.2       [90m2024-08-25 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  rappdirs               0.3.4       [90m2026-01-17 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  RColorBrewer           1.1-3       [90m2022-04-03 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  Rcpp                   1.1.1-1.1   [90m2026-04-24 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  RcppParallel           5.1.11-2    [90m2026-03-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  rdist                  0.0.5       [90m2020-05-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  reshape2             * 1.4.5       [90m2025-11-12 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  Rfast                  2.1.5.2     [90m2025-10-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  rjson                  0.2.23      [90m2024-09-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  rlang                  1.2.0       [90m2026-04-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  rmarkdown              2.31        [90m2026-03-26 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  RSQLite                2.4.6       [90m2026-02-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  S4Arrays               1.11.1      [90m2025-11-25 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  S4Vectors            * 0.49.2      [90m2026-04-17 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  S7                     0.2.2       [90m2026-04-22 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  sass                   0.4.10      [90m2025-04-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  scales                 1.4.0       [90m2025-04-24 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  scatterplot3d          0.3-45      [90m2026-02-23 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  Seqinfo              * 1.1.0       [90m2025-10-31 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  sessioninfo            1.2.3       [90m2025-02-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  SingleCellExperiment * 1.33.2      [90m2026-03-24 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  sp                     2.2-1       [90m2026-02-13 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  spacetime              1.3-3       [90m2025-02-13 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  SparseArray            1.11.13     [90m2026-04-01 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  sparseMatrixStats      1.23.0      [90m2025-10-30 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  SpatialExperiment    * 1.21.0      [90m2025-11-03 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  spatstat.data          3.1-9       [90m2025-10-18 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  spatstat.geom          3.7-3       [90m2026-03-23 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  spatstat.univar        3.1-7       [90m2026-03-18 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  spatstat.utils         3.2-2       [90m2026-03-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  stringi                1.8.7       [90m2025-03-27 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  stringr                1.6.0       [90m2025-11-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  SummarizedExperiment * 1.41.1      [90m2026-02-06 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  systemfonts            1.3.2       [90m2026-03-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  TESSERA              * 0.99.1      [90m2026-04-27 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
+    >  textshaping            1.0.5       [90m2026-03-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  tibble                 3.3.1       [90m2026-01-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  tidyselect             1.2.1       [90m2024-03-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  usethis                3.2.1       [90m2025-09-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  vctrs                  0.7.3       [90m2026-04-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  withr                  3.0.2       [90m2024-10-28 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  xfun                   0.57        [90m2026-03-20 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  xts                    0.14.2      [90m2026-02-28 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  XVector                0.51.0      [90m2025-10-31 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  yaml                   2.3.12      [90m2025-12-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  zigg                   0.0.2       [90m2025-02-07 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  zoo                    1.8-15      [90m2025-12-15 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    > 
+    >  [90m [1] /home/runner/work/_temp/Library [39m
+    >  [90m [2] /opt/R/4.6.0/lib/R/site-library [39m
+    >  [90m [3] /opt/R/4.6.0/lib/R/library [39m
+    >   [41m [37m* [39m [49m ── Packages attached to the search path.
+    > 
+    >  [1m [36m────────────────────────────────────────────────────────────────────────────── [39m [22m
+
+## References
+
+Abedini, Amin, Jonathan Levinsohn, Konstantin A. Klötzer, Bernhard
+Dumoulin, Ziyuan Ma, Julia Frederick, Poonam Dhillon, et al. 2024.
+“Single-Cell Multi-Omic and Spatial Profiling of Human Kidneys
+Implicates the Fibrotic Microenvironment in Kidney Disease Progression.”
+*Nature Genetics* 56 (8): 1712–24.
+<https://doi.org/10.1038/s41588-024-01802-x>.
+
+Constantine, Florica J., Zoltan Lasik, Sandrine Dudoit, and Elizabeth
+Purdom. 2026. “Unlocking Multi-Sample Differential Expression for
+Spatial Transcriptomics Data with TESSERA.” *bioRxiv*.
+
+Efron, Bradley. 2004. “Large-Scale Simultaneous Hypothesis Testing: The
+Choice of a Null Hypothesis.” *Journal of the American Statistical
+Association* 99 (465): 96–104.
+<https://doi.org/10.1198/016214504000000089>.
+
+Love, Michael I, Wolfgang Huber, and Simon Anders. 2014. “Moderated
+Estimation of Fold Change and Dispersion for RNA-Seq Data with DESeq2.”
+*Genome Biology* 15 (12): 550.
+<https://doi.org/10.1186/s13059-014-0550-8>.
+
+Strimmer, Korbinian. 2008. “Fdrtool: A Versatile r Package for
+Estimating Local and Tail Area-Based False Discovery Rates.”
+*Bioinformatics* 24 (12): 1461–62.
+<https://doi.org/10.1093/bioinformatics/btn209>.

@@ -1,0 +1,74 @@
+# Maximize the expected likelihood in gamma, holding other variables constant. Part of the M-Step in the EM algorithm. ONLY APPLIES TO THE LEROUX MODEL.
+
+Maximize the expected likelihood in gamma, holding other variables
+constant. Part of the M-Step in the EM algorithm. ONLY APPLIES TO THE
+LEROUX MODEL.
+
+## Usage
+
+``` r
+M_step_gamma_Leroux(
+  Vhat,
+  eta_hat,
+  tau2,
+  beta_hat,
+  X,
+  W,
+  D,
+  eig_vals,
+  gamma_current = NULL
+)
+```
+
+## Arguments
+
+- Vhat:
+
+  Estimated covariance matrix of eta.
+
+- eta_hat:
+
+  Estimated mean of eta.
+
+- tau2:
+
+  Precision matrix scaling parameter tau^2.
+
+- beta_hat:
+
+  Current estimate of covariate effects.
+
+- X:
+
+  Covariate matrix.
+
+- W:
+
+  Neighbor/adjacency matrix (symmetric, binary).
+
+- D:
+
+  Diagonal degree matrix (row sums of W).
+
+- eig_vals:
+
+  Eigenvalues of Z = D - W.
+
+- gamma_current:
+
+  Previous value of gamma. Only needed for failure modes.
+
+## Value
+
+Maximum likelihood estimate of correlation parameter gamma. A list with
+gamma_hat (estimate) and grad_val (gradient).
+
+## Note
+
+Applies to a single area.
+
+Requires the Matrix library.
+
+## Author
+
+Florica J Constantine, florica AT berkeley.edu
