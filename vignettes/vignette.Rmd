@@ -76,7 +76,7 @@ These models are designed for data where spatial relationships are defined via m
 
 Selecting the appropriate covariance model depends on the geometry of the dataset under consideration:
 
-* **Grid-like or regularly sampled data**: If adjacency can be clearly defined, we recommend the Leroux lattice model as generally the most robust choice given its flexible decomposition of spatial vs. non-spatial variance.
+* **Grid-like or regularly-sampled data**: If adjacency can be clearly defined, we recommend the Leroux lattice model as generally the most robust choice given its flexible decomposition of spatial vs. non-spatial variance.
 * **Irregularly-sampled data**: For data where measurements do not follow a strict grid and adjacency of measurements cannot be determined, the spNNGP model with either the Matern or Exponential kernel is recommended.
 
 ## Installation
@@ -509,7 +509,7 @@ This independence means there is no information sharing between genes during the
 
 To fit a model, you must provide three core inputs: the processed data object, the specific gene name, and the desired covariance structure (e.g., "Leroux").
 
-`TESSERA` uses an Expectation-Conditional Maximization (ECM) algorithm to estimate model parameters. 
+`TESSERA` uses an Expectation-Conditional-Maximization (ECM) algorithm to estimate model parameters. 
 While the default settings are robust for most spatial transcriptomics datasets, you can fine-tune the convergence behavior using the following settings:
 
 * **Iteration Limits:** `em_iters` sets the maximum number of allowed iterations. `em_min_iters` enforces a minimum number of steps to prevent the algorithm from exiting before the log-likelihood has stabilized.
@@ -580,7 +580,7 @@ head(TESSERA_out$beta_hat)
 ### Parallelize `TESSERA` {#parallelize}
 
 `TESSERA` can be run in parallel (or serial) to fit to multiple genes. 
-However, `TESSERA` is computationally intensive if run on hundreds or thousands of genes as is typical for genomic data, so it is best to parallelize this process on a high performance computing cluster. 
+However, `TESSERA` is computationally intensive if run on hundreds or thousands of genes as is typical for genomic data, so it is best to parallelize this process on a high-performance computing cluster. 
 
 The following code (not run) shows an example of how to use the `futures` package to parallelize `TESSERA` on 50 genes. 
 
@@ -854,7 +854,7 @@ head(wald_df, 2)
 
 For a generalized linear mixed model (GLMM), such as the one implemented in `TESSERA`, the null distribution of Wald test statistics is typically not known. 
 With a sufficient number of samples (meaning independent experimental units, not individual cells), it will approach a normal distribution or a $\chi_1^2$ distribution (depending on if the statistics are squared). 
-However, in the finite-sample regime, GLMMs are prone to biased coefficients and associated standard errors. 
+However, in the finite-sample regime, GLMMs are prone to bias in both the coefficients and their associated standard errors.
 Even with many samples, this bias can shift the null distribution away from theoretical expectations, necessitating an empirical estimation approach.
 
 If we are testing hundreds or thousands of genes, there is a path forward: we can use Efron's idea of estimating the null distribution directly from the data [@efron2004large]. 
