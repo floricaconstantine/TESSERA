@@ -968,10 +968,10 @@ field. Each entry corresponds to a column in your design matrix.</p>
 &gt;                  -6.871734                  -8.129911</code></pre>
 <p>For the purposes of this vignette, we have already run
 <code>TESSERA</code> on the top 3,000 genes (selected by raw count
-variance). These results were aggregated into a single object through a
-simple row-binding of the output data frames from each individual gene’s
-run. We load this compiled object here to demonstrate downstream
-analysis and visualization.</p>
+variance). The output data frames from each individual gene’s run were
+row-bound to aggregate the results into a single combined data frame. We
+load this compiled data frame here to demonstrate downstream analysis
+and visualization.</p>
 <div class="sourceCode" id="cb43"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load pre-computed results for the multi-gene analysis</span></span>
 <span><span class="va">TESSERA_all</span> <span class="op">&lt;-</span> <span class="fu">get_my_data</span><span class="op">(</span><span class="st">"TESSERA_model_results.rds"</span><span class="op">)</span></span></code></pre></div>

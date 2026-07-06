@@ -871,11 +871,10 @@ head(TESSERA_out$beta_hat)
     >                  -6.871734                  -8.129911
 
 For the purposes of this vignette, we have already run `TESSERA` on the
-top 3,000 genes (selected by raw count variance). These results were
-aggregated into a single object through a simple row-binding of the
-output data frames from each individual gene’s run. We load this
-compiled object here to demonstrate downstream analysis and
-visualization.
+top 3,000 genes (selected by raw count variance). The output data frames
+from each individual gene’s run were row-bound to aggregate the results
+into a single combined data frame. We load this compiled data frame here
+to demonstrate downstream analysis and visualization.
 
 ``` r
 
