@@ -757,10 +757,12 @@ behavior using the following settings:
   change between iterations falls below this tolerance.
 
 - **Optimization Intensity:** `opt_iters` controls the number of
-  internal Conditional-Maximization (CM) steps performed during each
-  E-step. Increasing this can reduce the total number of iterations
-  required for convergence but increases the computational cost of each
-  individual iteration.
+  internal Conditional-Maximization (CM) steps performed per E-step.
+  Increasing this value performs additional parameter updates within
+  each global ECM cycle. Because CM steps are much cheaper than E-steps,
+  performing more CM steps increases the cost per iteration but
+  minimizes the total number of global ECM cycles needed for
+  convergence.
 
 Fitting the `TESSERA` model can be computationally intensive even with
 all the implemented speed-ups, taking approximately 12 minutes for a
@@ -868,6 +870,75 @@ head(TESSERA_out$beta_hat)
     >      GroupDKD:celltypeCD4T      GroupHKD:celltypeCD4T 
     >                  -6.871734                  -8.129911
 
+For the purposes of this vignette, we have already run `TESSERA` on the
+top 3,000 genes (selected by raw count variance). These results were
+aggregated into a single object through a simple row-binding of the
+output data frames from each individual gene’s run. We load this
+compiled object here to demonstrate downstream analysis and
+visualization.
+
+``` r
+
+# Load pre-computed results for the multi-gene analysis
+TESSERA_all <- get_my_data("TESSERA_model_results.rds")
+```
+
+    > adding rname 'https://github.com/floricaconstantine/TESSERA_manuscript/raw/main/data/vignette_data/TESSERA_model_results.rds'
+
+The following code block illustrates the exact parameterization used to
+generate our aggregated results. To process the full set of 3,000 genes,
+this model-fitting procedure was executed for each `gene_idx` (1 to
+3,000) as independent batch jobs on a high-performance computing (HPC)
+cluster.
+
+``` r
+
+# Which gene to run
+gene_idx <- 1
+# Run TESSERA
+TESSERA_out <- TESSERA::TESSERA_lattice(
+  # Output of prepData function
+  TESSERAData_obj = TESSERA_data,
+  # Gene
+  gene_name = rownames(spe)[gene_idx],
+  # Which covariance structure to use
+  model_type = "Leroux",
+  # How many ECM iterations to run (maximum)
+  em_iters = 200,
+  # How many CM steps to run per E-Step
+  opt_iters = 5,
+  # Min ECM iterations before early stopping
+  em_min_iters = 30,
+  # Tolerance for early stopping
+  em_tol = 1e-3,
+  # How to determine early stopping: Relative change in log likelihood
+  em_stopping = "rel_loglike",
+  # Initialization of beta is done via Poisson GLM
+  beta_init = "glm",
+  # Initialization of gamma is based on the Moran's I of the log-transformed counts
+  gamma_init = "moran",
+  # Initialization of tau^2 is based on the variance of the log-transformed counts
+  tau2_init = "var",
+  # Whether to print out parameter values and convergence information at each iteration
+  verbose = FALSE
+)
+
+# Output the run-time
+print(TESSERA_out$time)
+```
+
+The `performance_df` data frame provides a sample-wise breakdown of
+model performance across the entire dataset. This object follows the
+same structure as the `performanceSummary` data frame described in the
+[Run `TESSERA`](#run-tessera) section but contains rows for all
+gene-sample pairs.
+
+``` r
+
+# Extract sample-level performance metrics for all 3,000 genes
+performance_df <- TESSERA_all$perf_df
+```
+
 ### Parallelize `TESSERA`
 
 `TESSERA` can be run in parallel (or serial) to fit to multiple genes.
@@ -948,75 +1019,6 @@ For a comprehensive discussion of the model’s statistical properties,
 including power and Type I error benchmarks, please refer to the
 `TESSERA` methodological manuscript ([Constantine et al.
 2026](#ref-constantine2026tessera)).
-
-For the purposes of this vignette, we have already run `TESSERA` on the
-top 3,000 genes (selected by raw count variance). These results were
-aggregated into a single object through a simple row-binding of the
-output data frames from each individual gene’s run. We load this
-compiled object here to demonstrate downstream analysis and
-visualization.
-
-``` r
-
-# Load pre-computed results for the multi-gene analysis
-TESSERA_all <- get_my_data("TESSERA_model_results.rds")
-```
-
-    > adding rname 'https://github.com/floricaconstantine/TESSERA_manuscript/raw/main/data/vignette_data/TESSERA_model_results.rds'
-
-The following code block illustrates the exact parameterization used to
-generate our aggregated results. To process the full set of 3,000 genes,
-this model-fitting procedure was executed for each `gene_idx` (1 to
-3,000) as independent batch jobs on a high-performance computing (HPC)
-cluster.
-
-``` r
-
-# Which gene to run
-gene_idx <- 1
-# Run TESSERA
-TESSERA_out <- TESSERA::TESSERA_lattice(
-  # Output of prepData function
-  TESSERAData_obj = TESSERA_data,
-  # Gene
-  gene_name = rownames(spe)[gene_idx],
-  # Which covariance structure to use
-  model_type = "Leroux",
-  # How many ECM iterations to run (maximum)
-  em_iters = 200,
-  # How many CM steps to run per E-Step
-  opt_iters = 5,
-  # Min ECM iterations before early stopping
-  em_min_iters = 30,
-  # Tolerance for early stopping
-  em_tol = 1e-3,
-  # How to determine early stopping: Relative change in log likelihood
-  em_stopping = "rel_loglike",
-  # Initialization of beta is done via Poisson GLM
-  beta_init = "glm",
-  # Initialization of gamma is based on the Moran's I of the log-transformed counts
-  gamma_init = "moran",
-  # Initialization of tau^2 is based on the variance of the log-transformed counts
-  tau2_init = "var",
-  # Whether to print out parameter values and convergence information at each iteration
-  verbose = FALSE
-)
-
-# Output the run-time
-print(TESSERA_out$time)
-```
-
-The `performance_df` data frame provides a sample-wise breakdown of
-model performance across the entire dataset. This object follows the
-same structure as the `performanceSummary` data frame described in the
-[Run `TESSERA`](#run-tessera) section but contains rows for all
-gene-sample pairs.
-
-``` r
-
-# Extract sample-level performance metrics for all 3,000 genes
-performance_df <- TESSERA_all$perf_df
-```
 
 The results of the hypothesis tests, including specific contrasts,
 estimated values, associated standard errors, and Wald statistics, are

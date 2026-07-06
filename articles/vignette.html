@@ -871,9 +871,11 @@ log-likelihood). The algorithm stops when the change between iterations
 falls below this tolerance.</p></li>
 <li><p><strong>Optimization Intensity:</strong> <code>opt_iters</code>
 controls the number of internal Conditional-Maximization (CM) steps
-performed during each E-step. Increasing this can reduce the total
-number of iterations required for convergence but increases the
-computational cost of each individual iteration.</p></li>
+performed per E-step. Increasing this value performs additional
+parameter updates within each global ECM cycle. Because CM steps are
+much cheaper than E-steps, performing more CM steps increases the cost
+per iteration but minimizes the total number of global ECM cycles needed
+for convergence.</p></li>
 </ul>
 <p>Fitting the <code>TESSERA</code> model can be computationally
 intensive even with all the implemented speed-ups, taking approximately
@@ -964,6 +966,63 @@ field. Each entry corresponds to a column in your design matrix.</p>
 &gt;                  -8.308204                  -6.931760 
 &gt;      GroupDKD:celltypeCD4T      GroupHKD:celltypeCD4T 
 &gt;                  -6.871734                  -8.129911</code></pre>
+<p>For the purposes of this vignette, we have already run
+<code>TESSERA</code> on the top 3,000 genes (selected by raw count
+variance). These results were aggregated into a single object through a
+simple row-binding of the output data frames from each individual gene’s
+run. We load this compiled object here to demonstrate downstream
+analysis and visualization.</p>
+<div class="sourceCode" id="cb43"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Load pre-computed results for the multi-gene analysis</span></span>
+<span><span class="va">TESSERA_all</span> <span class="op">&lt;-</span> <span class="fu">get_my_data</span><span class="op">(</span><span class="st">"TESSERA_model_results.rds"</span><span class="op">)</span></span></code></pre></div>
+<pre><code>&gt; adding rname 'https://github.com/floricaconstantine/TESSERA_manuscript/raw/main/data/vignette_data/TESSERA_model_results.rds'</code></pre>
+<p>The following code block illustrates the exact parameterization used
+to generate our aggregated results. To process the full set of 3,000
+genes, this model-fitting procedure was executed for each
+<code>gene_idx</code> (1 to 3,000) as independent batch jobs on a
+high-performance computing (HPC) cluster.</p>
+<div class="sourceCode" id="cb45"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Which gene to run</span></span>
+<span><span class="va">gene_idx</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
+<span><span class="co"># Run TESSERA</span></span>
+<span><span class="va">TESSERA_out</span> <span class="op">&lt;-</span> <span class="fu">TESSERA</span><span class="fu">::</span><span class="fu"><a href="../reference/TESSERA_lattice.html">TESSERA_lattice</a></span><span class="op">(</span></span>
+<span>  <span class="co"># Output of prepData function</span></span>
+<span>  TESSERAData_obj <span class="op">=</span> <span class="va">TESSERA_data</span>,</span>
+<span>  <span class="co"># Gene</span></span>
+<span>  gene_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">spe</span><span class="op">)</span><span class="op">[</span><span class="va">gene_idx</span><span class="op">]</span>,</span>
+<span>  <span class="co"># Which covariance structure to use</span></span>
+<span>  model_type <span class="op">=</span> <span class="st">"Leroux"</span>,</span>
+<span>  <span class="co"># How many ECM iterations to run (maximum)</span></span>
+<span>  em_iters <span class="op">=</span> <span class="fl">200</span>,</span>
+<span>  <span class="co"># How many CM steps to run per E-Step</span></span>
+<span>  opt_iters <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>  <span class="co"># Min ECM iterations before early stopping</span></span>
+<span>  em_min_iters <span class="op">=</span> <span class="fl">30</span>,</span>
+<span>  <span class="co"># Tolerance for early stopping</span></span>
+<span>  em_tol <span class="op">=</span> <span class="fl">1e-3</span>,</span>
+<span>  <span class="co"># How to determine early stopping: Relative change in log likelihood</span></span>
+<span>  em_stopping <span class="op">=</span> <span class="st">"rel_loglike"</span>,</span>
+<span>  <span class="co"># Initialization of beta is done via Poisson GLM</span></span>
+<span>  beta_init <span class="op">=</span> <span class="st">"glm"</span>,</span>
+<span>  <span class="co"># Initialization of gamma is based on the Moran's I of the log-transformed counts</span></span>
+<span>  gamma_init <span class="op">=</span> <span class="st">"moran"</span>,</span>
+<span>  <span class="co"># Initialization of tau^2 is based on the variance of the log-transformed counts</span></span>
+<span>  tau2_init <span class="op">=</span> <span class="st">"var"</span>,</span>
+<span>  <span class="co"># Whether to print out parameter values and convergence information at each iteration</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Output the run-time</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">TESSERA_out</span><span class="op">$</span><span class="va">time</span><span class="op">)</span></span></code></pre></div>
+<p>The <code>performance_df</code> data frame provides a sample-wise
+breakdown of model performance across the entire dataset. This object
+follows the same structure as the <code>performanceSummary</code> data
+frame described in the <a href="#run-tessera">Run
+<code>TESSERA</code></a> section but contains rows for all gene-sample
+pairs.</p>
+<div class="sourceCode" id="cb46"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Extract sample-level performance metrics for all 3,000 genes</span></span>
+<span><span class="va">performance_df</span> <span class="op">&lt;-</span> <span class="va">TESSERA_all</span><span class="op">$</span><span class="va">perf_df</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="parallelize">Parallelize <code>TESSERA</code><a class="anchor" aria-label="anchor" href="#parallelize"></a>
 </h3>
@@ -975,7 +1034,7 @@ high-performance computing cluster.</p>
 <p>The following code (not run) shows an example of how to use the
 <code>futures</code> package to parallelize <code>TESSERA</code> on 50
 genes.</p>
-<div class="sourceCode" id="cb43"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb47"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://future.futureverse.org" class="external-link">future</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://future.apply.futureverse.org" class="external-link">future.apply</a></span><span class="op">)</span></span>
 <span></span>
@@ -1045,63 +1104,6 @@ conclusions.</p>
 including power and Type I error benchmarks, please refer to the
 <code>TESSERA</code> methodological manuscript <span class="citation">(<a href="#ref-constantine2026tessera">Constantine et
 al. 2026</a>)</span>.</p>
-<p>For the purposes of this vignette, we have already run
-<code>TESSERA</code> on the top 3,000 genes (selected by raw count
-variance). These results were aggregated into a single object through a
-simple row-binding of the output data frames from each individual gene’s
-run. We load this compiled object here to demonstrate downstream
-analysis and visualization.</p>
-<div class="sourceCode" id="cb44"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Load pre-computed results for the multi-gene analysis</span></span>
-<span><span class="va">TESSERA_all</span> <span class="op">&lt;-</span> <span class="fu">get_my_data</span><span class="op">(</span><span class="st">"TESSERA_model_results.rds"</span><span class="op">)</span></span></code></pre></div>
-<pre><code>&gt; adding rname 'https://github.com/floricaconstantine/TESSERA_manuscript/raw/main/data/vignette_data/TESSERA_model_results.rds'</code></pre>
-<p>The following code block illustrates the exact parameterization used
-to generate our aggregated results. To process the full set of 3,000
-genes, this model-fitting procedure was executed for each
-<code>gene_idx</code> (1 to 3,000) as independent batch jobs on a
-high-performance computing (HPC) cluster.</p>
-<div class="sourceCode" id="cb46"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Which gene to run</span></span>
-<span><span class="va">gene_idx</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
-<span><span class="co"># Run TESSERA</span></span>
-<span><span class="va">TESSERA_out</span> <span class="op">&lt;-</span> <span class="fu">TESSERA</span><span class="fu">::</span><span class="fu"><a href="../reference/TESSERA_lattice.html">TESSERA_lattice</a></span><span class="op">(</span></span>
-<span>  <span class="co"># Output of prepData function</span></span>
-<span>  TESSERAData_obj <span class="op">=</span> <span class="va">TESSERA_data</span>,</span>
-<span>  <span class="co"># Gene</span></span>
-<span>  gene_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">spe</span><span class="op">)</span><span class="op">[</span><span class="va">gene_idx</span><span class="op">]</span>,</span>
-<span>  <span class="co"># Which covariance structure to use</span></span>
-<span>  model_type <span class="op">=</span> <span class="st">"Leroux"</span>,</span>
-<span>  <span class="co"># How many ECM iterations to run (maximum)</span></span>
-<span>  em_iters <span class="op">=</span> <span class="fl">200</span>,</span>
-<span>  <span class="co"># How many CM steps to run per E-Step</span></span>
-<span>  opt_iters <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>  <span class="co"># Min ECM iterations before early stopping</span></span>
-<span>  em_min_iters <span class="op">=</span> <span class="fl">30</span>,</span>
-<span>  <span class="co"># Tolerance for early stopping</span></span>
-<span>  em_tol <span class="op">=</span> <span class="fl">1e-3</span>,</span>
-<span>  <span class="co"># How to determine early stopping: Relative change in log likelihood</span></span>
-<span>  em_stopping <span class="op">=</span> <span class="st">"rel_loglike"</span>,</span>
-<span>  <span class="co"># Initialization of beta is done via Poisson GLM</span></span>
-<span>  beta_init <span class="op">=</span> <span class="st">"glm"</span>,</span>
-<span>  <span class="co"># Initialization of gamma is based on the Moran's I of the log-transformed counts</span></span>
-<span>  gamma_init <span class="op">=</span> <span class="st">"moran"</span>,</span>
-<span>  <span class="co"># Initialization of tau^2 is based on the variance of the log-transformed counts</span></span>
-<span>  tau2_init <span class="op">=</span> <span class="st">"var"</span>,</span>
-<span>  <span class="co"># Whether to print out parameter values and convergence information at each iteration</span></span>
-<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Output the run-time</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">TESSERA_out</span><span class="op">$</span><span class="va">time</span><span class="op">)</span></span></code></pre></div>
-<p>The <code>performance_df</code> data frame provides a sample-wise
-breakdown of model performance across the entire dataset. This object
-follows the same structure as the <code>performanceSummary</code> data
-frame described in the <a href="#run-tessera">Run
-<code>TESSERA</code></a> section but contains rows for all gene-sample
-pairs.</p>
-<div class="sourceCode" id="cb47"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Extract sample-level performance metrics for all 3,000 genes</span></span>
-<span><span class="va">performance_df</span> <span class="op">&lt;-</span> <span class="va">TESSERA_all</span><span class="op">$</span><span class="va">perf_df</span></span></code></pre></div>
 <p>The results of the hypothesis tests, including specific contrasts,
 estimated values, associated standard errors, and Wald statistics, are
 contained in the <code>wald_df</code> data frame. Shown below are the
