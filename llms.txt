@@ -28,6 +28,7 @@ Until the official release, please install the development version from
 following code:
 
 ``` r
+
 if (!require("remotes", quietly = TRUE))
     install.packages("remotes")
 remotes::install_github("floricaconstantine/TESSERA")
@@ -38,6 +39,7 @@ on [Bioconductor](https://bioconductor.org/packages/TESSERA) and can be
 installed with the following code:
 
 ``` r
+
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 BiocManager::install("TESSERA")
