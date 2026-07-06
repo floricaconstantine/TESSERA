@@ -555,11 +555,12 @@ plot_neighbor_distances <- function(meta_data,
   plot_data$k_nghbr <- gsub("dist.", "", plot_data$k_nghbr)
   plot_data$k_nghbr <- factor(plot_data$k_nghbr, levels = 1:k_search)
   p <- ggplot2::ggplot(data = plot_data, ggplot2::aes(x = .data$k_nghbr, y = .data$distance))
-  p <- p + ggplot2::geom_boxplot()
-  p <- p + ggplot2::geom_jitter()
+  p <- p + ggplot2::geom_jitter(color="black", alpha = 0.5, size = 1.5, width = 0.2)
+  p <- p + ggplot2::geom_boxplot(outlier.shape = NA, alpha = 0.6, fill = "gray95", color = "black")
   p <- p + ggplot2::labs(x = "kth neighbor", y = "Mean Euclidean distance")
   p <- p + ggplot2::theme_bw()
   p <- p + ggplot2::theme(text = ggplot2::element_text(size = 20))
+  p <- p + ggplot2::theme(axis.text.x = ggplot2::element_text(size = 15))
   
   ## Store and return
   return(
