@@ -75,13 +75,14 @@ spatial covariance structure and coordinate system.</p>
 <div class="section level3">
 <h3 id="motivation-spatial-transcriptomics">Motivation: Spatial Transcriptomics<a class="anchor" aria-label="anchor" href="#motivation-spatial-transcriptomics"></a>
 </h3>
-<p>The development of this package is driven by the rapid growth of
-spatial transcriptomics, where multi-sample or multi-tissue datasets are
-increasingly common. In this context, samples often consist of
+<p>The development of <code>TESSERA</code> is driven by the rapid growth
+of spatial transcriptomics, where multi-sample or multi-tissue datasets
+are increasingly common. In this context, samples often consist of
 independent tissue slices with disparate coordinate systems, varying
-cell type distributions, and differing underlying tissue architectures.
-These factors often preclude the use of traditional spatial methods that
-rely on the assumption of a single, continuous coordinate plane.
+cell type distributions, and differing underlying tissue
+architectures.</p>
+<p>These factors often preclude the use of traditional spatial methods
+that rely on the assumption of a single, continuous coordinate plane.
 <code>TESSERA</code> bridges this gap by allowing for sample-specific
 spatial modeling within a unified global inference framework. This
 allows investigators to ask different types of differential expression
@@ -91,9 +92,24 @@ methodological manuscript <span class="citation">(<a href="#ref-constantine2026t
 2026</a>)</span>.</p>
 </div>
 <div class="section level3">
-<h3 id="the-statistical-model">The Statistical Model<a class="anchor" aria-label="anchor" href="#the-statistical-model"></a>
+<h3 id="limitations-of-existing-methods">Limitations of Existing Methods<a class="anchor" aria-label="anchor" href="#limitations-of-existing-methods"></a>
 </h3>
-<p><code>TESSERA</code> fits an overdispersed Poisson GLM. For an
+<p>Traditional spatial statistical methods often rely on the assumption
+of a single, continuous coordinate plane. When applied to multi-sample
+studies, these frameworks typically break down because they cannot
+naturally bridge independent sample coordinates or accommodate
+experimental design hierarchies (e.g., nested technical or biological
+replicates across treatment groups). Investigators are frequently forced
+to either analyze samples in complete isolation—losing statistical
+power—or treat observations as spatially independent, which violates
+core assumptions and dramatically inflates False Discovery Rates
+(FDR).</p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="method">Method<a class="anchor" aria-label="anchor" href="#method"></a>
+</h2>
+<p><code>TESSERA</code> fits an overdispersed Poisson GLMM. For an
 observation
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
 in sample
@@ -136,7 +152,6 @@ rigorous foundation for addressing differential expression across
 experimental conditions–such as comparing diseased versus healthy
 tissue–while simultaneously accounting for the spatial autocorrelation
 inherent within each sample.</p>
-</div>
 <div class="section level3">
 <h3 id="supported-spatial-covariance-structures">Supported Spatial Covariance Structures<a class="anchor" aria-label="anchor" href="#supported-spatial-covariance-structures"></a>
 </h3>
@@ -188,6 +203,130 @@ Exponential kernel is recommended.</li>
 </ul>
 </div>
 </div>
+<div class="section level3">
+<h3 id="model-fitting-via-the-ecm-algorithm">Model Fitting via the ECM Algorithm<a class="anchor" aria-label="anchor" href="#model-fitting-via-the-ecm-algorithm"></a>
+</h3>
+<p>Parameter estimation is carried out using an
+Expectation-Conditional-Maximization (ECM) algorithm. The E-step
+computes the expected complete-data log-likelihood, while subsequent CM
+steps sequentially maximizes this log-likelihood by updating the fixed
+effects
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝛃</mi><annotation encoding="application/x-tex">\boldsymbol{\beta}</annotation></semantics></math>
+and covariance parameters of the random effects.</p>
+</div>
+<div class="section level3">
+<h3 id="hypothesis-testing-empirical-nulls">Hypothesis Testing &amp; Empirical Nulls<a class="anchor" aria-label="anchor" href="#hypothesis-testing-empirical-nulls"></a>
+</h3>
+<p>Because finite-sample GLMMs are prone to structural asymptotic
+biases, the true null distribution of the Wald test statistics is
+typically unknown. <code>TESSERA</code> addresses this by modeling the
+Wald statistics as a scaled, non-central
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>χ</mi><mn>1</mn><mn>2</mn></msubsup><annotation encoding="application/x-tex">\chi_1^2</annotation></semantics></math>
+distribution, estimating an empirical null distribution directly from
+the data across thousands of parallelized per-gene models.</p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="package-design">Package Design<a class="anchor" aria-label="anchor" href="#package-design"></a>
+</h2>
+<p><code>TESSERA</code> isolates data engineering from model execution.
+For most standard workflows, you only need to interact with a few
+high-level functions and a unified data container.</p>
+<div class="section level3">
+<h3 id="object-classes-and-data-flow">Object Classes and Data Flow<a class="anchor" aria-label="anchor" href="#object-classes-and-data-flow"></a>
+</h3>
+<p>The package revolves around a specialized class structure designed to
+seamlessly handle multi-sample groupings:</p>
+<ul>
+<li>
+<strong>Input Integration:</strong> <code>TESSERA</code> acts as a
+downstream companion to the Bioconductor ecosystem. It natively ingests
+<code>SpatialExperiment</code> objects, automatically unpacking
+coordinates, counts, and spatial metadata.</li>
+<li>
+<strong>The <code>TESSERA_data</code> Container:</strong> The main
+preprocessing function, <code><a href="../reference/prep_data.html">prep_data()</a></code>, compiles these inputs
+into a structured, optimized list object. For lattice models, it
+pre-computes matrix eigenvalues and neighborhood weights once across the
+entire tissue layout, caching these static matrices so they do not have
+to be re-calculated during gene-by-gene iteration.</li>
+</ul>
+</div>
+<div class="section level3">
+<h3 id="core-functions-at-a-glance">Core Functions at a Glance<a class="anchor" aria-label="anchor" href="#core-functions-at-a-glance"></a>
+</h3>
+<p>The table below outlines the primary functions you will encounter in
+a typical analysis pipeline, moving from exploratory analysis to
+downstream statistical inference.</p>
+<table class="table">
+<colgroup>
+<col width="20%">
+<col width="20%">
+<col width="20%">
+<col width="20%">
+<col width="20%">
+</colgroup>
+<thead><tr class="header">
+<th align="left">Function</th>
+<th align="left">Step</th>
+<th align="left">Purpose</th>
+<th align="left">Primary Inputs</th>
+<th align="left">Primary Outputs</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code><a href="../reference/prep_data.html">prep_data()</a></code></td>
+<td align="left"><strong>Data Prep</strong></td>
+<td align="left">Assembles inputs and pre-computes eigenvalues of
+spatial matrices.</td>
+<td align="left">Data matrix or <code>SpatialExperiment</code> object,
+Design matrix, model type</td>
+<td align="left">
+<code>TESSERA_data</code> object</td>
+</tr>
+<tr class="even">
+<td align="left">
+<code><a href="../reference/TESSERA_lattice.html">TESSERA_lattice()</a></code> /
+<code><a href="../reference/TESSERA_spNNGP.html">TESSERA_spNNGP()</a></code>
+</td>
+<td align="left"><strong>Fitting</strong></td>
+<td align="left">Fits the overdispersed GLMM model for a single
+gene.</td>
+<td align="left">
+<code>TESSERA_data</code>, gene name, optimization
+specs</td>
+<td align="left">Fitted model list object
+(<code>TESSERA_out</code>)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code><a href="../reference/calc_Wald_statistics.html">calc_Wald_statistics()</a></code></td>
+<td align="left"><strong>Inference</strong></td>
+<td align="left">Conducts Wald tests against a user-defined contrast
+matrix.</td>
+<td align="left">
+<code>TESSERA_out</code>, contrast matrix</td>
+<td align="left">Data frame of test statistics</td>
+</tr>
+<tr class="even">
+<td align="left"><code><a href="../reference/select_Wald_threshold.html">select_Wald_threshold()</a></code></td>
+<td align="left"><strong>Inference</strong></td>
+<td align="left">Sweeps over statistics to fit the empirical null
+distribution.</td>
+<td align="left">Vector of Wald statistics</td>
+<td align="left">Empirical null parameter list</td>
+</tr>
+<tr class="odd">
+<td align="left"><code><a href="../reference/calc_scaled_noncentral_chi2_pvalues.html">calc_scaled_noncentral_chi2_pvalues()</a></code></td>
+<td align="left"><strong>Inference</strong></td>
+<td align="left">Computes empirical p-values using the fitted empirical
+null distribution.</td>
+<td align="left">Vector of Wald statistics, empirical null
+parameters</td>
+<td align="left">Vector of empirical p-values</td>
+</tr>
+</tbody>
+</table>
+</div>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -205,21 +344,32 @@ the following code:</p>
 <span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"floricaconstantine/TESSERA"</span>, dependencies <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="input-data">Input Data<a class="anchor" aria-label="anchor" href="#input-data"></a>
+<h2 id="data-input-exploration">Data Input &amp; Exploration<a class="anchor" aria-label="anchor" href="#data-input-exploration"></a>
 </h2>
+<div class="section level3">
+<h3 id="input-data">Input Data<a class="anchor" aria-label="anchor" href="#input-data"></a>
+</h3>
 <p><code>TESSERA</code> accepts either Bioconductor
 <code>SpatialExperiment</code> objects or standard R matrices as input.
 If you are not using a <code>SpatialExperiment</code> object, you can
 provide your data as a numeric count matrix, a numeric matrix of spatial
 coordinates, and an accompanying metadata data frame.</p>
-<p>For detailed specifications on these formats, please refer to the <a href="#format-data">Format Data for <code>TESSERA</code></a>
+<p>For detailed specifications on these formats, please refer to the <a href="#prep-data">Pre-processing Data with <code>prep_data</code></a>
 section.</p>
 </div>
-<div class="section level2">
-<h2 id="load-and-inspect-data">Load and Inspect Data<a class="anchor" aria-label="anchor" href="#load-and-inspect-data"></a>
-</h2>
-<p>To get started, load TESSERA along with the necessary data containers
-and utility packages:</p>
+<div class="section level3">
+<h3 id="load-and-inspect-data">Load and Inspect Data<a class="anchor" aria-label="anchor" href="#load-and-inspect-data"></a>
+</h3>
+<p><code>TESSERA</code> utilizes the <code>Imports</code> namespace
+specification for its dependencies rather than <code>Depends</code>.
+This means that while all required packages are loaded internally to
+ensure <code>TESSERA</code> functions run correctly, their functions are
+not automatically attached to your global environment. If you wish to
+use non-<code>TESSERA</code> functions directly in your session, you
+will need to load those packages explicitly using <code><a href="https://rdrr.io/r/base/library.html" class="external-link">library()</a></code>
+or reference them using the double colon operator (e.g.,
+<code>ggplot2::</code>). For clarity, this vignette explicitly loads all
+external packages required for the workflow below.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># TESSERA</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://floricaconstantine.github.io/TESSERA/">TESSERA</a></span><span class="op">)</span></span>
@@ -409,9 +559,9 @@ all 14 samples.</p>
 <span><span class="va">p</span></span></code></pre></div>
 <p><img src="vignette_files/figure-html/visualize_covariates-1.png" class="r-plt" alt="" width="100%"></p>
 </div>
-<div class="section level2">
-<h2 id="construct-design-matrix">Construct Design Matrix<a class="anchor" aria-label="anchor" href="#construct-design-matrix"></a>
-</h2>
+<div class="section level3">
+<h3 id="construct-design-matrix">Construct Design Matrix<a class="anchor" aria-label="anchor" href="#construct-design-matrix"></a>
+</h3>
 <p>In this analysis, we account for three primary factors: cell type,
 experimental condition, and sample identity. Because gene expression
 patterns often vary across conditions in a cell type-specific manner,
@@ -551,147 +701,29 @@ type, group, or nested sample effect.</p>
 &gt; [3] "GroupHKD:celltypeC_TAL"     "GroupControl:celltypeCD4T" 
 &gt; [5] "GroupDKD:celltypeCD4T"      "GroupHKD:celltypeCD4T"</code></pre>
 </div>
-<div class="section level2">
-<h2 id="format-data">Format Data for <code>TESSERA</code><a class="anchor" aria-label="anchor" href="#format-data"></a>
-</h2>
+<div class="section level3">
+<h3 id="prep-data">Pre-processing Data with <code>prep_data</code><a class="anchor" aria-label="anchor" href="#prep-data"></a>
+</h3>
 <p><code>TESSERA</code> employs a specialized data format designed to
 manage multiple samples while respecting the distinct spatial covariance
 structure inherent to each. A key goal of the preparation step is
 computational efficiency: we pre-compute quantities that are shared
 across all genes to drastically reduce the time required for model
 fitting.</p>
-<div class="section level3">
-<h3 id="choosing-a-spatial-random-effect-model">Choosing a Spatial Random Effect Model<a class="anchor" aria-label="anchor" href="#choosing-a-spatial-random-effect-model"></a>
-</h3>
-<p>The data preparation requirements depend on the spatial random effect
-model selected. <code>TESSERA</code> supports two primary classes of
-models, which differ in how they define and infer spatial correlation.
-The choice of model determines the preparation steps required.</p>
 <div class="section level4">
-<h4 id="lattice-models-leroux-car-sar">Lattice Models (Leroux, CAR, SAR)<a class="anchor" aria-label="anchor" href="#lattice-models-leroux-car-sar"></a>
+<h4 id="the-prep_data-function">The <code>prep_data</code> function<a class="anchor" aria-label="anchor" href="#the-prep_data-function"></a>
 </h4>
-<p>Lattice models define spatial correlation based on a
-measurement-measurement adjacency matrix (i.e., identifying which cells
-are physically adjacent).</p>
-<ul>
-<li>
-<strong>Model Varieties:</strong>
-<ul>
-<li>
-<strong>Leroux</strong> is our preferred default; it decomposes
-variance into spatially correlated and uncorrelated components and
-offers the fastest pre-computation.</li>
-<li>
-<strong>CAR and SAR</strong> are also supported but are slightly
-more computationally demanding during the preparation phase.</li>
-</ul>
-</li>
-<li>
-<strong>Pre-computation:</strong> These models require a one-time
-pre-computation of eigenvalues for specific sparse matrices. While this
-takes a few seconds per sample, it makes the subsequent gene-level model
-fitting faster.</li>
-<li>
-<strong>Memory Note:</strong> The pre-computation step computes
-eigenvalues for an
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>×</mo><mi>n</mi></mrow><annotation encoding="application/x-tex">n \times n</annotation></semantics></math>
-matrix (where
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
-is the number of cells per sample). For
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>&lt;</mo><mn>3000</mn></mrow><annotation encoding="application/x-tex">n &lt; 3000</annotation></semantics></math>,
-this typically uses
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>&lt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">&lt; 1</annotation></semantics></math>
-GB of RAM.</li>
-</ul>
-</div>
-<div class="section level4">
-<h4 id="sparse-nearest-neighbor-gaussian-process-spnngp">Sparse Nearest-Neighbor Gaussian Process (spNNGP)<a class="anchor" aria-label="anchor" href="#sparse-nearest-neighbor-gaussian-process-spnngp"></a>
-</h4>
-<p>spNNGP models define spatial correlation as a function of pairwise
-distances between cells using a kernel function (e.g., Matern,
-Exponential, Gaussian, or Spherical).</p>
-<ul>
-<li>
-<strong>The “Sparse” Advantage:</strong> The “sparse
-nearest-neighbor” improvement over a traditional Gaussian Process is an
-approximation that enables greater scalability by discarding the
-correlation between far-away pairs of cells.</li>
-<li>
-<strong>No Pre-computation:</strong> spNNGP models do not require
-adjacency matrices or eigenvalue pre-computation, making the initial
-preparation faster.</li>
-<li>
-<strong>Computational Trade-off:</strong> However, the inference
-process is more intensive and may be slower than lattice models,
-especially when processing thousands of genes.</li>
-</ul>
-</div>
-</div>
-<div class="section level3">
-<h3 id="defining-adjacency-matrix-for-lattice-models">Defining Adjacency Matrix for Lattice Models<a class="anchor" aria-label="anchor" href="#defining-adjacency-matrix-for-lattice-models"></a>
-</h3>
-<p>If you choose a lattice model, you must define a neighborhood
-structure by identifying which cells are physically adjacent.
-<code>TESSERA</code> can accept a pre-computed adjacency matrix.
-However, if the adjacency matrix is unknown, we provide internal
-utilities to determine cell-cell adjacency based on the data’s spatial
-coordinates.</p>
-<p>For structured grid-based datasets, such as next-generation
-sequencing datasets from the Visium platform, you can simply provide the
-<code>expected_num_neighbors</code> argument (typically 6 for Visium due
-to its hexagonal grid). <code>TESSERA</code> then automatically
-determines the distance threshold required to satisfy the target
-neighbor count, defining any cells within this distance as adjacent.
-Ultimately, <code>expected_num_neighbors</code> serves to automate the
-discovery of a valid <code>D_THRESH</code> argument for structured data,
-while <code>D_THRESH</code> itself offers the manual control required
-for more complex or non-grid tissue architectures.</p>
-<p>In particular, for imaging-based or irregularly spaced data,
-determining adjacency is often more nuanced. We provide the
-<code><a href="../reference/plot_neighbor_distances.html">plot_neighbor_distances()</a></code> function as a diagnostic tool; it
-generates box-plots of the distance to the
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>-th
-nearest neighbor for every cell. A sharp “jump” in distance typically
-indicates the boundary where cells are no longer physically adjacent.
-For example, a jump after the sixth neighbor suggests that the seventh
-closest cell is likely not a direct neighbor.</p>
-<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Inspect distances to identify the neighbor threshold</span></span>
-<span><span class="va">nb_data</span> <span class="op">&lt;-</span> <span class="fu">TESSERA</span><span class="fu">::</span><span class="fu"><a href="../reference/plot_neighbor_distances.html">plot_neighbor_distances</a></span><span class="op">(</span></span>
-<span>  meta_data <span class="op">=</span> <span class="fu">SummarizedExperiment</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/SummarizedExperiment/man/SummarizedExperiment-class.html" class="external-link">colData</a></span><span class="op">(</span><span class="va">spe</span><span class="op">)</span>,</span>
-<span>  sample_col <span class="op">=</span> <span class="va">sample_col</span>,</span>
-<span>  coord_data <span class="op">=</span> <span class="fu">SpatialExperiment</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/SpatialExperiment/man/SpatialExperiment-methods.html" class="external-link">spatialCoords</a></span><span class="op">(</span><span class="va">spe</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Per the plot, we see a jump after the 6th neighbor.</span></span>
-<span><span class="co"># We use the midpoint of the 6th and 7th neighbor distances as our threshold.</span></span>
-<span><span class="va">nb_thresh</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/Matrix/man/colSums-methods.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">nb_data</span><span class="op">$</span><span class="va">mean_nb_dist</span><span class="op">[</span>, <span class="fl">6</span><span class="op">:</span><span class="fl">7</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">p</span> <span class="op">&lt;-</span> <span class="va">nb_data</span><span class="op">$</span><span class="va">distances_plot</span></span>
-<span><span class="va">p</span> <span class="op">&lt;-</span> <span class="va">p</span> <span class="op">+</span> <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_hline</a></span><span class="op">(</span>yintercept <span class="op">=</span> <span class="va">nb_thresh</span>, color <span class="op">=</span> <span class="st">"red"</span><span class="op">)</span></span>
-<span><span class="va">p</span></span></code></pre></div>
-<p><img src="vignette_files/figure-html/visualize_neighbors-1.png" class="r-plt" alt="" width="100%"></p>
-<p>However, in highly irregular or “noisy” spatial layouts, these plots
-may become difficult to interpret. In such cases, you may need to
-manually inspect your spatial coordinates, or process associated images
-of your data where available, to determine a reasonable distance
-threshold. This value can be passed directly to <code>prepData()</code>
-via the <code>D_THRESH</code> argument.</p>
-</div>
-<div class="section level3">
-<h3 id="the-prep_data-function">The <code>prep_data</code> function<a class="anchor" aria-label="anchor" href="#the-prep_data-function"></a>
-</h3>
 <p>The <code>prep_data</code> function acts as a wrapper that converts
 your data into the structured format <code>TESSERA</code> expects. You
 can provide data either as a <code>SpatialExperiment</code> object or as
 raw matrices and data frames.</p>
-<div class="section level4">
-<h4 id="function-inputs">Function Inputs<a class="anchor" aria-label="anchor" href="#function-inputs"></a>
-</h4>
+<div class="section level5">
+<h5 id="function-inputs">Function Inputs<a class="anchor" aria-label="anchor" href="#function-inputs"></a>
+</h5>
 </div>
-<div class="section level4">
-<h4 id="data-input-choose-one">1. Data Input (Choose One)<a class="anchor" aria-label="anchor" href="#data-input-choose-one"></a>
-</h4>
+<div class="section level5">
+<h5 id="data-input-choose-one">1. Data Input (Choose One)<a class="anchor" aria-label="anchor" href="#data-input-choose-one"></a>
+</h5>
 <table class="table">
 <colgroup>
 <col width="50%">
@@ -734,9 +766,9 @@ measurement IDs</td>
 </tbody>
 </table>
 </div>
-<div class="section level4">
-<h4 id="statistical-design-choose-one">2. Statistical Design (Choose One)<a class="anchor" aria-label="anchor" href="#statistical-design-choose-one"></a>
-</h4>
+<div class="section level5">
+<h5 id="statistical-design-choose-one">2. Statistical Design (Choose One)<a class="anchor" aria-label="anchor" href="#statistical-design-choose-one"></a>
+</h5>
 <table class="table">
 <colgroup>
 <col width="50%">
@@ -760,9 +792,9 @@ dropped automatically.</td>
 </tbody>
 </table>
 </div>
-<div class="section level4">
-<h4 id="spatial-model-configuration">3. Spatial &amp; Model Configuration<a class="anchor" aria-label="anchor" href="#spatial-model-configuration"></a>
-</h4>
+<div class="section level5">
+<h5 id="spatial-model-configuration">3. Spatial &amp; Model Configuration<a class="anchor" aria-label="anchor" href="#spatial-model-configuration"></a>
+</h5>
 <table class="table">
 <colgroup>
 <col width="50%">
@@ -816,14 +848,14 @@ neighbors to search for when forming adjacency matrices.</td>
 <p>The data preparation step takes approximately 2 minutes on an M1
 MacBook with 16 GB of RAM. We will load a pre-computed result object for
 this vignette.</p>
-<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Output of prepData function</span></span>
 <span><span class="va">TESSERA_data</span> <span class="op">&lt;-</span> <span class="fu">get_my_data</span><span class="op">(</span><span class="st">"TESSERA_prepData_out.rds"</span><span class="op">)</span></span></code></pre></div>
 <pre><code>&gt; adding rname 'https://github.com/floricaconstantine/TESSERA_manuscript/raw/main/data/vignette_data/TESSERA_prepData_out.rds'</code></pre>
 <p>The following code block illustrates the exact code used to perform
 the data preparation step. If you wish to run the code locally, simply
 change the chunk header to <code>eval = TRUE</code>.</p>
-<div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Prepare data for the TESSERA package</span></span>
 <span><span class="va">TESSERA_data</span> <span class="op">&lt;-</span> <span class="fu">TESSERA</span><span class="fu">::</span><span class="fu"><a href="../reference/prep_data.html">prep_data</a></span><span class="op">(</span></span>
 <span>  x <span class="op">=</span> <span class="va">spe</span>,</span>
@@ -842,18 +874,141 @@ efficiently iterate through the data and perform downstream calculations
 when performing statistical inference.</p>
 </div>
 </div>
+<div class="section level4">
+<h4 id="choosing-a-spatial-random-effect-model">Choosing a Spatial Random Effect Model<a class="anchor" aria-label="anchor" href="#choosing-a-spatial-random-effect-model"></a>
+</h4>
+<p>The data preparation requirements depend on the spatial random effect
+model selected. <code>TESSERA</code> supports two primary classes of
+models, which differ in how they define and infer spatial correlation.
+The choice of model determines the preparation steps required.</p>
+<div class="section level5">
+<h5 id="lattice-models-leroux-car-sar">Lattice Models (Leroux, CAR, SAR)<a class="anchor" aria-label="anchor" href="#lattice-models-leroux-car-sar"></a>
+</h5>
+<p>Lattice models define spatial correlation based on a
+measurement-measurement adjacency matrix (i.e., identifying which cells
+are physically adjacent).</p>
+<ul>
+<li>
+<strong>Model Varieties:</strong>
+<ul>
+<li>
+<strong>Leroux</strong> is our preferred default; it decomposes
+variance into spatially correlated and uncorrelated components and
+offers the fastest pre-computation.</li>
+<li>
+<strong>CAR and SAR</strong> are also supported but are slightly
+more computationally demanding during the preparation phase.</li>
+</ul>
+</li>
+<li>
+<strong>Pre-computation:</strong> These models require a one-time
+pre-computation of eigenvalues for specific sparse matrices. While this
+takes a few seconds per sample, it makes the subsequent gene-level model
+fitting faster.</li>
+<li>
+<strong>Memory Note:</strong> The pre-computation step computes
+eigenvalues for an
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>×</mo><mi>n</mi></mrow><annotation encoding="application/x-tex">n \times n</annotation></semantics></math>
+matrix (where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+is the number of cells per sample). For
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>&lt;</mo><mn>3000</mn></mrow><annotation encoding="application/x-tex">n &lt; 3000</annotation></semantics></math>,
+this typically uses
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>&lt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">&lt; 1</annotation></semantics></math>
+GB of RAM.</li>
+</ul>
+</div>
+<div class="section level5">
+<h5 id="sparse-nearest-neighbor-gaussian-process-spnngp">Sparse Nearest-Neighbor Gaussian Process (spNNGP)<a class="anchor" aria-label="anchor" href="#sparse-nearest-neighbor-gaussian-process-spnngp"></a>
+</h5>
+<p>spNNGP models define spatial correlation as a function of pairwise
+distances between cells using a kernel function (e.g., Matern,
+Exponential, Gaussian, or Spherical).</p>
+<ul>
+<li>
+<strong>The “Sparse” Advantage:</strong> The “sparse
+nearest-neighbor” improvement over a traditional Gaussian Process is an
+approximation that enables greater scalability by discarding the
+correlation between far-away pairs of cells.</li>
+<li>
+<strong>No Pre-computation:</strong> spNNGP models do not require
+adjacency matrices or eigenvalue pre-computation, making the initial
+preparation faster.</li>
+<li>
+<strong>Computational Trade-off:</strong> However, the inference
+process is more intensive and may be slower than lattice models,
+especially when processing thousands of genes.</li>
+</ul>
+</div>
+</div>
+<div class="section level4">
+<h4 id="defining-adjacency-matrix-for-lattice-models">Defining Adjacency Matrix for Lattice Models<a class="anchor" aria-label="anchor" href="#defining-adjacency-matrix-for-lattice-models"></a>
+</h4>
+<p>If you choose a lattice model, you must define a neighborhood
+structure by identifying which cells are physically adjacent.
+<code>TESSERA</code> can accept a pre-computed adjacency matrix.
+However, if the adjacency matrix is unknown, we provide internal
+utilities to determine cell-cell adjacency based on the data’s spatial
+coordinates.</p>
+<p>For structured grid-based datasets, such as next-generation
+sequencing datasets from the Visium platform, you can simply provide the
+<code>expected_num_neighbors</code> argument (typically 6 for Visium due
+to its hexagonal grid). <code>TESSERA</code> then automatically
+determines the distance threshold required to satisfy the target
+neighbor count, defining any cells within this distance as adjacent.
+Ultimately, <code>expected_num_neighbors</code> serves to automate the
+discovery of a valid <code>D_THRESH</code> argument for structured data,
+while <code>D_THRESH</code> itself offers the manual control required
+for more complex or non-grid tissue architectures.</p>
+<p>In particular, for imaging-based or irregularly spaced data,
+determining adjacency is often more nuanced. We provide the
+<code><a href="../reference/plot_neighbor_distances.html">plot_neighbor_distances()</a></code> function as a diagnostic tool; it
+generates box-plots of the distance to the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>-th
+nearest neighbor for every cell. A sharp “jump” in distance typically
+indicates the boundary where cells are no longer physically adjacent.
+For example, a jump after the sixth neighbor suggests that the seventh
+closest cell is likely not a direct neighbor.</p>
+<div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Inspect distances to identify the neighbor threshold</span></span>
+<span><span class="va">nb_data</span> <span class="op">&lt;-</span> <span class="fu">TESSERA</span><span class="fu">::</span><span class="fu"><a href="../reference/plot_neighbor_distances.html">plot_neighbor_distances</a></span><span class="op">(</span></span>
+<span>  meta_data <span class="op">=</span> <span class="fu">SummarizedExperiment</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/SummarizedExperiment/man/SummarizedExperiment-class.html" class="external-link">colData</a></span><span class="op">(</span><span class="va">spe</span><span class="op">)</span>,</span>
+<span>  sample_col <span class="op">=</span> <span class="va">sample_col</span>,</span>
+<span>  coord_data <span class="op">=</span> <span class="fu">SpatialExperiment</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/SpatialExperiment/man/SpatialExperiment-methods.html" class="external-link">spatialCoords</a></span><span class="op">(</span><span class="va">spe</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Per the plot, we see a jump after the 6th neighbor.</span></span>
+<span><span class="co"># We use the midpoint of the 6th and 7th neighbor distances as our threshold.</span></span>
+<span><span class="va">nb_thresh</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/Matrix/man/colSums-methods.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">nb_data</span><span class="op">$</span><span class="va">mean_nb_dist</span><span class="op">[</span>, <span class="fl">6</span><span class="op">:</span><span class="fl">7</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">p</span> <span class="op">&lt;-</span> <span class="va">nb_data</span><span class="op">$</span><span class="va">distances_plot</span></span>
+<span><span class="va">p</span> <span class="op">&lt;-</span> <span class="va">p</span> <span class="op">+</span> <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_hline</a></span><span class="op">(</span>yintercept <span class="op">=</span> <span class="va">nb_thresh</span>, color <span class="op">=</span> <span class="st">"red"</span><span class="op">)</span></span>
+<span><span class="va">p</span></span></code></pre></div>
+<p><img src="vignette_files/figure-html/visualize_neighbors-1.png" class="r-plt" alt="" width="100%"></p>
+<p>However, in highly irregular or “noisy” spatial layouts, these plots
+may become difficult to interpret. In such cases, you may need to
+manually inspect your spatial coordinates, or process associated images
+of your data where available, to determine a reasonable distance
+threshold. This value can be passed directly to <code>prepData()</code>
+via the <code>D_THRESH</code> argument.</p>
+</div>
+</div>
 </div>
 <div class="section level2">
-<h2 id="run-tessera">Running <code>TESSERA</code><a class="anchor" aria-label="anchor" href="#run-tessera"></a>
+<h2 id="model-fitting">Model Fitting<a class="anchor" aria-label="anchor" href="#model-fitting"></a>
 </h2>
+<div class="section level3">
+<h3 id="run-tessera">Running the ECM algorithm<a class="anchor" aria-label="anchor" href="#run-tessera"></a>
+</h3>
 <p><code>TESSERA</code> fits models on a single gene at a time. This
 independence means there is no information sharing between genes during
 the fitting process and allows for straightforward parallelization
 across genes.</p>
 <p>To fit a model, you must provide three core inputs: the
-<code>TESSERA_data</code> object generated by <code>prep_data</code>,
-the specific gene name, and the desired covariance structure (e.g.,
-“Leroux”).</p>
+<code>TESSERA_data</code> object generated by <code>prep_data</code>
+(see section <a href="#prep-data">Pre-processing Data with
+<code>prep_data</code></a>), the specific gene name, and the desired
+covariance structure (e.g., “Leroux”).</p>
 <p><code>TESSERA</code> uses an Expectation-Conditional-Maximization
 (ECM) algorithm to estimate model parameters. While the default settings
 are robust for most spatial transcriptomics datasets, you can fine-tune
@@ -965,22 +1120,45 @@ field. Each entry corresponds to a column in your design matrix.</p>
 &gt;                  -8.308204                  -6.931760 
 &gt;      GroupDKD:celltypeCD4T      GroupHKD:celltypeCD4T 
 &gt;                  -6.871734                  -8.129911</code></pre>
+</div>
+<div class="section level3">
+<h3 id="parallelization-for-multiple-genes">Parallelization for multiple genes<a class="anchor" aria-label="anchor" href="#parallelization-for-multiple-genes"></a>
+</h3>
 <p>For the purposes of this vignette, we have already run
 <code>TESSERA</code> on the top 3,000 genes (selected by raw count
-variance). The output data frames from each individual gene’s run were
-row-bound to aggregate the results into a single combined data frame. We
-load this compiled data frame here to demonstrate downstream analysis
-and visualization.</p>
+variance) as described in Section <a href="#parallelize-hpc">Parallelize
+via HPC cluster</a>. The output data frames from each individual gene’s
+run were row-bound to aggregate the results into a single combined data
+frame. We load this compiled data frame here to demonstrate downstream
+analysis and visualization.</p>
 <div class="sourceCode" id="cb43"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load pre-computed results for the multi-gene analysis</span></span>
 <span><span class="va">TESSERA_all</span> <span class="op">&lt;-</span> <span class="fu">get_my_data</span><span class="op">(</span><span class="st">"TESSERA_model_results.rds"</span><span class="op">)</span></span></code></pre></div>
 <pre><code>&gt; adding rname 'https://github.com/floricaconstantine/TESSERA_manuscript/raw/main/data/vignette_data/TESSERA_model_results.rds'</code></pre>
-<p>The following code block illustrates the exact parameterization used
-to generate our aggregated results. To process the full set of 3,000
-genes, this model-fitting procedure was executed for each
-<code>gene_idx</code> (1 to 3,000) as independent batch jobs on a
-high-performance computing (HPC) cluster.</p>
+<p>The <code>performance_df</code> data frame provides a sample-wise
+breakdown of model performance across the entire dataset. This object
+follows the same structure as the <code>performanceSummary</code> data
+frame described in the beginning of the <a href="#run-tessera">Run
+<code>TESSERA</code></a> section but contains rows for all gene-sample
+pairs.</p>
 <div class="sourceCode" id="cb45"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Extract sample-level performance metrics for all 3,000 genes</span></span>
+<span><span class="va">performance_df</span> <span class="op">&lt;-</span> <span class="va">TESSERA_all</span><span class="op">$</span><span class="va">perf_df</span></span></code></pre></div>
+<div class="section level5">
+<h5 id="parallelize-hpc">Parallelize via HPC cluster<a class="anchor" aria-label="anchor" href="#parallelize-hpc"></a>
+</h5>
+<p><code>TESSERA</code> can be run in parallel (or serial) to fit to
+multiple genes. However, <code>TESSERA</code> is computationally
+intensive if run on hundreds or thousands of genes as is typical for
+genomic data, so it is best to parallelize this process on a
+high-performance computing (HPC) cluster.</p>
+<p>The following code block illustrates the exact parameterization used
+to generate our aggregated results used for the remainder of this
+vignette. To process the full set of 3,000 genes, this model-fitting
+procedure was executed for each <code>gene_idx</code> (1 to 3,000) as
+independent batch jobs on a high-performance computing (HPC) cluster
+with the below parameterization.</p>
+<div class="sourceCode" id="cb46"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Which gene to run</span></span>
 <span><span class="va">gene_idx</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
 <span><span class="co"># Run TESSERA</span></span>
@@ -1013,23 +1191,10 @@ high-performance computing (HPC) cluster.</p>
 <span></span>
 <span><span class="co"># Output the run-time</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">TESSERA_out</span><span class="op">$</span><span class="va">time</span><span class="op">)</span></span></code></pre></div>
-<p>The <code>performance_df</code> data frame provides a sample-wise
-breakdown of model performance across the entire dataset. This object
-follows the same structure as the <code>performanceSummary</code> data
-frame described in the <a href="#run-tessera">Run
-<code>TESSERA</code></a> section but contains rows for all gene-sample
-pairs.</p>
-<div class="sourceCode" id="cb46"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Extract sample-level performance metrics for all 3,000 genes</span></span>
-<span><span class="va">performance_df</span> <span class="op">&lt;-</span> <span class="va">TESSERA_all</span><span class="op">$</span><span class="va">perf_df</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="parallelize">Parallelize <code>TESSERA</code><a class="anchor" aria-label="anchor" href="#parallelize"></a>
-</h3>
-<p><code>TESSERA</code> can be run in parallel (or serial) to fit to
-multiple genes. However, <code>TESSERA</code> is computationally
-intensive if run on hundreds or thousands of genes as is typical for
-genomic data, so it is best to parallelize this process on a
-high-performance computing cluster.</p>
+</div>
+<div class="section level5">
+<h5 id="parallelize-futures">Parallelize via <code>futures</code> package<a class="anchor" aria-label="anchor" href="#parallelize-futures"></a>
+</h5>
 <p>The following code (not run) shows an example of how to use the
 <code>futures</code> package to parallelize <code>TESSERA</code> on 50
 genes.</p>
@@ -1081,6 +1246,7 @@ genes.</p>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/difftime.html" class="external-link">difftime</a></span><span class="op">(</span><span class="va">t1</span>, <span class="va">t0</span>, units <span class="op">=</span> <span class="st">"min"</span><span class="op">)</span>, <span class="fl">2</span><span class="op">)</span>, <span class="st">"minutes.\n"</span><span class="op">)</span></span></code></pre></div>
 </div>
 </div>
+</div>
 <div class="section level2">
 <h2 id="hyp-test">Hypothesis Testing<a class="anchor" aria-label="anchor" href="#hyp-test"></a>
 </h2>
@@ -1109,6 +1275,8 @@ contained in the <code>wald_df</code> data frame. Shown below are the
 results for between-condition comparisons performed within each cell
 type, a process elaborated upon in the <a href="#de-within-celltype">DE
 within a cell type between conditions</a> section.</p>
+<p>The aggregated results were obtained via the workflow described in
+Section <a href="#parallelize-hpc">Parallelize via HPC cluster</a>.</p>
 <div class="sourceCode" id="cb48"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Extract Wald test results for all gene-contrast pairs</span></span>
 <span><span class="va">wald_df</span> <span class="op">&lt;-</span> <span class="va">TESSERA_all</span><span class="op">$</span><span class="va">wald_df</span></span>
@@ -1510,7 +1678,7 @@ al. 2026</a>)</span>.</p>
 &gt;  collate  C.UTF-8
 &gt;  ctype    C.UTF-8
 &gt;  tz       UTC
-&gt;  date     2026-07-06
+&gt;  date     2026-07-12
 &gt;  pandoc   3.8.3 @ /opt/hostedtoolcache/pandoc/3.8.3/x64/ (via rmarkdown)
 &gt;  quarto   NA
 &gt; 
@@ -1580,10 +1748,10 @@ al. 2026</a>)</span>.</p>
 &gt;  pillar                 1.11.1      [90m2025-09-17 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  pkgbuild               1.4.8       [90m2025-05-26 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  pkgconfig              2.0.3       [90m2019-09-22 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-&gt;  pkgdown                2.2.0       [90m2025-11-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+&gt;  pkgdown                2.2.1       [90m2026-07-07 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  pkgload                1.5.3       [90m2026-06-15 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  plyr                   1.8.9       [90m2023-10-02 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-&gt;  Polychrome             1.5.4       [90m2025-04-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+&gt;  Polychrome             1.6.1       [90m2026-07-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  polyclip               1.10-7      [90m2024-07-23 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  pracma                 2.4.6       [90m2025-10-22 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  purrr                  1.2.2       [90m2026-04-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1592,13 +1760,13 @@ al. 2026</a>)</span>.</p>
 &gt;  RANN                   2.6.2       [90m2024-08-25 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  rappdirs               0.3.4       [90m2026-01-17 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  RColorBrewer           1.1-3       [90m2022-04-03 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-&gt;  Rcpp                   1.1.1-1.1   [90m2026-04-24 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+&gt;  Rcpp                   1.1.2       [90m2026-07-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  RcppParallel           5.1.11-2    [90m2026-03-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  rdist                  0.0.5       [90m2020-05-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  reshape2             * 1.4.5       [90m2025-11-12 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  Rfast                  2.1.5.2     [90m2025-10-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  rjson                  0.2.23      [90m2024-09-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-&gt;  rlang                  1.2.0       [90m2026-04-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+&gt;  rlang                  1.3.0       [90m2026-07-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  rmarkdown              2.31        [90m2026-03-26 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  RSQLite                3.53.3      [90m2026-06-30 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  S4Arrays               1.12.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
@@ -1623,14 +1791,14 @@ al. 2026</a>)</span>.</p>
 &gt;  stringr                1.6.0       [90m2025-11-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  SummarizedExperiment * 1.42.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
 &gt;  systemfonts            1.3.2       [90m2026-03-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-&gt;  TESSERA              * 0.99.1      [90m2026-07-06 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
+&gt;  TESSERA              * 0.99.1      [90m2026-07-12 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
 &gt;  textshaping            1.0.5       [90m2026-03-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  tibble                 3.3.1       [90m2026-01-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  tidyselect             1.2.1       [90m2024-03-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  usethis                3.2.1       [90m2025-09-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  vctrs                  0.7.3       [90m2026-04-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  withr                  3.0.3       [90m2026-06-19 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-&gt;  xfun                   0.59        [90m2026-06-19 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+&gt;  xfun                   0.60        [90m2026-07-09 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  xts                    0.14.2      [90m2026-02-28 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  XVector                0.52.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
 &gt;  yaml                   2.3.12      [90m2025-12-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1644,7 +1812,7 @@ al. 2026</a>)</span>.</p>
 &gt; 
 &gt;  [1m [36m────────────────────────────────────────────────────────────────────────────── [39m [22m</code></pre>
 </div>
-<div class="section level2 unnumbered">
+<div class="section level2">
 <h2 class="unnumbered" id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
 <div id="refs" class="references csl-bib-body hanging-indent">
@@ -1688,7 +1856,7 @@ Estimating Local and Tail Area-Based False Discovery Rates.”</span>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>

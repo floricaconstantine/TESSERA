@@ -6,14 +6,22 @@ constant. Part of the M-Step in the EM algorithm.
 ## Usage
 
 ``` r
-M_step_tau2(Vhat, eta_hat, Q, beta_hat, X)
+M_step_tau2(trace_scalars, gamma_val, model_type, eta_hat, Q, beta_hat, X)
 ```
 
 ## Arguments
 
-- Vhat:
+- trace_scalars:
 
-  Estimated covariance matrix of eta.
+  List of precomputed trace scalars from the E-step.
+
+- gamma_val:
+
+  Current estimate of correlation parameter.
+
+- model_type:
+
+  String for the spatial model ("CAR", "SAR", or "Leroux").
 
 - eta_hat:
 

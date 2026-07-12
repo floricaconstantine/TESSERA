@@ -8,7 +8,7 @@ CAR MODEL.
 
 ``` r
 M_step_gamma_CAR(
-  Vhat,
+  trace_scalars,
   eta_hat,
   tau2,
   beta_hat,
@@ -22,9 +22,9 @@ M_step_gamma_CAR(
 
 ## Arguments
 
-- Vhat:
+- trace_scalars:
 
-  Estimated covariance matrix of eta.
+  List of precomputed trace scalars from the E-step.
 
 - eta_hat:
 

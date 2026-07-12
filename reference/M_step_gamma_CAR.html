@@ -48,7 +48,7 @@ ONLY APPLIES TO THE CAR MODEL.</p>
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">M_step_gamma_CAR</span><span class="op">(</span></span>
-<span>  <span class="va">Vhat</span>,</span>
+<span>  <span class="va">trace_scalars</span>,</span>
 <span>  <span class="va">eta_hat</span>,</span>
 <span>  <span class="va">tau2</span>,</span>
 <span>  <span class="va">beta_hat</span>,</span>
@@ -64,8 +64,8 @@ ONLY APPLIES TO THE CAR MODEL.</p>
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
 
 
-<dl><dt id="arg-vhat">Vhat<a class="anchor" aria-label="anchor" href="#arg-vhat"></a></dt>
-<dd><p>Estimated covariance matrix of eta.</p></dd>
+<dl><dt id="arg-trace-scalars">trace_scalars<a class="anchor" aria-label="anchor" href="#arg-trace-scalars"></a></dt>
+<dd><p>List of precomputed trace scalars from the E-step.</p></dd>
 
 
 <dt id="arg-eta-hat">eta_hat<a class="anchor" aria-label="anchor" href="#arg-eta-hat"></a></dt>
@@ -126,7 +126,7 @@ A list with gamma_hat (estimate) and grad_val (gradient).</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

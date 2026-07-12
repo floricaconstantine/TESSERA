@@ -45,8 +45,6 @@ smoothness kappa.
 
 Applies to a single area.
 
-Requires the sp library.
-
 Requires the gstat library.
 
 ## Author
