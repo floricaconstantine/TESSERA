@@ -5,29 +5,39 @@ library(Matrix)
 set.seed(2026)
 n <- 10
 Q_test <- diag(n)
-Vhat_test <- diag(rep(0.1, n))
+# Vhat_test <- diag(rep(0.1, n)) # REMOVED: No longer used
 eta_test <- rnorm(n)
 X_test <- matrix(1, nrow = n, ncol = 1)
 beta_test <- 0.5
 
+# ADDED: Mock trace_scalars to simulate the $O(1)$ memory output from the E-step
+trace_scalars_test <- list(
+  tr_DV = 1.0,
+  tr_WV = 0.0,
+  tr_WZV = 0.0,
+  tr_V = 1.0,
+  tr_DWIV = 0.0
+)
+
 # --- M_step_tau2 ---
 test_that("M_step_tau2 computes valid scaling parameters", {
   # 1. Standard calculation
-  res <- M_step_tau2(Vhat_test, eta_test, Q_test, beta_test, X_test)
+  # UPDATED: Signature now requires trace_scalars, gamma_val, and model_type
+  res <- M_step_tau2(trace_scalars_test, 0.5, "CAR", eta_test, Q_test, beta_test, X_test)
   
   expect_type(res, "double")
   expect_gt(res, 0)
   
   # 2. Test the "off the rails" failsafe
   Q_zero <- matrix(0, 2, 2)
-  V_zero <- matrix(0, 2, 2)
   eta_zero <- c(0, 0)
+  trace_zero <- list(tr_DV = 0, tr_WV = 0, tr_WZV = 0, tr_V = 0, tr_DWIV = 0)
   
   # FIX: Put the assignment INSIDE the expectation.
   # This ensures expect_warning captures the warning,
   # but allows res_small to be assigned the numeric return value.
   expect_warning(
-    res_small <- M_step_tau2(V_zero, eta_zero, Q_zero, 0, matrix(0, 2, 1)),
+    res_small <- M_step_tau2(trace_zero, 0.5, "CAR", eta_zero, Q_zero, 0, matrix(0, 2, 1)),
     "Invalid tau^2",
     fixed = TRUE
   )
@@ -43,6 +53,7 @@ test_that("M_step_beta aggregates across multiple areas correctly", {
   tau2_list <- list(1, 1)
   X_list <- list(matrix(1, 5, 1), matrix(1, 5, 1))
   
+  # UNCHANGED: The signature for M_step_beta remained the same
   res <- M_step_beta(eta_list, Q_list, tau2_list, X_list)
   expect_equal(as.numeric(res), 1.0)
 })
@@ -53,7 +64,11 @@ test_that("M_step_gamma_CAR finds a root within bounds", {
   W <- diag(10)
   D <- diag(10)
   
-  res <- M_step_gamma_CAR(Vhat_test, eta_test, 1.0, beta_test, X_test, W, D, eig_vals)
+  # ADDED: Mock specific trace scalar for CAR
+  trace_scalars_car <- list(tr_WV = 1.0)
+  
+  # UPDATED: Replaced Vhat with trace_scalars_car
+  res <- M_step_gamma_CAR(trace_scalars_car, eta_test, 1.0, beta_test, X_test, W, D, eig_vals)
   
   expect_named(res, c("gamma_hat", "grad_val"))
   expect_true(res$gamma_hat >= 0 && res$gamma_hat < 1)
@@ -62,7 +77,7 @@ test_that("M_step_gamma_CAR finds a root within bounds", {
 # --- M_step_variogram ---
 test_that("M_step_variogram returns expected parameter count", {
   skip_if_not_installed("gstat")
-  skip_if_not_installed("sp")
+  # skip_if_not_installed("sp") # REMOVED: Dependency eliminated!
   
   coords <- matrix(runif(20), ncol = 2)
   eta_hat <- rnorm(10)

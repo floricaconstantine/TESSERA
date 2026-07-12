@@ -1,7 +1,7 @@
 ## Wrapper functions to fit model.
 # Dependencies in file: Matrix.
 # Dependencies: Functions from utils.R, models.R, E_step.R, M_step.R.
-# Dependences from functions in other files not listed: pracma, sp, gstat.
+# Dependences from functions in other files not listed: pracma, gstat.
 # Rcpp dependencies: calc_moran.cpp.
 
 
@@ -91,7 +91,7 @@
 #'   TESSERA_spNNGP(
 #'     TESSERAData_obj = TESSERA_data,
 #'     gene_name = "example",
-#'     cov_type = "Mat",
+#'     cov_type = "Exp",
 #'     em_iters = 2,
 #'     opt_iters = 1,
 #'     verbose = FALSE
@@ -295,17 +295,19 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     }
     
     # Run E-Step: Get covariance and mean of eta
-    Vhat_list <- list()
+    # Notice: Vhat_list <- list() is completely gone
     eta_hat_list <- list()
+    
     for (area_idx in 1:n_areas) {
+      # Compute Vhat for the CURRENT area only
       if (dense_matrices) {
-        Vhat_list[[area_idx]] <- E_step_Vhat(as.matrix(Q_hat_list[[area_idx]]), 1.0, z_list[[area_idx]])
+        Vhat_current <- E_step_Vhat(as.matrix(Q_hat_list[[area_idx]]), 1.0, z_list[[area_idx]])
       } else {
-        Vhat_list[[area_idx]] <- E_step_Vhat(Q_hat_list[[area_idx]], 1.0, z_list[[area_idx]])
+        Vhat_current <- E_step_Vhat(Q_hat_list[[area_idx]], 1.0, z_list[[area_idx]])
       }
       
       eta_hat_list[[area_idx]] <- E_step_etahat(
-        Vhat_list[[area_idx]],
+        Vhat_current,
         Q_hat_list[[area_idx]],
         1.0,
         beta_tracker[, em_idx],
@@ -313,8 +315,9 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         z_list[[area_idx]],
         TESSERAData_obj$library_size_list[[area_idx]]
       )
+      
       # Get a few more things out of the E-step: theta and predictions
-      theta_hat <- as.numeric(E_step_thetahat(Vhat_list[[area_idx]], eta_hat_list[[area_idx]]))
+      theta_hat <- as.numeric(E_step_thetahat(Vhat_current, eta_hat_list[[area_idx]]))
       z_hat <- as.numeric(E_step_predict(theta_hat, TESSERAData_obj$library_size_list[[area_idx]]))
       
       # Store stuff
@@ -325,6 +328,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
       # Performance
       R2_tracker[area_idx, em_idx] <- stats::cor(z_hat, z_list[[area_idx]])^2
       MSE_tracker[area_idx, em_idx] <- mean(abs(z_hat - z_list[[area_idx]])^2)
+      
       # Observed, expected, sd
       resid_moran[area_idx, em_idx, ] <- calc_moran(
         z_hat - z_list[[area_idx]],
@@ -332,9 +336,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         TESSERAData_obj$coords_list[[area_idx]][, 2]
       )
       
-      
       # Data log likelihood
-      # data_log_like_tracker[area_idx, em_idx] <- poisson_loglike(z_list[[area_idx]], theta_hat * library_size_list[[area_idx]])
       data_log_like_tracker[area_idx, em_idx] <- sum(
         stats::dpois(
           round(z_list[[area_idx]]),
@@ -346,23 +348,22 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
       
       # Expected log likelihood
       expected_log_like_tracker[area_idx, em_idx] <- expected_loglike(
-        Vhat_list[[area_idx]],
+        Vhat_current,
         eta_hat_list[[area_idx]],
         Q_hat_list[[area_idx]],
-        0.0,
-        # gamma
-        1.0,
-        # tau^2
+        0.0, # gamma
+        1.0, # tau^2
         beta_tracker[, em_idx],
         TESSERAData_obj$X_list[[area_idx]],
-        A_hat_list[[area_idx]],
-        # W
-        A_hat_list[[area_idx]],
-        # D
-        Dinv_list[[area_idx]],
-        # Eigenvalues
+        A_hat_list[[area_idx]], # W
+        A_hat_list[[area_idx]], # D
+        Dinv_list[[area_idx]],  # Eigenvalues
         "spNNGP"
       )
+      
+      # DESTROY the dense Vhat to prevent Memory Overflow
+      rm(Vhat_current)
+      gc()
     }
     
     # Run (C)M-Step: Optimize

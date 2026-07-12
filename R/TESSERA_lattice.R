@@ -1,7 +1,7 @@
 ## Wrapper functions to fit model.
 # Dependencies in file: Matrix.
 # Dependencies: Functions from utils.R, models.R, E_step.R, M_step.R.
-# Dependences from functions in other files not listed: pracma, sp, gstat.
+# Dependences from functions in other files not listed: pracma, gstat.
 # Rcpp dependencies: calc_moran.cpp.
 
 
@@ -71,6 +71,7 @@
 #' @import Matrix
 #' @importFrom stats coef cor dpois poisson predict rnorm runif var
 #' @importFrom Rcpp sourceCpp evalCpp
+#' @importFrom methods as
 #' @useDynLib TESSERA
 #' @export
 #'
@@ -358,19 +359,20 @@ TESSERA_lattice <- function(TESSERAData_obj,
     }
     
     
-    
     # Run E-Step: Get covariance and mean of eta
-    Vhat_list <- list()
+    trace_scalars_list <- list() # REPLACES Vhat_list
     eta_hat_list <- list()
+    
     for (area_idx in 1:n_areas) {
+      # 1. Compute Vhat for the CURRENT area only
       if (dense_matrices) {
-        Vhat_list[[area_idx]] <- Vhat_list[[area_idx]] <- E_step_Vhat(as.matrix(Q_hat_list[[area_idx]]), tau2_tracker[area_idx, em_idx], z_list[[area_idx]])
+        Vhat_current <- E_step_Vhat(as.matrix(Q_hat_list[[area_idx]]), tau2_tracker[area_idx, em_idx], z_list[[area_idx]])
       } else {
-        Vhat_list[[area_idx]] <- E_step_Vhat(Q_hat_list[[area_idx]], tau2_tracker[area_idx, em_idx], z_list[[area_idx]])
+        Vhat_current <- E_step_Vhat(Q_hat_list[[area_idx]], tau2_tracker[area_idx, em_idx], z_list[[area_idx]])
       }
       
       eta_hat_list[[area_idx]] <- E_step_etahat(
-        Vhat_list[[area_idx]],
+        Vhat_current,
         Q_hat_list[[area_idx]],
         tau2_tracker[area_idx, em_idx],
         beta_tracker[, em_idx],
@@ -378,8 +380,9 @@ TESSERA_lattice <- function(TESSERAData_obj,
         z_list[[area_idx]],
         TESSERAData_obj$library_size_list[[area_idx]]
       )
+      
       # Get a few more things out of the E-step: theta and predictions
-      theta_hat <- as.numeric(E_step_thetahat(Vhat_list[[area_idx]], eta_hat_list[[area_idx]]))
+      theta_hat <- as.numeric(E_step_thetahat(Vhat_current, eta_hat_list[[area_idx]]))
       z_hat <- as.numeric(E_step_predict(theta_hat, TESSERAData_obj$library_size_list[[area_idx]]))
       
       # Store stuff
@@ -390,6 +393,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
       # Performance
       R2_tracker[area_idx, em_idx] <- stats::cor(z_hat, z_list[[area_idx]])^2
       MSE_tracker[area_idx, em_idx] <- mean(abs(z_hat - z_list[[area_idx]])^2)
+      
       # Observed, expected, sd
       if (!(
         is.null(TESSERAData_obj$coords_list[[area_idx]][, 1]) ||
@@ -404,7 +408,6 @@ TESSERA_lattice <- function(TESSERAData_obj,
       resid_moran_nb[area_idx, em_idx] <- moran_I_nb(z_hat - z_list[[area_idx]], TESSERAData_obj$W_list[[area_idx]])
       
       # Data log likelihood
-      # data_log_like_tracker[area_idx, em_idx] <- poisson_loglike(z_list[[area_idx]], theta_hat * library_size_list[[area_idx]])
       data_log_like_tracker[area_idx, em_idx] <- sum(
         stats::dpois(
           round(z_list[[area_idx]]),
@@ -414,9 +417,9 @@ TESSERA_lattice <- function(TESSERAData_obj,
         na.rm = TRUE
       )
       
-      # Expected log likelihood
+      # Expected log likelihood (Takes Vhat_current before it gets deleted!)
       expected_log_like_tracker[area_idx, em_idx] <- expected_loglike(
-        Vhat_list[[area_idx]],
+        Vhat_current,
         eta_hat_list[[area_idx]],
         Q_hat_list[[area_idx]],
         gamma_tracker[area_idx, em_idx],
@@ -428,6 +431,45 @@ TESSERA_lattice <- function(TESSERAData_obj,
         eig_val_list[[area_idx]],
         model_type
       )
+      
+      # Extract Trace Scalars for the M-Step
+      W_mat <- TESSERAData_obj$W_list[[area_idx]]
+      D_mat <- TESSERAData_obj$D_list[[area_idx]]
+      
+      if ("CAR" == model_type) {
+        W_sparse <- methods::as(W_mat, "dgCMatrix")
+        idx_W <- cbind(W_sparse@i + 1L, rep(1:ncol(W_sparse), diff(W_sparse@p)))
+        
+        trace_scalars_list[[area_idx]] <- list(
+          tr_DV = sum(Matrix::diag(D_mat) * diag(Vhat_current)),
+          tr_WV = sum(W_sparse@x * Vhat_current[idx_W])
+        )
+        
+      } else if ("SAR" == model_type) {
+        W_sparse <- methods::as(W_mat, "dgCMatrix")
+        idx_W <- cbind(W_sparse@i + 1L, rep(1:ncol(W_sparse), diff(W_sparse@p)))
+        
+        D_inv <- Matrix::Diagonal(dim(W_mat)[1], 1 / Matrix::diag(D_mat))
+        WZ_sparse <- methods::as(W_mat %*% (D_inv %*% W_mat), "dgCMatrix")
+        idx_WZ <- cbind(WZ_sparse@i + 1L, rep(1:ncol(WZ_sparse), diff(WZ_sparse@p)))
+        
+        trace_scalars_list[[area_idx]] <- list(
+          tr_DV = sum(Matrix::diag(D_mat) * diag(Vhat_current)),
+          tr_WV = sum(W_sparse@x * Vhat_current[idx_W]),
+          tr_WZV = sum(WZ_sparse@x * Vhat_current[idx_WZ])
+        )
+        
+      } else if ("Leroux" == model_type) {
+        DWI_sparse <- methods::as(D_mat - W_mat - Matrix::Diagonal(dim(W_mat)[1], 1), "dgCMatrix")
+        idx_DWI <- cbind(DWI_sparse@i + 1L, rep(1:ncol(DWI_sparse), diff(DWI_sparse@p)))
+        
+        trace_scalars_list[[area_idx]] <- list(tr_V = sum(diag(Vhat_current)),
+                                               tr_DWIV = sum(DWI_sparse@x * Vhat_current[idx_DWI]))
+      }
+      
+      # DESTROY the dense Vhat to prevent Memory Overflow
+      rm(Vhat_current)
+      gc() # Force R to collect the garbage immediately
     }
     
     # Run (C)M-Step: Optimize
@@ -442,7 +484,10 @@ TESSERA_lattice <- function(TESSERAData_obj,
       for (area_idx in 1:n_areas) {
         # Optimize in tau^2
         tau2_tracker[area_idx, 1 + em_idx] <- M_step_tau2(
-          Vhat_list[[area_idx]],
+          trace_scalars_list[[area_idx]],
+          gamma_tracker[area_idx, 1 + em_idx],
+          # Current gamma
+          model_type,
           eta_hat_list[[area_idx]],
           Q_hat_list[[area_idx]],
           beta_tracker[, 1 + em_idx],
@@ -451,7 +496,8 @@ TESSERA_lattice <- function(TESSERAData_obj,
         
         # Optimize in gamma
         gamma_out <- gamma_M_fcn(
-          Vhat_list[[area_idx]],
+          trace_scalars_list[[area_idx]],
+          # Replaced Vhat_list
           eta_hat_list[[area_idx]],
           tau2_tracker[area_idx, 1 + em_idx],
           beta_tracker[, 1 + em_idx],
@@ -461,9 +507,12 @@ TESSERA_lattice <- function(TESSERAData_obj,
           eig_val_list[[area_idx]],
           gamma_tracker[area_idx, 1 + em_idx]
         )
+        
         # Handle optimization going off the rails
+        gamma_val <- gamma_out$gamma_hat # Use local variable to avoid masking
+        
         if (("CAR" == model_type) | ("SAR" == model_type)) {
-          if (-1 > gamma_out$gamma_hat) {
+          if (-1 > gamma_val) {
             warning(
               paste0(
                 "Iteration ",
@@ -475,9 +524,9 @@ TESSERA_lattice <- function(TESSERAData_obj,
                 " gamma is less than -1, correcting"
               )
             )
-            gamma_out$gamma_hat <- max(-1, gamma_out$gamma_hat)
+            gamma_val <- max(-1, gamma_val)
           }
-          if (1 < gamma_out$gamma_hat) {
+          if (1 < gamma_val) {
             warning(
               paste0(
                 "Iteration ",
@@ -489,10 +538,10 @@ TESSERA_lattice <- function(TESSERAData_obj,
                 " gamma is larger than 1, correcting"
               )
             )
-            gamma_out$gamma_hat <- min(1, gamma_out$gamma_hat)
+            gamma_val <- min(1, gamma_val)
           }
         } else if ("Leroux" == model_type) {
-          if (0 > gamma_out$gamma_hat) {
+          if (0 > gamma_val) {
             warning(
               paste0(
                 "Iteration ",
@@ -504,9 +553,9 @@ TESSERA_lattice <- function(TESSERAData_obj,
                 " gamma is less than 0, correcting"
               )
             )
-            gamma_out$gamma_hat <- max(0, gamma_out$gamma_hat)
+            gamma_val <- max(0, gamma_val)
           }
-          if (1 < gamma_out$gamma_hat) {
+          if (1 < gamma_val) {
             warning(
               paste0(
                 "Iteration ",
@@ -518,10 +567,10 @@ TESSERA_lattice <- function(TESSERAData_obj,
                 " gamma is larger than 1, correcting"
               )
             )
-            gamma_out$gamma_hat <- min(1, gamma_out$gamma_hat)
+            gamma_val <- min(1, gamma_val)
           }
         }
-        gamma_tracker[area_idx, 1 + em_idx] <- gamma_out$gamma_hat
+        gamma_tracker[area_idx, 1 + em_idx] <- gamma_val
         
         # Update precision matrix Q
         Q_hat_list[[area_idx]] <- Q_fcn(TESSERAData_obj$W_list[[area_idx]],
@@ -534,28 +583,6 @@ TESSERA_lattice <- function(TESSERAData_obj,
                                                 Q_hat_list,
                                                 tau2_tracker[, 1 + em_idx],
                                                 TESSERAData_obj$X_list)[, 1]
-    }
-    
-    if (verbose || (0 == (em_idx %% 100))) {
-      message("beta ", paste(beta_tracker[, 1 + em_idx], collapse = " "), "\n")
-      message("tau2 ", paste(tau2_tracker[, 1 + em_idx], collapse = " "), "\n")
-      message("gamma ", paste(gamma_tracker[, 1 + em_idx], collapse = " "), "\n")
-      message("log-lik ",
-              paste(data_log_like_tracker[, em_idx], collapse = " "),
-              "\n")
-      
-      message(
-        paste(
-          "Wrapping up of EM Iteration ",
-          em_idx,
-          " of ",
-          em_iters,
-          "; ",
-          Sys.time() - t0_EM,
-          " Elapsed"
-        ),
-        "\n"
-      )
     }
     
     # Early stopping:
@@ -640,9 +667,18 @@ TESSERA_lattice <- function(TESSERAData_obj,
   beta_neghessian <- neg_hessian_beta(Q_hat_list, tau2_tracker[, em_idx + 1], TESSERAData_obj$X_list)
   tau2_neghessian <- rep(NA, n_areas)
   gamma_neghessian <- rep(NA, n_areas)
+  
   for (area_idx in 1:n_areas) {
+    # Recompute Vhat for the final parameter estimates to calculate Hessians
+    if (dense_matrices) {
+      Vhat_current <- E_step_Vhat(as.matrix(Q_hat_list[[area_idx]]), tau2_tracker[area_idx, em_idx + 1], z_list[[area_idx]])
+    } else {
+      Vhat_current <- E_step_Vhat(Q_hat_list[[area_idx]], tau2_tracker[area_idx, em_idx + 1], z_list[[area_idx]])
+    }
+    
+    # Compute tau2 negative Hessian
     tau2_neghessian[area_idx] <- neg_hessian_tau2(
-      Vhat_list[[area_idx]],
+      Vhat_current,
       eta_hat_list[[area_idx]],
       Q_hat_list[[area_idx]],
       tau2_tracker[area_idx, em_idx + 1],
@@ -650,12 +686,12 @@ TESSERA_lattice <- function(TESSERAData_obj,
       TESSERAData_obj$X_list[[area_idx]]
     )
     
+    # Compute gamma negative Hessian
     if ("CAR" == model_type) {
       gamma_neghessian[area_idx] <- neg_hessian_gamma_CAR(gamma_tracker[area_idx, em_idx + 1], eig_val_list[[area_idx]])
-    }
-    else if ("SAR" == model_type) {
+    } else if ("SAR" == model_type) {
       gamma_neghessian[area_idx] <- neg_hessian_gamma_SAR(
-        Vhat_list[[area_idx]],
+        Vhat_current,
         eta_hat_list[[area_idx]],
         gamma_tracker[area_idx, em_idx + 1],
         tau2_tracker[area_idx, em_idx + 1],
@@ -665,11 +701,15 @@ TESSERA_lattice <- function(TESSERAData_obj,
         TESSERAData_obj$D_list[[area_idx]],
         eig_val_list[[area_idx]]
       )
-    }
-    else if ("Leroux" == model_type) {
+    } else if ("Leroux" == model_type) {
       gamma_neghessian[area_idx] <- neg_hessian_gamma_Leroux(gamma_tracker[area_idx, em_idx + 1], eig_val_list[[area_idx]])
     }
+    
+    # Destroy Vhat to maintain low memory footprint
+    rm(Vhat_current)
+    gc()
   }
+  
   
   ## Name stuff
   

@@ -37,8 +37,6 @@ ONLY APPLIES TO THE GAUSSIAN PROCESS MODEL.
 \note{
 Applies to a single area.
 
-Requires the sp library.
-
 Requires the gstat library.
 }
 \author{

@@ -28,7 +28,7 @@
 E_step_Vhat <- function(Q, tau2, z) {
   # V^{-1} = Q / tau^2 + Diagonal(0.5 + z)
   Vinv <- (Q / tau2) + Matrix::Diagonal(dim(Q)[1], 0.5 + z)
-
+  
   # Compute V
   # Try basic inversion first
   err_flag <- tryCatch({
@@ -78,7 +78,7 @@ E_step_Vhat <- function(Q, tau2, z) {
 E_step_Vhat_PLU <- function(Q, tau2, z) {
   # V^{-1} = Q / tau^2 + Diagonal(0.5 + z)
   Vinv <- (Q / tau2) + Matrix::Diagonal(dim(Q)[1], 0.5 + z)
-
+  
   # Compute PLU decomposition: V^{-1} = P L U
   decomp  <- Matrix::expand(Matrix::lu(Vinv))
   decomp$Linv <- Matrix::solve(decomp$L)
@@ -109,13 +109,13 @@ E_step_etahat <- function(Vhat, Q, tau2, beta_hat, X, z, N) {
   # (z_i + 1/2) log[(z_i + 1/2) / N_i] - (1/2)
   term1 <- z + 0.5
   term1 <- term1 * log(term1 / N) - 0.5
-
+  
   # (Q / tau^2) X beta
   term2 <- (Q %*% (X %*% beta_hat)) / tau2
-
+  
   # V [term1 + term2]
   eta_hat <- Vhat %*% (term1 + term2)
-
+  
   return(eta_hat)
 }
 
@@ -144,14 +144,14 @@ E_step_etahat_PLU <- function(decomp, Q, tau2, beta_hat, X, z, N) {
   # (z_i + 1/2) log[(z_i + 1/2) / N_i] - (1/2)
   term1 <- z + 0.5
   term1 <- term1 * log(term1 / N) - 0.5
-
+  
   # (Q / tau^2) X beta
   term2 <- (Q %*% (X %*% beta_hat)) / tau2
-
+  
   # V [term1 + term2]
   # eta_hat <- Matrix::solve(Vhat_inv, (term1 + term2))
   eta_hat <- decomp$Uinv %*% (decomp$Linv %*% (t(decomp$P) %*% (term1 + term2)))
-
+  
   return(eta_hat)
 }
 
@@ -193,7 +193,7 @@ E_step_thetahat_PLU <- function(decomp, eta_hat) {
   # Take an P L U decomposition and use that to get the diagonals.
   # Inverse of P L U = U^{-1} L^{-1} P^T
   diag_lu <- colSums((decomp$Linv %*% t(decomp$P)) * t(decomp$Uinv))
-
+  
   return(exp(eta_hat + 0.5 * diag_lu))
 }
 

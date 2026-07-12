@@ -111,7 +111,7 @@ TESSERA_out_spNNGP <- suppressMessages(suppressWarnings(
   TESSERA_spNNGP(
     TESSERAData_obj = TESSERA_data,
     gene_name = "example",
-    cov_type = "Mat",
+    cov_type = "Exp",
     em_iters = 2,
     opt_iters = 1,
     verbose = FALSE

@@ -1,5 +1,5 @@
 ## M-Step (Maximization Step) functions.
-# Dependencies in file: Matrix, pracma, stats, sp, gstat, BRISC.
+# Dependencies in file: Matrix, pracma, stats, gstat, BRISC.
 
 #' Maximize the expected likelihood in tau^2, holding other variables constant.
 #' Part of the M-Step in the EM algorithm.
@@ -8,28 +8,43 @@
 #'
 #' @note Applies to a single area.
 #'
-#' @param Vhat Estimated covariance matrix of eta.
+#' @param trace_scalars List of precomputed trace scalars from the E-step.
+#' @param gamma_val Current estimate of correlation parameter.
+#' @param model_type String for the spatial model ("CAR", "SAR", or "Leroux").
 #' @param eta_hat Estimated mean of eta.
 #' @param Q Unscaled precision matrix.
 #' @param beta_hat Current estimate of covariate effects.
 #' @param X Covariate matrix.
 #'
 #' @returns Maximum likelihood estimate of scaling parameter tau^2.
-M_step_tau2 <- function(Vhat, eta_hat, Q, beta_hat, X) {
+M_step_tau2 <- function(trace_scalars,
+                        gamma_val,
+                        model_type,
+                        eta_hat,
+                        Q,
+                        beta_hat,
+                        X) {
   # eta - X beta
   vector_term <- eta_hat - (X %*% beta_hat)
   
   # (eta - X beta)^\top Q (eta - X beta)
-  # term1 <- as.numeric((t(vector_term) %*% Q) %*% vector_term)
-  # Speed
+  # Speed: crossprod is optimized in R
   term1 <- as.numeric(crossprod(Q %*% vector_term, vector_term))
   
-  # Trace[Q V]
-  # term2 <- sum(diag(Q %*% Vhat))
-  # Trace tricks: Tr(A B) = <vec(A), vec(B^T)>
-  # For sparse Q this is actually faster than crossprod?
-  term2 <- sum(Q * t(Vhat))
-  # term2 <- crossprod(as.vector(Q), as.vector(t(Vhat)))
+  # Trace[Q V] calculated via trace decomposition
+  # Reconstructs the exact trace instantly using O(1) memory
+  if ("CAR" == model_type) {
+    # Q = D - gamma * W
+    term2 <- trace_scalars$tr_DV - (gamma_val * trace_scalars$tr_WV)
+  } else if ("SAR" == model_type) {
+    # Q = D - 2*gamma*W + gamma^2 * W Z
+    term2 <- trace_scalars$tr_DV - (2.0 * gamma_val * trace_scalars$tr_WV) + ((gamma_val^2) * trace_scalars$tr_WZV)
+  } else if ("Leroux" == model_type) {
+    # Q = I + gamma * (D - W - I)
+    term2 <- trace_scalars$tr_V + (gamma_val * trace_scalars$tr_DWIV)
+  } else {
+    stop("Invalid model_type in M_step_tau2")
+  }
   
   # tau^2 = (1/n) (term1 + term2)
   tau2_hat <- (term1 + term2) / dim(Q)[1]
@@ -43,6 +58,7 @@ M_step_tau2 <- function(Vhat, eta_hat, Q, beta_hat, X) {
   
   return(tau2_hat)
 }
+
 
 #' Maximize the expected likelihood in beta, holding other variables constant.
 #' Part of the M-Step in the EM algorithm.
@@ -68,39 +84,54 @@ M_step_tau2 <- function(Vhat, eta_hat, Q, beta_hat, X) {
 #' @note Requires the pracma library.
 #'
 #' @import Matrix
-#' @importFrom Matrix solve
 #' @importFrom pracma pinv
 M_step_beta <- function(eta_list, Q_list, tau2_list, X_list) {
-  # Dimension of beta
+  # Dimension of beta (number of covariates, usually very small)
   n_dim <- ncol(X_list[[1]])
   
   # Create empty matrix/vector
+  # Using base R matrices because n_dim is small
   zeta_vec <- matrix(0, nrow = n_dim, ncol = 1)
   B <- matrix(0, nrow = n_dim, ncol = n_dim)
+  
   for (idx in 1:length(Q_list)) {
-    # X^\top Q
-    # term1 <- t(X_list[[idx]]) %*% Q_list[[idx]]
+    # X^\top Q (Resulting dimension: p x N)
     term1 <- crossprod(X_list[[idx]], Q_list[[idx]])
     
-    # Update vector term
-    # X^\top (Q / tau^2) eta = (X^\top Q) eta / tau^2
-    zeta_vec <-
-      zeta_vec + (term1 %*% eta_list[[idx]]) / tau2_list[[idx]]
+    # Update vector term: (p x N) %*% (N x 1) -> (p x 1)
+    zeta_vec <- zeta_vec + (term1 %*% eta_list[[idx]]) / tau2_list[[idx]]
     
-    # Update matrix term
-    # X^\top (Q / tau^2) X = (X^\top Q) X / tau^2
+    # Update matrix term: (p x N) %*% (N x p) -> (p x p)
     B <- B + (term1 %*% X_list[[idx]]) / tau2_list[[idx]]
   }
   
-  # Try basic inversion first
+  # Floating point math can cause symmetric matrices to lose exact symmetry.
+  # Force exact symmetry to prevent the linear solver from throwing false singular errors.
+  B <- (B + t(B)) / 2.0
+  
+  # Try basic inversion first (Base R solve is highly optimized for dense p x p)
   err_flag <- tryCatch({
-    beta_hat <- Matrix::solve(B, zeta_vec)
+    beta_hat <- solve(B, zeta_vec)
     return(beta_hat)
   }, error = function(cond) {
-    warning("INVERSION OF B FAILED")
+    warning("INVERSION OF B FAILED; ATTEMPTING RIDGE REGULARIZATION")
     err_flag <- TRUE
   })
-  # Then try pseudoinverse
+  
+  # Fallback 1: Tiny Ridge Penalty
+  if (err_flag) {
+    err_flag <- tryCatch({
+      # Add small epsilon to diagonal to guarantee positive-definiteness
+      B_reg <- B + diag(1e-6, n_dim)
+      beta_hat <- solve(B_reg, zeta_vec)
+      return(beta_hat)
+    }, error = function(cond) {
+      warning("RIDGE INVERSION FAILED; FALLING BACK TO PSEUDOINVERSE")
+      err_flag <- TRUE
+    })
+  }
+  
+  # Fallback 2: Pseudoinverse (Safe here because B is small p x p)
   if (err_flag) {
     err_flag <- tryCatch({
       beta_hat <- pracma::pinv(as.matrix(B)) %*% zeta_vec
@@ -111,9 +142,10 @@ M_step_beta <- function(eta_list, Q_list, tau2_list, X_list) {
     })
   }
   if (err_flag) {
-    stop("PSEUDOINVERSE OF B FAILED: CANNOT CONTINUE")
+    stop("OPTIMIZATION FOR BETA FAILED: CANNOT CONTINUE")
   }
 }
+
 
 ## Model-specific updates for gamma
 
@@ -125,7 +157,7 @@ M_step_beta <- function(eta_list, Q_list, tau2_list, X_list) {
 #'
 #' @note Applies to a single area.
 #'
-#' @param Vhat Estimated covariance matrix of eta.
+#' @param trace_scalars List of precomputed trace scalars from the E-step.
 #' @param eta_hat Estimated mean of eta.
 #' @param tau2 Precision matrix scaling parameter tau^2.
 #' @param beta_hat Current estimate of covariate effects.
@@ -146,7 +178,7 @@ M_step_beta <- function(eta_list, Q_list, tau2_list, X_list) {
 #' @importFrom pracma fzero
 #' @importFrom stats uniroot
 #' @importFrom stats runif
-M_step_gamma_CAR <- function(Vhat,
+M_step_gamma_CAR <- function(trace_scalars,
                              eta_hat,
                              tau2,
                              beta_hat,
@@ -157,23 +189,17 @@ M_step_gamma_CAR <- function(Vhat,
                              gamma_current = NULL) {
   # eta - X beta
   vector_term <- eta_hat - (X %*% beta_hat)
+  
   # (eta - X beta)^\top W (eta - X beta)
-  # term1 <- as.numeric((t(vector_term) %*% W) %*% vector_term)
-  # Speed
   term1 <- as.numeric(crossprod(W %*% vector_term, vector_term))
   
   # Tr[W V]
-  # term2 <- sum(diag(W %*% Vhat))
-  # Trace tricks
-  # term2 <- crossprod(as.vector(W), as.vector(t(Vhat)))
-  # For sparse W this is actually faster
-  term2 <- sum(W * t(Vhat))
+  term2 <- trace_scalars$tr_WV
   
   # (term1 + term2) / (2 tau^2)
   constant_term <- (term1 + term2) * (0.5 / tau2)
   
   # Gradient function
-  # Inner function that evaluates the gradient
   grad_fcn <- function(x) {
     # (-1/2) sum_i lambda_i / (1 - gamma lambda_i)
     eig_term <- (-0.5) * sum(eig_vals / (1.0 - (x * eig_vals)))
@@ -245,6 +271,7 @@ M_step_gamma_CAR <- function(Vhat,
   }
 }
 
+
 #' Maximize the expected likelihood in gamma, holding other variables constant.
 #' Part of the M-Step in the EM algorithm.
 #' ONLY APPLIES TO THE SAR MODEL.
@@ -253,7 +280,7 @@ M_step_gamma_CAR <- function(Vhat,
 #'
 #' @note Applies to a single area.
 #'
-#' @param Vhat Estimated covariance matrix of eta.
+#' @param trace_scalars List of precomputed trace scalars from the E-step.
 #' @param eta_hat Estimated mean of eta.
 #' @param tau2 Precision matrix scaling parameter tau^2.
 #' @param beta_hat Current estimate of covariate effects.
@@ -277,7 +304,7 @@ M_step_gamma_CAR <- function(Vhat,
 #' @importFrom pracma fzero
 #' @importFrom stats uniroot
 #' @importFrom stats runif
-M_step_gamma_SAR <- function(Vhat,
+M_step_gamma_SAR <- function(trace_scalars,
                              eta_hat,
                              tau2,
                              beta_hat,
@@ -286,39 +313,25 @@ M_step_gamma_SAR <- function(Vhat,
                              D,
                              eig_vals,
                              gamma_current = NULL) {
-  # D^\{-1\}
-  D_inv <-
-    Matrix::Diagonal(dim(W)[1], 1 / Matrix::diag(D))
-  # Z = D^\{-1\} W
+  # D^{-1}
+  D_inv <- Matrix::Diagonal(dim(W)[1], 1 / Matrix::diag(D))
+  # Z = D^{-1} W
   Z <- D_inv %*% W
   
   # eta - X beta
   vector_term <- eta_hat - (X %*% beta_hat)
   
   # (eta - X beta)^\top (2 W) (eta - X beta)
-  # zeta1 <- 2.0 * as.numeric((t(vector_term) %*% W) %*% vector_term)
-  # Speed
   zeta1 <- 2.0 * as.numeric(crossprod(W %*% vector_term, vector_term))
   
   # (eta - X beta)^\top W Z (eta - X beta)
-  # zeta2 <- as.numeric((t(vector_term) %*% W) %*% (Z %*% vector_term))
   zeta2 <- as.numeric(crossprod(W %*% vector_term, Z %*% vector_term))
   
   # Tr[W V]
-  # zeta3 <- sum(diag(W %*% Vhat))
-  # Trace tricks
-  # zeta3 <- crossprod(as.vector(W), as.vector(t(Vhat)))
-  # This is faster for sparse W
-  zeta3 <- sum(W * t(Vhat))
+  zeta3 <- trace_scalars$tr_WV
   
   # Tr[W Z V]
-  # zeta4 <- sum(diag((W %*% Z) %*% Vhat))
-  # Trace tricks: Tr(A B) = <vec(A), vec(B^T)>
-  # Also note that Z V becomes sparse, so this grouping is faster
-  # This is faster for sparse W and Z
-  zeta4 <- sum(W * t(Z %*% Vhat))
-  # An even faster method
-  # zeta4 <- crossprod(as.vector(W), as.vector(t(Z %*% Vhat)))
+  zeta4 <- trace_scalars$tr_WZV
   
   grad_fcn <- function(x) {
     # (-1) sum_i lambda_i / (1 - gamma lambda_i)
@@ -397,6 +410,7 @@ M_step_gamma_SAR <- function(Vhat,
   }
 }
 
+
 #' Maximize the expected likelihood in gamma, holding other variables constant.
 #' Part of the M-Step in the EM algorithm.
 #' ONLY APPLIES TO THE LEROUX MODEL.
@@ -405,7 +419,7 @@ M_step_gamma_SAR <- function(Vhat,
 #'
 #' @note Applies to a single area.
 #'
-#' @param Vhat Estimated covariance matrix of eta.
+#' @param trace_scalars List of precomputed trace scalars from the E-step.
 #' @param eta_hat Estimated mean of eta.
 #' @param tau2 Precision matrix scaling parameter tau^2.
 #' @param beta_hat Current estimate of covariate effects.
@@ -427,7 +441,7 @@ M_step_gamma_SAR <- function(Vhat,
 #' @importFrom pracma fzero
 #' @importFrom stats uniroot
 #' @importFrom stats runif
-M_step_gamma_Leroux <- function(Vhat,
+M_step_gamma_Leroux <- function(trace_scalars,
                                 eta_hat,
                                 tau2,
                                 beta_hat,
@@ -445,16 +459,10 @@ M_step_gamma_Leroux <- function(Vhat,
   vector_term <- eta_hat - (X %*% beta_hat)
   
   # (eta - X beta)^\top (D - W - I) (eta - X beta)
-  # term1 <- as.numeric((t(vector_term) %*% DWI) %*% vector_term)
-  # Speed
   term1 <- as.numeric(crossprod(DWI %*% vector_term, vector_term))
   
   # Tr[(D - W - I) V]
-  # term2 <- sum(diag(DWI %*% Vhat))
-  # Trace tricks
-  # term2 <- as.numeric(crossprod(as.vector(DWI), as.vector(t(Vhat))))
-  # This is faster for sparse D and W
-  term2 <- sum(DWI * t(Vhat))
+  term2 <- trace_scalars$tr_DWIV
   
   # (term1 + term2) * (-1/2 tau^2)
   constant_term <- (-0.5 / tau2) * (term1 + term2)
@@ -550,11 +558,8 @@ M_step_gamma_Leroux <- function(Vhat,
 #'  Nugget variance (partial sill), Spatial variance (partial sill),
 #'  Spatial range (scales distance); if Matern, smoothness kappa.
 #'
-#' @note Requires the sp library.
 #' @note Requires the gstat library.
 #'
-#' @import sp
-#' @importFrom sp coordinates
 #' @import gstat
 #' @importFrom gstat variogram
 #' @importFrom gstat vgm
@@ -562,23 +567,23 @@ M_step_gamma_Leroux <- function(Vhat,
 #' @importFrom stats var
 #' @importFrom stats median
 M_step_variogram <- function(eta_hat, beta_hat, X, coords, cov_type = "Exp") {
-  # close_to_zero_const <- 1e4 * .Machine$double.eps
   close_to_zero_const <- max(min(1e-6, 1 / nrow(X)^2), 1e4 * .Machine$double.eps)
   
-  # Create data frame for spatial packages
-  sp_dat <- cbind(coords, as.numeric(eta_hat - X %*% beta_hat))
-  colnames(sp_dat) <- c("x", "y", "z")
-  sp_dat <- as.data.frame(sp_dat)
-  
-  # Identify coordinates for spatial packages
-  sp::coordinates(sp_dat) <- ~ x + y
+  # Create a standard base R data frame (bypasses the sp dependency)
+  sp_dat <- data.frame(x = coords[, 1],
+                       y = coords[, 2],
+                       z = as.numeric(eta_hat - X %*% beta_hat))
   
   # Empirical variogram
   # Cutoff is maximum distance: Values are weighted in the fitting
-  cutoff <- sqrt(diff(range(sp::coordinates(sp_dat)[, 1]))^2
-                 + diff(range(sp::coordinates(sp_dat)[, 2]))^2)
-  # Create variogram
-  vg_emp <- gstat::variogram(z ~ 1, data = sp_dat, cutoff = cutoff)
+  # Speedup: Vectorized diff(range()) is much faster than apply() or sp::coordinates()
+  cutoff <- sqrt(diff(range(sp_dat$x))^2 + diff(range(sp_dat$y))^2)
+  
+  # Create variogram natively in gstat using the formula's 'locations' argument
+  vg_emp <- gstat::variogram(z ~ 1,
+                             locations = ~ x + y,
+                             data = sp_dat,
+                             cutoff = cutoff)
   
   # Define variogram model
   vg_model <- gstat::vgm(
@@ -695,7 +700,6 @@ M_step_BRISC <- function(eta_hat,
                          coords,
                          cov_type = "Exp",
                          k = 15) {
-  # close_to_zero_const <- 1e4 * .Machine$double.eps
   close_to_zero_const <- max(min(1e-6, 1 / nrow(X)^2), 1e4 * .Machine$double.eps)
   
   # Get phi_hat = eta - X beta
@@ -722,10 +726,10 @@ M_step_BRISC <- function(eta_hat,
       warning("Variances are low/unstable; FAILSAFE--Everything is non-spatial")
       b_out$Theta[1] <- max(close_to_zero_const, stats::var(phi_hat))
       b_out$Theta[2] <- max(close_to_zero_const, b_out$Theta[2])
+      
       # Use maximum distance as a proxy for the range
-      b_out$Theta[3] <- sqrt(sum((
-        apply(coords, 2, max) - apply(coords, 2, min)
-      )^2))
+      # Speedup: Vectorized diff(range()) instead of apply()
+      b_out$Theta[3] <- sqrt(diff(range(coords[, 1]))^2 + diff(range(coords[, 2]))^2)
     }
     return(as.vector(b_out$Theta))
   }, error = function(cond) {
@@ -734,10 +738,6 @@ M_step_BRISC <- function(eta_hat,
   })
   if (err_flag) {
     warning("Initiating FAILSAFE SINCE BRISC FAILED: Fitting via a variogram.")
-    
-    # Return zeros for the variances, and default values for the rest
-    # close_to_zero_const <- 2.0 * .Machine$double.eps
-    # return( c(max(close_to_zero_const, stats::var(phi_hat)), close_to_zero_const, 1, 1.5) )
     
     vg_out <- M_step_variogram(eta_hat, beta_hat, X, coords, cov_type)
     return(vg_out)
@@ -785,10 +785,14 @@ BRISC_wrapper <- function(z_list,
   # Start clock
   t0_glm <- Sys.time()
   
-  # Stack into a single vector/matrix
-  z_vec <- as.vector(Reduce(c, z_list))
-  X_mat <- as.matrix(Reduce(rbind, X_list))
-  coords <- as.matrix(Reduce(rbind, coords_list))
+  # Stack into a single vector/matrix efficiently
+  # Speedup: unlist() and do.call(rbind, ...) bypass Reduce() memory bloat
+  z_vec <- unlist(z_list, use.names = FALSE)
+  X_mat <- if (!is.null(X_list))
+    do.call(rbind, X_list)
+  else
+    NULL
+  coords <- do.call(rbind, coords_list)
   
   # Transform z
   if (transform_z) {
@@ -804,6 +808,7 @@ BRISC_wrapper <- function(z_list,
   } else if ("Gau" == cov_type) {
     brisc_cov <- "gaussian"
   }
+  
   # Fit LM
   b_out <- BRISC::BRISC_estimation(
     coords,

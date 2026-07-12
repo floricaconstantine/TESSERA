@@ -5,10 +5,14 @@
 \title{Maximize the expected likelihood in tau^2, holding other variables constant.
 Part of the M-Step in the EM algorithm.}
 \usage{
-M_step_tau2(Vhat, eta_hat, Q, beta_hat, X)
+M_step_tau2(trace_scalars, gamma_val, model_type, eta_hat, Q, beta_hat, X)
 }
 \arguments{
-\item{Vhat}{Estimated covariance matrix of eta.}
+\item{trace_scalars}{List of precomputed trace scalars from the E-step.}
+
+\item{gamma_val}{Current estimate of correlation parameter.}
+
+\item{model_type}{String for the spatial model ("CAR", "SAR", or "Leroux").}
 
 \item{eta_hat}{Estimated mean of eta.}
 

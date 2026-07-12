@@ -7,7 +7,7 @@ Part of the M-Step in the EM algorithm.
 ONLY APPLIES TO THE SAR MODEL.}
 \usage{
 M_step_gamma_SAR(
-  Vhat,
+  trace_scalars,
   eta_hat,
   tau2,
   beta_hat,
@@ -19,7 +19,7 @@ M_step_gamma_SAR(
 )
 }
 \arguments{
-\item{Vhat}{Estimated covariance matrix of eta.}
+\item{trace_scalars}{List of precomputed trace scalars from the E-step.}
 
 \item{eta_hat}{Estimated mean of eta.}
 
