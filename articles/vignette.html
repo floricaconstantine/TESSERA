@@ -1066,10 +1066,19 @@ wish to run the model locally, simply change the chunk header to
 <span>  em_stopping <span class="op">=</span> <span class="st">"rel_loglike"</span>,</span>
 <span>  <span class="co"># Whether to print out parameter values and convergence information at each iteration</span></span>
 <span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Output the run-time</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<pre><code>&gt; GLM initialization for beta.</code></pre>
+<pre><code>&gt; Initial beta -7.13522831551576 -7.12040905160537 -8.13714298255497 -6.96756415697791 -6.91919663632653 -7.99560579350004 -7.30140922194711 -7.51656255878487 -8.55787323214763 -7.63736057429745 -7.67862307038957 -8.6494140244182 -7.44034953026733 -8.18397826684718 -8.71768512820289 -6.99679179433722 -7.82159634379454 -8.51487208022052 -6.50647596140761 -6.00056592977337 -6.93621715807116 -6.94341310243413 -7.94973784026385 -6.45254497955884 -6.73232438462994 -7.88505151671919 -6.94404553018973 -6.98999472505835 -7.7403099848976 -6.78182207029973 -7.06266455833092 -7.97474441277781 -6.73263186359268 -7.3744444701992 -8.31530596990008 -7.00520816060125 -7.55468977031936 -8.73898748345861 -5.3714175165325 -6.26716382406212 -7.05617339435978 -6.02654926311934 -6.20306772348003 -7.26059298332335 -6.71149788245984 -6.94454858579607 -7.9073156337175 -6.40986933504034 -7.1055591821662 -8.29443505665354 -7.76311563407897 -7.75397442544582 -8.85319095560598 -6.14517639251781 -6.32483073252897 -7.71653968001067 -6.41124075468644 -6.71868578001464 -7.7206958648343 -6.57274945322039 -7.0453478247218 -8.10312598612214 -7.51606368196316 -7.58358248873972 -8.77601209452772 -7.86637494353081 -8.2038203599041 -9.20459732663122 -7.40662629556781 -7.37903027049645 -8.55445555449986 -6.33110801696818 -7.33361075941818 -7.66694182479729 -4.78301143572986 -5.14823395361239 -6.08791248895381 -0.588640834398518 0.0463313469587711 1.68001782615806 -0.479298716599917 -0.306905271952515 0.776172632769981 0.835207521780332 1.0970347212499 0.084618214795013 1.22121704839535 0.660718474187344</code></pre>
+<pre><code>&gt; Moran initialization for gamma</code></pre>
+<pre><code>&gt; Initial gamma 0.126687434518681 0.208436049046155 0.225781254010715 0.127716364596879 0.271846370836017 0.29892586080771 0.178778966628895 0.149594878960611 0.301669218899599 0.325339582858285 0.102627495689076 0.0246573307557427 0.115651844260356 0.12590063878428</code></pre>
+<pre><code>&gt; Variance initialization for tau^2</code></pre>
+<pre><code>&gt; Initial tau2 0.563382767126561 0.780540040364637 0.85314906554601 0.885038367492996 0.69014514253411 1.12430313332088 0.956206282962672 0.640916656926725 0.563928178735679 0.97936241032889 0.748210592803307 0.703848237054425 0.654279868785319 0.719527963629566</code></pre>
+<pre><code>&gt; Ending early</code></pre>
+<pre><code>&gt; Time 3.8996901512146</code></pre>
+<div class="sourceCode" id="cb47"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Output the run-time</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">TESSERA_out</span><span class="op">$</span><span class="va">time</span><span class="op">)</span></span></code></pre></div>
+<pre><code>&gt; Time difference of 3.89969 mins</code></pre>
 <p>Once the algorithm has converged, the output object provides a
 comprehensive summary of the performance in the
 <code>performanceSummary</code> data frame, allowing for a sample-wise
@@ -1091,7 +1100,7 @@ metrics, specifically <code>Moran_residuals</code>, act as a critical
 diagnostic to ensure that the spatial structure has been adequately
 captured, indicating that the model has successfully accounted for the
 spatial dependency in the data.</p>
-<div class="sourceCode" id="cb39"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb49"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Inspect a summary of the model fitting results</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">TESSERA_out</span><span class="op">$</span><span class="va">performanceSummary</span>, <span class="fl">2</span><span class="op">)</span></span></code></pre></div>
 <pre><code>&gt;    gene fit_model    sample n_cells gamma_hat  tau2_hat kernel_type nugget_hat
@@ -1111,7 +1120,7 @@ spatial dependency in the data.</p>
 &gt; 2        0.09029756</code></pre>
 <p>The estimated fixed effects are stored in the <code>beta_hat</code>
 field. Each entry corresponds to a column in your design matrix.</p>
-<div class="sourceCode" id="cb41"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb51"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Print fitted parameters</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">TESSERA_out</span><span class="op">$</span><span class="va">beta_hat</span><span class="op">)</span></span></code></pre></div>
 <pre><code>&gt; GroupControl:celltypeC_TAL     GroupDKD:celltypeC_TAL 
@@ -1131,7 +1140,7 @@ via HPC cluster</a>. The output data frames from each individual gene’s
 run were row-bound to aggregate the results into a single combined data
 frame. We load this compiled data frame here to demonstrate downstream
 analysis and visualization.</p>
-<div class="sourceCode" id="cb43"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb53"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load pre-computed results for the multi-gene analysis</span></span>
 <span><span class="va">TESSERA_all</span> <span class="op">&lt;-</span> <span class="fu">get_my_data</span><span class="op">(</span><span class="st">"TESSERA_model_results.rds"</span><span class="op">)</span></span></code></pre></div>
 <pre><code>&gt; adding rname 'https://github.com/floricaconstantine/TESSERA_manuscript/raw/main/data/vignette_data/TESSERA_model_results.rds'</code></pre>
@@ -1141,7 +1150,7 @@ follows the same structure as the <code>performanceSummary</code> data
 frame described in the beginning of the <a href="#run-tessera">Run
 <code>TESSERA</code></a> section but contains rows for all gene-sample
 pairs.</p>
-<div class="sourceCode" id="cb45"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb55"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Extract sample-level performance metrics for all 3,000 genes</span></span>
 <span><span class="va">performance_df</span> <span class="op">&lt;-</span> <span class="va">TESSERA_all</span><span class="op">$</span><span class="va">perf_df</span></span></code></pre></div>
 <div class="section level5">
@@ -1158,7 +1167,7 @@ vignette. To process the full set of 3,000 genes, this model-fitting
 procedure was executed for each <code>gene_idx</code> (1 to 3,000) as
 independent batch jobs on a high-performance computing (HPC) cluster
 with the below parameterization.</p>
-<div class="sourceCode" id="cb46"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb56"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Which gene to run</span></span>
 <span><span class="va">gene_idx</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
 <span><span class="co"># Run TESSERA</span></span>
@@ -1198,7 +1207,7 @@ with the below parameterization.</p>
 <p>The following code (not run) shows an example of how to use the
 <code>futures</code> package to parallelize <code>TESSERA</code> on 50
 genes.</p>
-<div class="sourceCode" id="cb47"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb57"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://future.futureverse.org" class="external-link">future</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://future.apply.futureverse.org" class="external-link">future.apply</a></span><span class="op">)</span></span>
 <span></span>
@@ -1277,7 +1286,7 @@ type, a process elaborated upon in the <a href="#de-within-celltype">DE
 within a cell type between conditions</a> section.</p>
 <p>The aggregated results were obtained via the workflow described in
 Section <a href="#parallelize-hpc">Parallelize via HPC cluster</a>.</p>
-<div class="sourceCode" id="cb48"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb58"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Extract Wald test results for all gene-contrast pairs</span></span>
 <span><span class="va">wald_df</span> <span class="op">&lt;-</span> <span class="va">TESSERA_all</span><span class="op">$</span><span class="va">wald_df</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">wald_df</span>, <span class="fl">2</span><span class="op">)</span></span></code></pre></div>
@@ -1323,7 +1332,7 @@ The contrasts of interest are
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mn>3</mn></mfrac><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>β</mi><mrow><msub><mi>c</mi><mn>1</mn></msub><mo>,</mo><mtext mathvariant="italic">𝐶𝑜𝑛𝑡𝑟𝑜𝑙</mtext></mrow></msub><mo>+</mo><msub><mi>β</mi><mrow><msub><mi>c</mi><mn>1</mn></msub><mo>,</mo><mtext mathvariant="italic">𝐷𝐾𝐷</mtext></mrow></msub><mo>+</mo><msub><mi>β</mi><mrow><msub><mi>c</mi><mn>1</mn></msub><mo>,</mo><mtext mathvariant="italic">𝐻𝐾𝐷</mtext></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mfrac><mn>1</mn><mn>3</mn></mfrac><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>β</mi><mrow><msub><mi>c</mi><mn>2</mn></msub><mo>,</mo><mtext mathvariant="italic">𝐶𝑜𝑛𝑡𝑟𝑜𝑙</mtext></mrow></msub><mo>+</mo><msub><mi>β</mi><mrow><msub><mi>c</mi><mn>2</mn></msub><mo>,</mo><mtext mathvariant="italic">𝐷𝐾𝐷</mtext></mrow></msub><mo>+</mo><msub><mi>β</mi><mrow><msub><mi>c</mi><mn>2</mn></msub><mo>,</mo><mtext mathvariant="italic">𝐻𝐾𝐷</mtext></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">\frac{1}{3}\left(\beta_{c_1, \textit{Control}} + \beta_{c_1, \textit{DKD}} + \beta_{c_1, \textit{HKD}}\right) - \frac{1}{3}\left(\beta_{c_2, \textit{Control}} + \beta_{c_2, \textit{DKD}} + \beta_{c_2, \textit{HKD}}\right).</annotation></semantics></math>
 First, we extract the cell type levels from the SpatialExperiment object
 and generate all possible pairwise combinations.</p>
-<div class="sourceCode" id="cb50"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb60"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Get list of cell types from the SpatialExperiment object</span></span>
 <span><span class="va">cell_type_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/levels.html" class="external-link">levels</a></span><span class="op">(</span><span class="fu">SummarizedExperiment</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/SummarizedExperiment/man/SummarizedExperiment-class.html" class="external-link">colData</a></span><span class="op">(</span><span class="va">spe</span><span class="op">)</span><span class="op">[</span>, <span class="va">celltype_col</span><span class="op">]</span><span class="op">)</span></span>
 <span></span>
@@ -1338,7 +1347,7 @@ in the design matrix. By assigning weights of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>n</mi></mrow><annotation encoding="application/x-tex">1/n</annotation></semantics></math>
 depending on the number of conditions), we ensure we are testing the
 difference in average expression across all experimental groups.</p>
-<div class="sourceCode" id="cb51"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb61"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Initialize an empty list to store individual contrast rows</span></span>
 <span><span class="va">contrast_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
@@ -1361,7 +1370,7 @@ difference in average expression across all experimental groups.</p>
 <span><span class="op">}</span></span></code></pre></div>
 <p>Finally, we bind the individual rows together to create the full
 contrast matrix.</p>
-<div class="sourceCode" id="cb52"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb62"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Combine the list of rows into a single contrast matrix</span></span>
 <span><span class="va">celltype_contrast_mat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Reduce</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="va">contrast_list</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">celltype_contrast_mat</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="va">covariate_names</span></span>
@@ -1379,7 +1388,7 @@ contrast matrix.</p>
 &gt; C_TAL-CNT              0.0000000             0.0000000</code></pre>
 <p>We now view the results of the between-cell type contrasts for the
 gene <em>ACTA2</em> below.</p>
-<div class="sourceCode" id="cb54"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb64"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Compute Wald statistics</span></span>
 <span><span class="va">one_gene_ct_wald</span> <span class="op">&lt;-</span> <span class="fu">TESSERA</span><span class="fu">::</span><span class="fu"><a href="../reference/calc_Wald_statistics.html">calc_Wald_statistics</a></span><span class="op">(</span><span class="va">TESSERA_out</span>, <span class="va">celltype_contrast_mat</span><span class="op">)</span></span>
 <span><span class="co"># Remove the raw contrast string for a cleaner display</span></span>
@@ -1408,7 +1417,7 @@ the contrasts of interest are of the following form:
 </annotation></semantics></math></p>
 <p>First, we identify the unique conditions and generate all possible
 pairwise comparisons.</p>
-<div class="sourceCode" id="cb56"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb66"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cell_type_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/levels.html" class="external-link">levels</a></span><span class="op">(</span><span class="fu">SummarizedExperiment</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/SummarizedExperiment/man/SummarizedExperiment-class.html" class="external-link">colData</a></span><span class="op">(</span><span class="va">spe</span><span class="op">)</span><span class="op">[</span>, <span class="va">celltype_col</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="va">condition_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/levels.html" class="external-link">levels</a></span><span class="op">(</span><span class="fu">SummarizedExperiment</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/SummarizedExperiment/man/SummarizedExperiment-class.html" class="external-link">colData</a></span><span class="op">(</span><span class="va">spe</span><span class="op">)</span><span class="op">[</span>, <span class="va">group_col</span><span class="op">]</span><span class="op">)</span></span>
 <span></span>
@@ -1422,7 +1431,7 @@ fixed-effect vector
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝛃</mi><annotation encoding="application/x-tex">\boldsymbol{\beta}</annotation></semantics></math>
 that correspond to the intersection of that cell type and those
 conditions.</p>
-<div class="sourceCode" id="cb57"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb67"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Initialize an empty list to store individual contrast rows</span></span>
 <span><span class="va">contrast_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
@@ -1450,7 +1459,7 @@ conditions.</p>
 <span><span class="op">}</span></span></code></pre></div>
 <p>Finally, we bind the individual rows together to create the full
 contrast matrix.</p>
-<div class="sourceCode" id="cb58"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb68"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Combine the list of rows into a single contrast matrix</span></span>
 <span><span class="va">contrast_mat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Reduce</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="va">contrast_list</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">contrast_mat</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="va">covariate_names</span></span>
@@ -1468,7 +1477,7 @@ contrast matrix.</p>
 &gt; C_TAL:Control-HKD                     0</code></pre>
 <p>We now view the results of the between-conditions within-cell type
 contrasts for the gene <em>ACTA2</em> below.</p>
-<div class="sourceCode" id="cb60"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb70"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Compute Wald statistics</span></span>
 <span><span class="va">one_gene_wald</span> <span class="op">&lt;-</span> <span class="fu">TESSERA</span><span class="fu">::</span><span class="fu"><a href="../reference/calc_Wald_statistics.html">calc_Wald_statistics</a></span><span class="op">(</span><span class="va">TESSERA_out</span>, <span class="va">contrast_mat</span><span class="op">)</span></span>
 <span><span class="co"># Remove the raw contrast string for a cleaner display</span></span>
@@ -1483,7 +1492,7 @@ contrasts for the gene <em>ACTA2</em> below.</p>
 &gt; C_TAL:Control-HKD  0.13379417    7.998591</code></pre>
 <p>We can inspect the data frame created in the aggregation script, from
 running <code>TESSERA</code> on the top 3,000 genes.</p>
-<div class="sourceCode" id="cb62"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb72"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Filter and preview the aggregated multi-gene results</span></span>
 <span><span class="va">wald_df</span> <span class="op">&lt;-</span> <span class="va">wald_df</span><span class="op">[</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">wald_df</span><span class="op">$</span><span class="va">wald_stat_t</span><span class="op">)</span>, <span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">wald_df</span>, <span class="fl">2</span><span class="op">)</span></span></code></pre></div>
@@ -1538,7 +1547,7 @@ solely from these specific contrasts.</p>
 procedure using these between-condition within-cell type contrasts. We
 load the resulting object below to demonstrate the downstream
 analysis.</p>
-<div class="sourceCode" id="cb64"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb74"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Output of applying TESSERA's empirical null thresholding procedure</span></span>
 <span><span class="va">wald_thresh_selection</span> <span class="op">&lt;-</span> <span class="fu">get_my_data</span><span class="op">(</span><span class="st">"TESSERA_wald_threshold_out.rds"</span><span class="op">)</span></span></code></pre></div>
 <pre><code>&gt; adding rname 'https://github.com/floricaconstantine/TESSERA_manuscript/raw/main/data/vignette_data/TESSERA_wald_threshold_out.rds'</code></pre>
@@ -1546,7 +1555,7 @@ analysis.</p>
 setting <code>eval = TRUE</code> in the code chunk header. Please note
 that the estimated runtime is approximately 12 minutes on an M1 MacBook
 with 16 GB of RAM.</p>
-<div class="sourceCode" id="cb66"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb76"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">t0</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.time</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co"># Empirical Null Estimation</span></span>
 <span><span class="co"># Sweep over thresholds to find the optimal distribution parameters for the empirical null</span></span>
@@ -1562,13 +1571,13 @@ with 16 GB of RAM.</p>
 fitted scaled, non-central
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>χ</mi><mn>1</mn><mn>2</mn></msubsup><annotation encoding="application/x-tex">\chi_1^2</annotation></semantics></math>
 null distribution.</p>
-<div class="sourceCode" id="cb67"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb77"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># View the estimated parameters for the scaled, non-central chi-squared distribution</span></span>
 <span><span class="va">wald_thresh_selection</span><span class="op">$</span><span class="va">chi2_params</span></span></code></pre></div>
 <pre><code>&gt;        scale        shift 
 &gt; 2.328768e+01 9.217872e-07</code></pre>
 <p>Next, we view the selected Wald statistic threshold.</p>
-<div class="sourceCode" id="cb69"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb79"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># View the selected Wald statistic threshold</span></span>
 <span><span class="va">wald_thresh_selection</span><span class="op">$</span><span class="va">threshold</span></span></code></pre></div>
 <pre><code>&gt; [1] 119.2417</code></pre>
@@ -1590,7 +1599,7 @@ conditions within a cell type.</p>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-values
 and apply the Benjamini-Hochberg (BH) adjustment within each contrast to
 control the False Discovery Rate (FDR) at a level of 0.05.</p>
-<div class="sourceCode" id="cb71"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb81"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># FDR level</span></span>
 <span><span class="va">PVAL_THRESH</span> <span class="op">&lt;-</span> <span class="fl">0.05</span></span>
 <span></span>
@@ -1605,7 +1614,7 @@ control the False Discovery Rate (FDR) at a level of 0.05.</p>
 genes for each comparison. As a sanity check, we see that cell types
 with very few cells in the dataset, such as RBC (red blood cells), find
 the fewest number of DE genes.</p>
-<div class="sourceCode" id="cb72"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb82"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">n_sig_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span><span class="va">wald_df</span> </span>
 <span>                       <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">contrast_description</span><span class="op">)</span> </span>
 <span>                       <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span>n_sig <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">wald_pval_adj</span> <span class="op">&lt;</span> <span class="va">PVAL_THRESH</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
@@ -1642,7 +1651,7 @@ distribution. Both methods achieve highly comparable performance on this
 class of spatial transcriptomics data as can be seen in the
 <code>TESSERA</code> methodological manuscript <span class="citation">(<a href="#ref-constantine2026tessera">Constantine et
 al. 2026</a>)</span>.</p>
-<div class="sourceCode" id="cb73"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb83"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Estimate p-values using fdrtool's FNDR method</span></span>
 <span><span class="va">fndr_out</span> <span class="op">&lt;-</span> <span class="fu">fdrtool</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/fdrtool/man/fdrtool.html" class="external-link">fdrtool</a></span><span class="op">(</span><span class="va">wald_df</span><span class="op">$</span><span class="va">wald_stat_t</span>,</span>
 <span>                             cutoff.method <span class="op">=</span> <span class="st">"fndr"</span>,</span>
@@ -1651,7 +1660,7 @@ al. 2026</a>)</span>.</p>
 &gt; Step 2... estimate parameters of null distribution and eta0
 &gt; Step 3... compute p-values and estimate empirical PDF/CDF
 &gt; Step 4... compute q-values and local fdr</code></pre>
-<div class="sourceCode" id="cb75"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb85"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Store fdrtool p-values</span></span>
 <span><span class="va">wald_df</span><span class="op">$</span><span class="va">wald_pval_fndr</span> <span class="op">&lt;-</span> <span class="va">fndr_out</span><span class="op">$</span><span class="va">pval</span></span>
 <span></span>
@@ -1666,7 +1675,7 @@ al. 2026</a>)</span>.</p>
 <div class="section level2">
 <h2 id="session-information">Session information<a class="anchor" aria-label="anchor" href="#session-information"></a>
 </h2>
-<div class="sourceCode" id="cb76"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb86"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://sessioninfo.r-lib.org/reference/session_info.html" class="external-link">session_info</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <pre><code>&gt;  [1m [36m─ Session info ─────────────────────────────────────────────────────────────── [39m [22m
 &gt;   [3m [90msetting  [39m [23m  [3m [90mvalue [39m [23m
@@ -1678,7 +1687,7 @@ al. 2026</a>)</span>.</p>
 &gt;  collate  C.UTF-8
 &gt;  ctype    C.UTF-8
 &gt;  tz       UTC
-&gt;  date     2026-07-12
+&gt;  date     2026-07-13
 &gt;  pandoc   3.8.3 @ /opt/hostedtoolcache/pandoc/3.8.3/x64/ (via rmarkdown)
 &gt;  quarto   NA
 &gt; 
@@ -1698,7 +1707,7 @@ al. 2026</a>)</span>.</p>
 &gt;  bslib                  0.11.0      [90m2026-05-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  cachem                 1.1.0       [90m2024-05-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  cli                    3.6.6       [90m2026-04-09 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-&gt;  colorspace             2.1-2       [90m2025-09-22 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+&gt;  colorspace             2.1-3       [90m2026-07-12 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  curl                   7.1.0       [90m2026-04-22 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  DBI                    1.3.0       [90m2026-02-25 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  dbplyr               * 2.6.0       [90m2026-06-17 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1707,6 +1716,7 @@ al. 2026</a>)</span>.</p>
 &gt;  desc                   1.4.3       [90m2023-12-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  devtools               2.5.2       [90m2026-04-30 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  digest                 0.6.39      [90m2025-11-19 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+&gt;  dotCall64              1.2         [90m2024-10-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  dplyr                * 1.2.1       [90m2026-04-03 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  ellipsis               0.3.3       [90m2026-04-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  evaluate               1.0.5       [90m2025-08-27 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1780,7 +1790,9 @@ al. 2026</a>)</span>.</p>
 &gt;  SingleCellExperiment * 1.34.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
 &gt;  sp                     2.2-1       [90m2026-02-13 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  spacetime              1.3-3       [90m2025-02-13 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+&gt;  spam                   2.11-4      [90m2026-05-29 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  SparseArray            1.12.2      [90m2026-05-01 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+&gt;  sparseinv              0.1.3       [90m2018-08-23 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  sparseMatrixStats      1.24.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
 &gt;  SpatialExperiment    * 1.22.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
 &gt;  spatstat.data          3.1-9       [90m2025-10-18 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1791,7 +1803,7 @@ al. 2026</a>)</span>.</p>
 &gt;  stringr                1.6.0       [90m2025-11-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  SummarizedExperiment * 1.42.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
 &gt;  systemfonts            1.3.2       [90m2026-03-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-&gt;  TESSERA              * 0.99.1      [90m2026-07-12 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
+&gt;  TESSERA              * 0.99.1      [90m2026-07-13 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
 &gt;  textshaping            1.0.5       [90m2026-03-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  tibble                 3.3.1       [90m2026-01-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  tidyselect             1.2.1       [90m2024-03-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m

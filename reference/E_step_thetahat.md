@@ -15,7 +15,7 @@ E_step_thetahat(Vhat, eta_hat)
 
 - Vhat:
 
-  Estimated covariance matrix of eta.
+  Estimated covariance matrix of eta (sparse subset).
 
 - eta_hat:
 

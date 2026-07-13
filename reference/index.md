@@ -8,15 +8,7 @@
   : Compute the Covariance Matrix of the random effects eta. Part of the
   E-Step in the EM algorithm. Follows Clayton and Kaldor (1987) for the
   Poisson-Gaussian model.
-- [`E_step_Vhat_PLU()`](https://floricaconstantine.github.io/TESSERA/reference/E_step_Vhat_PLU.md)
-  : Compute the INVERSE Covariance Matrix of the random effects eta.
-  Part of the E-Step in the EM algorithm. Follows Clayton and
-  Kaldor (1987) for the Poisson-Gaussian model.
 - [`E_step_etahat()`](https://floricaconstantine.github.io/TESSERA/reference/E_step_etahat.md)
-  : Compute the Expectation of the random effects eta. Part of the
-  E-Step in the EM algorithm. Follows Clayton and Kaldor (1987) for the
-  Poisson-Gaussian model.
-- [`E_step_etahat_PLU()`](https://floricaconstantine.github.io/TESSERA/reference/E_step_etahat_PLU.md)
   : Compute the Expectation of the random effects eta. Part of the
   E-Step in the EM algorithm. Follows Clayton and Kaldor (1987) for the
   Poisson-Gaussian model.
@@ -25,11 +17,6 @@
   EM algorithm, but not needed to run. I.e., this is a utility function.
   Follows Clayton and Kaldor (1987) for the Poisson-Gaussian model.
 - [`E_step_thetahat()`](https://floricaconstantine.github.io/TESSERA/reference/E_step_thetahat.md)
-  : Compute the estimated poisson parameters theta. Note that eta = log
-  theta. Associated with the E-Step in the EM algorithm, but not needed
-  to run. I.e., this is a utility function. Follows Clayton and
-  Kaldor (1987) for the Poisson-Gaussian model.
-- [`E_step_thetahat_PLU()`](https://floricaconstantine.github.io/TESSERA/reference/E_step_thetahat_PLU.md)
   : Compute the estimated poisson parameters theta. Note that eta = log
   theta. Associated with the E-Step in the EM algorithm, but not needed
   to run. I.e., this is a utility function. Follows Clayton and

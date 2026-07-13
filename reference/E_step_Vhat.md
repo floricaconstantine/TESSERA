@@ -26,7 +26,7 @@ E_step_Vhat(Q, tau2, z)
 
 ## Value
 
-Estimated covariance matrix.
+Estimated covariance matrix (sparse subset).
 
 ## Note
 
@@ -34,11 +34,14 @@ Applies to a single area.
 
 This method is an Empirical Bayes approximation.
 
-This method inverts a matrix, because the inverse is actually needed...
+This method computes a sparse inverse subset using the Takahashi
+equations to avoid an O(N^3) dense matrix inversion. It only computes
+the diagonal and non-zero off-diagonal elements that match the sparsity
+pattern of the precision matrix.
 
 Requires the Matrix library.
 
-Requires the pracma library.
+Requires the sparseinv library.
 
 ## Author
 

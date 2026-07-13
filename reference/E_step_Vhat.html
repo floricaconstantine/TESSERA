@@ -68,15 +68,17 @@ Follows Clayton and Kaldor (1987) for the Poisson-Gaussian model.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>Estimated covariance matrix.</p>
+    <p>Estimated covariance matrix (sparse subset).</p>
     </div>
     <div class="section level2">
     <h2 id="note">Note<a class="anchor" aria-label="anchor" href="#note"></a></h2>
     <p>Applies to a single area.</p>
 <p>This method is an Empirical Bayes approximation.</p>
-<p>This method inverts a matrix, because the inverse is actually needed...</p>
+<p>This method computes a sparse inverse subset using the Takahashi equations
+to avoid an O(N^3) dense matrix inversion. It only computes the diagonal and
+non-zero off-diagonal elements that match the sparsity pattern of the precision matrix.</p>
 <p>Requires the Matrix library.</p>
-<p>Requires the pracma library.</p>
+<p>Requires the sparseinv library.</p>
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>

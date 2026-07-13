@@ -24,7 +24,7 @@ expected_loglike(
 
 - Vhat:
 
-  Estimated covariance matrix of eta.
+  Estimated covariance matrix of eta (sparse subset).
 
 - eta_hat:
 

@@ -7,14 +7,10 @@ Poisson-Gaussian model.
 ## Usage
 
 ``` r
-E_step_etahat(Vhat, Q, tau2, beta_hat, X, z, N)
+E_step_etahat(Q, tau2, beta_hat, X, z, N)
 ```
 
 ## Arguments
-
-- Vhat:
-
-  Estimated covariance matrix of eta.
 
 - Q:
 
