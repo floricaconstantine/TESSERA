@@ -19,7 +19,7 @@ expected_loglike(
 )
 }
 \arguments{
-\item{Vhat}{Estimated covariance matrix of eta.}
+\item{Vhat}{Estimated covariance matrix of eta (sparse subset).}
 
 \item{eta_hat}{Estimated mean of eta.}
 

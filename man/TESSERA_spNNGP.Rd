@@ -18,7 +18,7 @@ TESSERA_spNNGP(
   cov_init = "BRISC",
   cov_fit_method = "BRISC",
   verbose = FALSE,
-  dense_matrices = TRUE
+  dense_matrices = FALSE
 )
 }
 \arguments{

@@ -124,21 +124,26 @@ neg_hessian_beta <- function(Q_list, tau2_list, X_list) {
 #'
 #' @returns Negative Hessian of tau^2.
 #'  Also called the observed information.
+#'
+#' @importFrom Matrix diag
+#' @importFrom methods as
 neg_hessian_tau2 <- function(Vhat, eta_hat, Q, tau2_hat, beta_hat, X) {
   # eta - X beta
   vector_term <- eta_hat - (X %*% beta_hat)
   
-  # (eta - X beta)^\top Q (eta - X beta)
-  # term1 <- as.numeric((t(vector_term) %*% Q) %*% vector_term)
-  # Speed
+  # term1: crossprod(Q %*% vector_term, vector_term) is already efficient
   term1 <- as.numeric(crossprod(Q %*% vector_term, vector_term))
   
-  # Trace[Q V]
-  # term2 <- sum(diag(Q %*% Vhat))
-  # Trace tricks: Tr(A B) = <vec(A), vec(B^T)>
-  # Faster for sparse Q
-  term2 <- sum(Q * t(Vhat))
-  # term2 <- crossprod(as.vector(Q), as.vector(t(Vhat)))
+  # term2: Trace[Q V]
+  # We extract the row/column indices of the non-zero elements of Q
+  # This avoids ever looking at the dense off-diagonal elements of Vhat
+  # Old: Q_sparse <- methods::as(Q, "dgCMatrix")
+  Q_sparse <- methods::as(methods::as(Q, "generalMatrix"), "CsparseMatrix")
+  idx_Q <- cbind(Q_sparse@i + 1L, rep(1:ncol(Q_sparse), diff(Q_sparse@p)))
+  
+  # We only compute Vhat[i, j] for non-zero Q[i, j]
+  # Vhat is symmetric, so Vhat[i, j] == Vhat[j, i]
+  term2 <- sum(Q_sparse@x * Vhat[idx_Q])
   
   return((term1 + term2) / (tau2_hat^3) - (0.5 * nrow(X)) / (tau2_hat^2))
 }
@@ -186,6 +191,7 @@ neg_hessian_gamma_CAR <- function(gamma_hat, eig_vals) {
 #' @import Matrix
 #' @importFrom Matrix Diagonal
 #' @importFrom Matrix diag
+#' @importFrom methods as
 neg_hessian_gamma_SAR <- function(Vhat,
                                   eta_hat,
                                   gamma_hat,
@@ -199,30 +205,32 @@ neg_hessian_gamma_SAR <- function(Vhat,
     gamma_hat * eig_vals
   )))^2)
   
-  # D^\{-1\}
+  # D^{-1}
   D_inv <-
     Matrix::Diagonal(dim(W)[1], 1 / Matrix::diag(D))
-  # Z = D^\{-1\} W
+  # Z = D^{-1} W
   Z <- D_inv %*% W
   
   # eta - X beta
   vector_term <- eta_hat - (X %*% beta_hat)
   
   # (eta - X beta)^\top W Z (eta - X beta)
-  # zeta2 <- as.numeric((t(vector_term) %*% W) %*% (Z %*% vector_term))
   zeta2 <- as.numeric(crossprod(W %*% vector_term, Z %*% vector_term))
   
   # Tr[W Z V]
-  # zeta4 <- sum(diag((W %*% Z) %*% Vhat))
-  # Trace tricks: Tr(A B) = <vec(A), vec(B^T)>
-  # Also note that Z V becomes sparse, so this grouping is faster
-  # This is faster for sparse W and Z
-  zeta4 <- sum(W * t(Z %*% Vhat))
-  # An even faster method
-  # zeta4 <- crossprod(as.vector(W), as.vector(t(Z %*% Vhat)))
+  # Create sparse matrix WZ to avoid dense matrix allocations
+  # Old: WZ_sparse <- methods::as(W %*% Z, "dgCMatrix")
+  WZ_sparse <- methods::as(methods::as(W %*% Z, "generalMatrix"), "CsparseMatrix")
+  
+  # Extract row/col indices of non-zero elements
+  idx_WZ <- cbind(WZ_sparse@i + 1L, rep(1:ncol(WZ_sparse), diff(WZ_sparse@p)))
+  
+  # Sum the element-wise product. Since Vhat is symmetric, Vhat[i, j] == Vhat[j, i]
+  zeta4 <- sum(WZ_sparse@x * Vhat[idx_WZ])
   
   return(eig_term + (zeta2 + zeta4) / tau2)
 }
+
 
 #' Compute the Negative Hessian of gamma.
 #' ONLY APPLIES TO THE Leroux MODEL.
@@ -252,7 +260,7 @@ neg_hessian_gamma_Leroux <- function(gamma_hat, eig_vals) {
 #' @note Applies to a single area.
 #' @note Multivariate normal; drops the 2 pi term.
 #'
-#' @param Vhat Estimated covariance matrix of eta.
+#' @param Vhat Estimated covariance matrix of eta (sparse subset).
 #' @param eta_hat Estimated mean of eta.
 #' @param Q Unscaled precision matrix.
 #'  The scaled precision matrix in spNNGP.
@@ -268,6 +276,8 @@ neg_hessian_gamma_Leroux <- function(gamma_hat, eig_vals) {
 #'  Model for the random effects.
 #'
 #' @returns Expected log likelihood.
+#'
+#' @importFrom methods as
 expected_loglike <- function(Vhat,
                              eta_hat,
                              Q,
@@ -290,41 +300,26 @@ expected_loglike <- function(Vhat,
   term3 <- (-0.5 / tau2) * term3
   
   # Trace[Q V]
-  # Trace tricks: Tr(A B) = <vec(A), vec(B^T)>
-  # For sparse Q this is actually faster than crossprod?
-  term4 <- sum(Q * t(Vhat), na.rm = TRUE)
-  # term4 <- crossprod(as.vector(Q), as.vector(t(Vhat)))
-  # (-1/2 tau^2) x above
-  term4 <- (-0.5 / tau2) * term4
+  # Use sparse extraction to prevent t(Vhat) from creating a dense matrix
+  # Old: Q_sparse <- methods::as(Q, "dgCMatrix")
+  Q_sparse <- methods::as(methods::as(Q, "generalMatrix"), "CsparseMatrix")
+  idx_Q <- cbind(Q_sparse@i + 1L, rep(1:ncol(Q_sparse), diff(Q_sparse@p)))
+  term4 <- (-0.5 / tau2) * sum(Q_sparse@x * Vhat[idx_Q], na.rm = TRUE)
   
   # (1/2) log det Q
-  # CAR: Q = D - gamma W = D[I - gamma Z]
-  # Log det Q = log det D + log det[I - gamma Z]
-  # Given eigenvalues lambda_i of Z, eigenvalues of I - gamma Z are
-  # 1 - gamma lambda_i
-  # Hence, log det D = sum log D_{i, i}
-  # and log det[I - gamma Z] = sum log(1 - gamma lambda_i)
   if ("CAR" == model_type) {
-    log_det_D <- sum(log(diag(D)))
+    log_det_D <- sum(log(Matrix::diag(D)))
     log_det_IgZ <- sum(log(1.0 - gamma_hat * eig_vals), na.rm = TRUE)
     term2 <- 0.5 * (log_det_D + log_det_IgZ)
   }
-  # SAR: Q = [I - gamma Z]^\top D [I - gamma Z]
-  # log det Q = 2 log det[I - gamma Z] + log det D
-  # Similar to CAR, different linear combination
   else if ("SAR" == model_type) {
-    log_det_D <- sum(log(diag(D)))
+    log_det_D <- sum(log(Matrix::diag(D)))
     log_det_IgZ <- sum(log(1.0 - gamma_hat * eig_vals), na.rm = TRUE)
     term2 <- 0.5 * (log_det_D + 2 * log_det_IgZ)
   }
-  # Leroux: Q = gamma (D - W) + (1 - gamma) I
-  # Given eigenvalues kappa_i of D - W, eigenvalues of Q are
-  # gamma kappa_i + (1 - gamma) = gamma (kappa_i - 1) + 1
-  # and log det Q = sum log(gamma (kappa_i - 1) + 1)
   else if ("Leroux" == model_type) {
     term2 <- 0.5 * sum(log(gamma_hat * (eig_vals - 1) + 1), na.rm = TRUE)
   }
-  # Eigenvalues of Q are passed in.
   else if ("spNNGP" == model_type) {
     term2 <- 0.5 * sum(log(eig_vals), na.rm = TRUE)
   }

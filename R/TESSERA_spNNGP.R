@@ -75,6 +75,7 @@
 #'   traditional lattice adjacency is difficult to define.
 #'
 #' @import Matrix
+#' @importFrom Matrix diag
 #' @importFrom stats coef cor dpois poisson predict rnorm var
 #' @importFrom Rcpp sourceCpp evalCpp
 #' @useDynLib TESSERA
@@ -110,7 +111,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
                            cov_init = "BRISC",
                            cov_fit_method = "BRISC",
                            verbose = FALSE,
-                           dense_matrices = TRUE)
+                           dense_matrices = FALSE)
 {
   # Start clock
   t0_EM <- Sys.time()
@@ -306,8 +307,8 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         Vhat_current <- E_step_Vhat(Q_hat_list[[area_idx]], 1.0, z_list[[area_idx]])
       }
       
+      # Get the mean (Vhat argument removed; reconstructs sparse Vinv internally)
       eta_hat_list[[area_idx]] <- E_step_etahat(
-        Vhat_current,
         Q_hat_list[[area_idx]],
         1.0,
         beta_tracker[, em_idx],
@@ -361,7 +362,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         "spNNGP"
       )
       
-      # DESTROY the dense Vhat to prevent Memory Overflow
+      # DESTROY the sparse Vhat to prevent Memory Overflow
       rm(Vhat_current)
       gc()
     }

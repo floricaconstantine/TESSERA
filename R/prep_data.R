@@ -397,7 +397,18 @@ methods::setMethod(
             paste(Sys.time(), "\n")
           )
           
-          eig_CS_list[[idx]] <- Re(eigen(Matrix::solve(D_list[[idx]], W_list[[idx]]), FALSE, only.values = TRUE)$values)
+          # Extract the diagonal of D (a vector)
+          d_diag <- Matrix::diag(D_list[[idx]])
+          # Compute D^{-1/2} 
+          # We use Diagonal() from Matrix to create a sparse diagonal matrix
+          d_inv_sqrt <- Matrix::Diagonal(x = 1 / sqrt(d_diag))
+          # Form the symmetric matrix S = D^{-1/2} W D^{-1/2}
+          # This matrix is perfectly symmetric
+          S <- d_inv_sqrt %*% W_list[[idx]] %*% d_inv_sqrt
+          # Compute eigenvalues using the symmetric solver
+          # 'symmetric = TRUE' tells R to use the much faster/stable 'dsyev' routine
+          # We no longer need Re() because the result is guaranteed to be real
+          eig_CS_list[[idx]] <- Re(eigen(S, symmetric = TRUE, only.values = TRUE)$values)
         }
         if (grepl("L", compute_eigs, ignore.case = TRUE)) {
           message(

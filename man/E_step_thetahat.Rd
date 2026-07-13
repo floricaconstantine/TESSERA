@@ -11,7 +11,7 @@ Follows Clayton and Kaldor (1987) for the Poisson-Gaussian model.}
 E_step_thetahat(Vhat, eta_hat)
 }
 \arguments{
-\item{Vhat}{Estimated covariance matrix of eta.}
+\item{Vhat}{Estimated covariance matrix of eta (sparse subset).}
 
 \item{eta_hat}{Estimated mean of eta.}
 }

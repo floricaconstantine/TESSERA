@@ -69,6 +69,7 @@
 #'   invertibility.
 #'
 #' @import Matrix
+#' @importFrom Matrix diag
 #' @importFrom stats coef cor dpois poisson predict rnorm runif var
 #' @importFrom Rcpp sourceCpp evalCpp
 #' @importFrom methods as
@@ -238,9 +239,13 @@ TESSERA_lattice <- function(TESSERAData_obj,
     # Let's be intelligent: initialize with a basic GLM
     
     # Stack into a single vector/matrix
-    z_vec <- Reduce(c, z_list)
-    lib_vec <- Reduce(c, TESSERAData_obj$library_size_list)
-    X_mat <- Reduce(rbind, TESSERAData_obj$X_list)
+    # unlist(..., use.names=FALSE) is extremely fast and avoids metadata overhead
+    z_vec   <- unlist(z_list, use.names = FALSE)
+    lib_vec <- unlist(TESSERAData_obj$library_size_list, use.names = FALSE)
+    # do.call(rbind, ...) is the standard way to merge a list of matrices
+    # with minimal memory fragmentation.
+    X_mat   <- do.call(rbind, TESSERAData_obj$X_list)
+    
     # Fit GLM
     beta_tmp <- as.vector(stats::coef(
       # stats::glm(z_vec / lib_vec ~ 0 + X_mat, family = stats::poisson())
@@ -364,15 +369,15 @@ TESSERA_lattice <- function(TESSERAData_obj,
     eta_hat_list <- list()
     
     for (area_idx in 1:n_areas) {
-      # 1. Compute Vhat for the CURRENT area only
+      # Compute Vhat for the CURRENT area only
       if (dense_matrices) {
         Vhat_current <- E_step_Vhat(as.matrix(Q_hat_list[[area_idx]]), tau2_tracker[area_idx, em_idx], z_list[[area_idx]])
       } else {
         Vhat_current <- E_step_Vhat(Q_hat_list[[area_idx]], tau2_tracker[area_idx, em_idx], z_list[[area_idx]])
       }
       
+      # Get the mean (Vhat argument removed; reconstructs sparse Vinv internally)
       eta_hat_list[[area_idx]] <- E_step_etahat(
-        Vhat_current,
         Q_hat_list[[area_idx]],
         tau2_tracker[area_idx, em_idx],
         beta_tracker[, em_idx],
@@ -437,37 +442,43 @@ TESSERA_lattice <- function(TESSERAData_obj,
       D_mat <- TESSERAData_obj$D_list[[area_idx]]
       
       if ("CAR" == model_type) {
-        W_sparse <- methods::as(W_mat, "dgCMatrix")
+        # Old: W_sparse <- methods::as(W_mat, "dgCMatrix")
+        W_sparse <- methods::as(methods::as(W_mat, "generalMatrix"), "CsparseMatrix")
         idx_W <- cbind(W_sparse@i + 1L, rep(1:ncol(W_sparse), diff(W_sparse@p)))
         
         trace_scalars_list[[area_idx]] <- list(
-          tr_DV = sum(Matrix::diag(D_mat) * diag(Vhat_current)),
+          tr_DV = sum(Matrix::diag(D_mat) * Matrix::diag(Vhat_current)),
           tr_WV = sum(W_sparse@x * Vhat_current[idx_W])
         )
         
       } else if ("SAR" == model_type) {
-        W_sparse <- methods::as(W_mat, "dgCMatrix")
+        # Old: W_sparse <- methods::as(W_mat, "dgCMatrix")
+        W_sparse <- methods::as(methods::as(W_mat, "generalMatrix"), "CsparseMatrix")
         idx_W <- cbind(W_sparse@i + 1L, rep(1:ncol(W_sparse), diff(W_sparse@p)))
         
         D_inv <- Matrix::Diagonal(dim(W_mat)[1], 1 / Matrix::diag(D_mat))
-        WZ_sparse <- methods::as(W_mat %*% (D_inv %*% W_mat), "dgCMatrix")
+        # Old: WZ_sparse <- methods::as(W_mat %*% (D_inv %*% W_mat), "dgCMatrix")
+        WZ_sparse <- methods::as(methods::as(W_mat %*% (D_inv %*% W_mat), "generalMatrix"), "CsparseMatrix")
         idx_WZ <- cbind(WZ_sparse@i + 1L, rep(1:ncol(WZ_sparse), diff(WZ_sparse@p)))
         
         trace_scalars_list[[area_idx]] <- list(
-          tr_DV = sum(Matrix::diag(D_mat) * diag(Vhat_current)),
+          tr_DV = sum(Matrix::diag(D_mat) * Matrix::diag(Vhat_current)),
           tr_WV = sum(W_sparse@x * Vhat_current[idx_W]),
           tr_WZV = sum(WZ_sparse@x * Vhat_current[idx_WZ])
         )
         
       } else if ("Leroux" == model_type) {
-        DWI_sparse <- methods::as(D_mat - W_mat - Matrix::Diagonal(dim(W_mat)[1], 1), "dgCMatrix")
+        # Old: DWI_sparse <- methods::as(D_mat - W_mat - Matrix::Diagonal(...), "dgCMatrix")
+        DWI_sparse <- methods::as(methods::as(D_mat - W_mat - Matrix::Diagonal(dim(W_mat)[1], 1), "generalMatrix"), "CsparseMatrix")
         idx_DWI <- cbind(DWI_sparse@i + 1L, rep(1:ncol(DWI_sparse), diff(DWI_sparse@p)))
         
-        trace_scalars_list[[area_idx]] <- list(tr_V = sum(diag(Vhat_current)),
-                                               tr_DWIV = sum(DWI_sparse@x * Vhat_current[idx_DWI]))
+        trace_scalars_list[[area_idx]] <- list(
+          tr_V = sum(Matrix::diag(Vhat_current)),
+          tr_DWIV = sum(DWI_sparse@x * Vhat_current[idx_DWI])
+        )
       }
       
-      # DESTROY the dense Vhat to prevent Memory Overflow
+      # DESTROY the sparse Vhat to prevent Memory Overflow
       rm(Vhat_current)
       gc() # Force R to collect the garbage immediately
     }
@@ -676,10 +687,20 @@ TESSERA_lattice <- function(TESSERAData_obj,
       Vhat_current <- E_step_Vhat(Q_hat_list[[area_idx]], tau2_tracker[area_idx, em_idx + 1], z_list[[area_idx]])
     }
     
+    # RECOMPUTE eta_hat for the final parameter estimates
+    eta_hat_final <- E_step_etahat(
+      Q_hat_list[[area_idx]],
+      tau2_tracker[area_idx, em_idx + 1],
+      beta_tracker[, em_idx + 1],
+      TESSERAData_obj$X_list[[area_idx]],
+      z_list[[area_idx]],
+      TESSERAData_obj$library_size_list[[area_idx]]
+    )
+    
     # Compute tau2 negative Hessian
     tau2_neghessian[area_idx] <- neg_hessian_tau2(
       Vhat_current,
-      eta_hat_list[[area_idx]],
+      eta_hat_final,
       Q_hat_list[[area_idx]],
       tau2_tracker[area_idx, em_idx + 1],
       beta_tracker[, em_idx + 1],
@@ -692,7 +713,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
     } else if ("SAR" == model_type) {
       gamma_neghessian[area_idx] <- neg_hessian_gamma_SAR(
         Vhat_current,
-        eta_hat_list[[area_idx]],
+        eta_hat_final,
         gamma_tracker[area_idx, em_idx + 1],
         tau2_tracker[area_idx, em_idx + 1],
         beta_tracker[, em_idx + 1],
@@ -759,7 +780,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
       residuals = Reduce(c, z_list) - fit_tracker[, em_idx],
       eta_hat = eta_tracker[, em_idx],
       theta_hat = theta_tracker[, em_idx],
-      phi_hat = eta_tracker[, em_idx] - Reduce(rbind, TESSERAData_obj$X_list) %*% beta_tracker[, (em_idx + 1)],
+      phi_hat = eta_tracker[, em_idx] - do.call(rbind, TESSERAData_obj$X_list) %*% beta_tracker[, (em_idx + 1)],
       
       # Full paths of coefficients, spatial parameters
       gamma_tracker = gamma_tracker[, 1:(em_idx + 1)],

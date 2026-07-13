@@ -23,6 +23,7 @@ Imports:
   Matrix,
   pracma,
   optimx,
+  sparseinv,
   spatstat.geom,
   gstat,
   dplyr, 

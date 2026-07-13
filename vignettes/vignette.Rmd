@@ -575,7 +575,7 @@ TESSERA_out <- get_my_data("TESSERA_ACTA2_example.rds")
 
 The following code block illustrates the exact parameters used to generate the model fitting results for the *ACTA2* gene.
 If you wish to run the model locally, simply change the chunk header to `eval = TRUE`.
-```{r run_TESSERA, eval=FALSE}
+```{r run_TESSERA, eval=TRUE}
 # Which gene to run
 gene_idx <- which(rownames(spe) == "ACTA2")
 # Run TESSERA
