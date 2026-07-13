@@ -24,17 +24,25 @@ test_that("Precision matrix functions return correct structures", {
                ignore_attr = TRUE)
 })
 
-test_that("nngp_prec_mat produces valid sparse matrices", {
-  coords <- matrix(c(0, 0, 1, 1, 2, 2), ncol = 2, byrow = TRUE)
-  sp_dist <- matrix(c(1.41, 1), nrow = 2)
-  params <- c(0.1, 1.0, 5.0)
-  
-  res <- nngp_prec_mat(sp_dist, coords, "Exp", params)
-  
-  expect_named(res, c("Q", "Dinv", "A"))
-  expect_s4_class(res$Q, "sparseMatrix")
-  expect_length(res$Dinv, 2)
-})
+test_that("nngp_prec_mat produces valid sparse matrices with precomputed distances",
+          {
+            # sp_dist has 1 column.
+            # Row 1 is the distance (1.41), Row 2 is the neighbor index (1).
+            sp_dist <- matrix(c(1.41, 1), nrow = 2)
+            
+            # Mock the new precomputed nb_dist list
+            # Since there is only 1 neighbor, the distance matrix between neighbors is 1x1 zero.
+            nb_dist <- list(matrix(0.0, 1, 1))
+            
+            params <- c(0.1, 1.0, 5.0)
+            
+            # Signature updated to pass nb_dist instead of coords
+            res <- nngp_prec_mat(sp_dist, nb_dist, "Exp", params)
+            
+            expect_named(res, c("Q", "Dinv", "A"))
+            expect_s4_class(res$Q, "sparseMatrix")
+            expect_length(res$Dinv, 2)
+          })
 
 test_that("expected_loglike catches invalid model types", {
   expect_error(

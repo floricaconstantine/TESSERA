@@ -58,17 +58,78 @@ test_that("M_step_tau2 computes valid scaling parameters", {
 })
 
 # --- M_step_beta ---
-test_that("M_step_beta aggregates across multiple areas correctly", {
-  eta_list <- list(rep(1, 5), rep(1, 5))
-  Q_list <- list(diag(5), diag(5))
-  tau2_list <- list(1, 1)
-  X_list <- list(matrix(1, 5, 1), matrix(1, 5, 1))
-  
-  # The signature for M_step_beta remained the same, but internal
-  # optimizations must yield the exact same mathematical result.
-  res <- M_step_beta(eta_list, Q_list, tau2_list, X_list)
-  expect_equal(as.numeric(res), 1.0)
-})
+test_that("M_step_beta computes correctly for dynamic spNNGP and precomputed Lattice models",
+          {
+            # 1. Setup mock data (1 area, 5 spatial points, 2 covariates)
+            set.seed(123)
+            N <- 5
+            p <- 2
+            
+            X_mat <- matrix(rnorm(N * p), nrow = N, ncol = p)
+            eta_vec <- rnorm(N)
+            tau2 <- 0.5
+            
+            # Base precision matrix (Q) and adjacency/degree matrices for Lattice
+            Q_mat <- Matrix::Diagonal(N, 1.5)
+            D_mat <- Matrix::Diagonal(N, 2)
+            W_mat <- Matrix::sparseMatrix(
+              i = c(1, 2, 2, 3, 3, 4, 4, 5),
+              j = c(2, 1, 3, 2, 4, 3, 5, 4),
+              x = 1,
+              dims = c(N, N)
+            )
+            
+            X_list <- list(X_mat)
+            eta_list <- list(eta_vec)
+            Q_list <- list(Q_mat)
+            tau2_list <- c(tau2)
+            
+            # ==========================================
+            # TEST 1: spNNGP (Dynamic calculation)
+            # ==========================================
+            beta_spNNGP <- M_step_beta(
+              eta_list = eta_list,
+              Q_list = Q_list,
+              tau2_list = tau2_list,
+              X_list = X_list,
+              model_type = "spNNGP"
+            )
+            
+            # Manual calculation to verify spNNGP
+            Q_inv_tau2 <- Q_mat / tau2
+            zeta_manual <- as.numeric(Matrix::crossprod(X_mat, Q_inv_tau2 %*% eta_vec))
+            B_manual <- as.matrix(Matrix::crossprod(X_mat, Q_inv_tau2 %*% X_mat))
+            beta_manual <- base::solve(B_manual, zeta_manual)
+            
+            expect_equal(beta_spNNGP, as.numeric(beta_manual), info = "spNNGP beta estimates do not match manual calculation")
+            
+            # ==========================================
+            # TEST 2: CAR Model (Precomputed calculation)
+            # ==========================================
+            gamma_val <- 0.1
+            gamma_list <- c(gamma_val)
+            
+            # Generate the exact precomputed matrices the new EM loop provides
+            XtDX_list <- list(as.matrix(Matrix::crossprod(X_mat, D_mat %*% X_mat)))
+            XtWX_list <- list(as.matrix(Matrix::crossprod(X_mat, W_mat %*% X_mat)))
+            
+            beta_CAR <- M_step_beta(
+              eta_list = eta_list,
+              Q_list = Q_list,
+              tau2_list = tau2_list,
+              X_list = X_list,
+              model_type = "CAR",
+              gamma_list = gamma_list,
+              XtDX_list = XtDX_list,
+              XtWX_list = XtWX_list
+            )
+            
+            # Manual calculation to verify CAR precomputations
+            B_car_manual <- (XtDX_list[[1]] - gamma_val * XtWX_list[[1]]) / tau2
+            beta_car_manual <- base::solve(B_car_manual, zeta_manual) # zeta is identical
+            
+            expect_equal(beta_CAR, as.numeric(beta_car_manual), info = "CAR beta estimates using precomputed lists do not match manual calculation")
+          })
 
 # --- M_step_gamma_CAR ---
 test_that("M_step_gamma_CAR finds a root within bounds", {

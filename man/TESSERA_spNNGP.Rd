@@ -67,7 +67,7 @@ of covariance parameters. Options are "BRISC" or "variogram".}
 
 \item{dense_matrices}{Logical: If \code{TRUE}, treats the precision matrix \eqn{Q}
 as dense during specific E-step calculations. This dramatically increases
-memory usage but can lead to a 60 to 80 percent decrease in computation time.}
+memory usage but can lead to a potential decrease in computation time.}
 }
 \value{
 A list containing the following components:

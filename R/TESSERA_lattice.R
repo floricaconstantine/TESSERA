@@ -69,7 +69,7 @@
 #'   invertibility.
 #'
 #' @import Matrix
-#' @importFrom Matrix diag
+#' @importFrom Matrix diag Diagonal
 #' @importFrom stats coef cor dpois poisson predict rnorm runif var
 #' @importFrom Rcpp sourceCpp evalCpp
 #' @importFrom methods as
@@ -170,11 +170,18 @@ TESSERA_lattice <- function(TESSERAData_obj,
     
     for (area_idx in 1:n_areas) {
       if (needs_CS) {
-        eig_val_list[[area_idx]] <- Re(eigen(
-          Matrix::solve(TESSERAData_obj$D_list[[area_idx]], TESSERAData_obj$W_list[[area_idx]]),
-          FALSE,
-          only.values = TRUE
-        )$values)
+        # Extract the diagonal of D (a vector)
+        d_diag <- Matrix::diag(TESSERAData_obj$D_list[[area_idx]])
+        # Compute D^{-1/2}
+        # We use Diagonal() from Matrix to create a sparse diagonal matrix
+        d_inv_sqrt <- Matrix::Diagonal(x = 1 / sqrt(d_diag))
+        # Form the symmetric matrix S = D^{-1/2} W D^{-1/2}
+        # This matrix is perfectly symmetric
+        S <- d_inv_sqrt %*% TESSERAData_obj$W_list[[area_idx]] %*% d_inv_sqrt
+        # Compute eigenvalues using the symmetric solver
+        # 'symmetric = TRUE' tells R to use the much faster/stable 'dsyev' routine
+        # We no longer need Re() because the result is guaranteed to be real
+        eig_val_list[[area_idx]] <- Re(eigen(S, symmetric = TRUE, only.values = TRUE)$values)
       } else {
         eig_val_list[[area_idx]] <- Re(
           eigen(
@@ -346,6 +353,59 @@ TESSERA_lattice <- function(TESSERAData_obj,
                                     gamma_tracker[area_idx, 1])
   }
   
+  
+  # ==========================================
+  # --- NEW: Precompute Static Matrices for M_step_beta ---
+  # These lists stay NULL if not required by the current model_type
+  XtDX_list <- NULL
+  XtWX_list <- NULL
+  XtWZX_list <- NULL
+  XtX_list <- NULL
+  XtDWIX_list <- NULL
+  
+  message("Precomputing structural matrices for M_step_beta...", "\n")
+  
+  if (model_type %in% c("CAR", "SAR")) {
+    XtDX_list <- list()
+    XtWX_list <- list()
+    if (model_type == "SAR")
+      XtWZX_list <- list()
+    
+    for (area_idx in 1:n_areas) {
+      X_mat <- TESSERAData_obj$X_list[[area_idx]]
+      D_mat <- TESSERAData_obj$D_list[[area_idx]]
+      W_mat <- TESSERAData_obj$W_list[[area_idx]]
+      
+      # Convert to dense base matrices upfront to avoid S4 dispatch in the loop
+      XtDX_list[[area_idx]] <- as.matrix(Matrix::crossprod(X_mat, D_mat %*% X_mat))
+      XtWX_list[[area_idx]] <- as.matrix(Matrix::crossprod(X_mat, W_mat %*% X_mat))
+      
+      if (model_type == "SAR") {
+        # Z = D^{-1} W, so W Z = W D^{-1} W
+        D_inv <- Matrix::Diagonal(n = nrow(D_mat),
+                                  x = 1 / Matrix::diag(D_mat))
+        WZW <- W_mat %*% D_inv %*% W_mat
+        XtWZX_list[[area_idx]] <- as.matrix(Matrix::crossprod(X_mat, WZW %*% X_mat))
+      }
+    }
+  } else if (model_type == "Leroux") {
+    XtX_list <- list()
+    XtDWIX_list <- list()
+    
+    for (area_idx in 1:n_areas) {
+      X_mat <- TESSERAData_obj$X_list[[area_idx]]
+      W_mat <- TESSERAData_obj$W_list[[area_idx]]
+      D_mat <- TESSERAData_obj$D_list[[area_idx]]
+      I_mat <- Matrix::Diagonal(nrow(W_mat), 1)
+      
+      XtX_list[[area_idx]] <- as.matrix(Matrix::crossprod(X_mat))
+      XtDWIX_list[[area_idx]] <- as.matrix(Matrix::crossprod(X_mat, (D_mat - W_mat - I_mat) %*% X_mat))
+    }
+  }
+  # ---------------------------------------------
+  # ==========================================
+  
+  
   # Loop over EM iterations
   for (em_idx in 1:em_iters) {
     if (verbose || (0 == (em_idx %% 100))) {
@@ -458,7 +518,8 @@ TESSERA_lattice <- function(TESSERAData_obj,
         
         D_inv <- Matrix::Diagonal(dim(W_mat)[1], 1 / Matrix::diag(D_mat))
         # Old: WZ_sparse <- methods::as(W_mat %*% (D_inv %*% W_mat), "dgCMatrix")
-        WZ_sparse <- methods::as(methods::as(W_mat %*% (D_inv %*% W_mat), "generalMatrix"), "CsparseMatrix")
+        WZ_sparse <- methods::as(methods::as(W_mat %*% (D_inv %*% W_mat), "generalMatrix"),
+                                 "CsparseMatrix")
         idx_WZ <- cbind(WZ_sparse@i + 1L, rep(1:ncol(WZ_sparse), diff(WZ_sparse@p)))
         
         trace_scalars_list[[area_idx]] <- list(
@@ -469,7 +530,13 @@ TESSERA_lattice <- function(TESSERAData_obj,
         
       } else if ("Leroux" == model_type) {
         # Old: DWI_sparse <- methods::as(D_mat - W_mat - Matrix::Diagonal(...), "dgCMatrix")
-        DWI_sparse <- methods::as(methods::as(D_mat - W_mat - Matrix::Diagonal(dim(W_mat)[1], 1), "generalMatrix"), "CsparseMatrix")
+        DWI_sparse <- methods::as(
+          methods::as(
+            D_mat - W_mat - Matrix::Diagonal(dim(W_mat)[1], 1),
+            "generalMatrix"
+          ),
+          "CsparseMatrix"
+        )
         idx_DWI <- cbind(DWI_sparse@i + 1L, rep(1:ncol(DWI_sparse), diff(DWI_sparse@p)))
         
         trace_scalars_list[[area_idx]] <- list(
@@ -480,7 +547,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
       
       # DESTROY the sparse Vhat to prevent Memory Overflow
       rm(Vhat_current)
-      gc() # Force R to collect the garbage immediately
+      # gc() # Force R to collect the garbage immediately
     }
     
     # Run (C)M-Step: Optimize
@@ -590,10 +657,20 @@ TESSERA_lattice <- function(TESSERAData_obj,
       }
       
       # Optimize in beta
-      beta_tracker[, 1 + em_idx] <- M_step_beta(eta_hat_list,
-                                                Q_hat_list,
-                                                tau2_tracker[, 1 + em_idx],
-                                                TESSERAData_obj$X_list)[, 1]
+      beta_tracker[, 1 + em_idx] <- M_step_beta(
+        eta_list = eta_hat_list,
+        Q_list = Q_hat_list,
+        tau2_list = tau2_tracker[, 1 + em_idx],
+        X_list = TESSERAData_obj$X_list,
+        model_type = model_type,
+        gamma_list = gamma_tracker[, 1 + em_idx],
+        # Matches tau2 indexing
+        XtDX_list = XtDX_list,
+        XtWX_list = XtWX_list,
+        XtWZX_list = XtWZX_list,
+        XtX_list = XtX_list,
+        XtDWIX_list = XtDWIX_list
+      )
     }
     
     # Early stopping:
@@ -728,7 +805,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
     
     # Destroy Vhat to maintain low memory footprint
     rm(Vhat_current)
-    gc()
+    # gc()
   }
   
   

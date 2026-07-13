@@ -47,7 +47,7 @@
 #' @param verbose Logical: Whether to print iteration-wise parameter updates.
 #' @param dense_matrices Logical: If \code{TRUE}, treats the precision matrix \eqn{Q}
 #'   as dense during specific E-step calculations. This dramatically increases
-#'   memory usage but can lead to a 60 to 80 percent decrease in computation time.
+#'   memory usage but can lead to a potential decrease in computation time.
 #'
 #' @return A list containing the following components:
 #' \itemize{
@@ -127,6 +127,31 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
   
   # Number of areas
   n_areas <- length(z_list)
+  
+  # ==========================================
+  # --- NEW: Spatial Coordinate Sorting Block ---
+  perm_list <- list()
+  rev_perm_list <- list()
+  
+  for (area_idx in 1:n_areas) {
+    coords <- TESSERAData_obj$coords_list[[area_idx]]
+    
+    # Create the sorting permutation (sweep left-to-right, bottom-to-top)
+    perm <- order(coords[, 1], coords[, 2])
+    
+    # Save the permutation and the REVERSE permutation
+    perm_list[[area_idx]] <- perm
+    rev_perm_list[[area_idx]] <- order(perm)
+    
+    # Apply permutation to all relevant data
+    TESSERAData_obj$coords_list[[area_idx]] <- coords[perm, , drop = FALSE]
+    TESSERAData_obj$X_list[[area_idx]] <- TESSERAData_obj$X_list[[area_idx]][perm, , drop = FALSE]
+    TESSERAData_obj$library_size_list[[area_idx]] <- TESSERAData_obj$library_size_list[[area_idx]][perm]
+    z_list[[area_idx]] <- z_list[[area_idx]][perm]
+  }
+  # ---------------------------------------------
+  # ==========================================
+  
   # Total number of points
   n_total_points <- 0
   # Starting points in larger matrices
@@ -147,6 +172,30 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
   for (idx in 1:length(TESSERAData_obj$coords_list)) {
     sp_dist_list[[idx]] <- sparse_dist(TESSERAData_obj$coords_list[[idx]], nngp_k)
   }
+  
+  # ==========================================
+  # --- NEW: Precompute Static Neighbor Distance Matrices ---
+  nb_dist_list <- list()
+  for (area_idx in 1:n_areas) {
+    n_cols <- ncol(sp_dist_list[[area_idx]])
+    area_nb_dists <- vector("list", n_cols)
+    
+    for (idx in 1:n_cols) {
+      keep_idx <- which(!is.na(sp_dist_list[[area_idx]][(1 + nngp_k):(2 * nngp_k), idx]))
+      if (length(keep_idx) > 1) {
+        area_nb_dists[[idx]] <- as.matrix(stats::dist(
+          TESSERAData_obj$coords_list[[area_idx]][sp_dist_list[[area_idx]][nngp_k + keep_idx, idx], , drop = FALSE],
+          diag = TRUE,
+          upper = TRUE
+        ))
+      } else {
+        area_nb_dists[[idx]] <- matrix(0.0, 1, 1)
+      }
+    }
+    nb_dist_list[[area_idx]] <- area_nb_dists
+  }
+  # ---------------------------------------------
+  # ==========================================
   
   # Store parameter estimates and track
   cov_param_tracker <- array(data = NA, dim = c(n_areas, 1 + em_iters, 4))
@@ -270,7 +319,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
   A_hat_list <- list()
   for (area_idx in 1:n_areas) {
     param_est <- nngp_prec_mat(sp_dist_list[[area_idx]],
-                               TESSERAData_obj$coords_list[[area_idx]],
+                               nb_dist_list[[area_idx]],
                                cov_type,
                                cov_param_tracker[area_idx, 1, ])
     Q_hat_list[[area_idx]] <- param_est$Q
@@ -352,19 +401,24 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         Vhat_current,
         eta_hat_list[[area_idx]],
         Q_hat_list[[area_idx]],
-        0.0, # gamma
-        1.0, # tau^2
+        0.0,
+        # gamma
+        1.0,
+        # tau^2
         beta_tracker[, em_idx],
         TESSERAData_obj$X_list[[area_idx]],
-        A_hat_list[[area_idx]], # W
-        A_hat_list[[area_idx]], # D
-        Dinv_list[[area_idx]],  # Eigenvalues
+        A_hat_list[[area_idx]],
+        # W
+        A_hat_list[[area_idx]],
+        # D
+        Dinv_list[[area_idx]],
+        # Eigenvalues
         "spNNGP"
       )
       
       # DESTROY the sparse Vhat to prevent Memory Overflow
       rm(Vhat_current)
-      gc()
+      # gc()
     }
     
     # Run (C)M-Step: Optimize
@@ -403,7 +457,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         
         # Update precision matrix Q and associated quantities
         param_est <- nngp_prec_mat(sp_dist_list[[area_idx]],
-                                   TESSERAData_obj$coords_list[[area_idx]],
+                                   nb_dist_list[[area_idx]],
                                    cov_type,
                                    cov_param_tracker[area_idx, 1 + em_idx, ])
         Q_hat_list[[area_idx]] <- param_est$Q
@@ -412,12 +466,12 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
       }
       # Optimize in beta
       beta_tracker[, 1 + em_idx] <- M_step_beta(
-        eta_hat_list,
-        Q_hat_list,
-        rep(1, n_areas),
-        # tau^2
-        TESSERAData_obj$X_list
-      )[, 1]
+        eta_list = eta_hat_list,
+        Q_list = Q_hat_list,
+        tau2_list = rep(1, n_areas), # tau^2
+        X_list = TESSERAData_obj$X_list,
+        model_type = "spNNGP"
+      )
     }
     
     if (verbose || (0 == (em_idx %% 100))) {
@@ -488,8 +542,32 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
   t1_EM <- Sys.time()
   message("Time ", t1_EM - t0_EM, "\n")
   
-  # Compute Negative Hessians
+  # Compute Negative Hessians (MUST HAPPEN BEFORE UN-SORTING)
   beta_neghessian <- neg_hessian_beta(Q_hat_list, rep(1, n_areas), TESSERAData_obj$X_list) # tau^2 is 1
+  
+  # ==========================================
+  # --- NEW: Reverse Permutation Block ---
+  # Un-sort the trackers and input data so output matches the original counts_list
+  for (area_idx in 1:n_areas) {
+    # Get the row indices for this specific area in the flat trackers
+    idx_range <- start_idx_list[area_idx]:(start_idx_list[area_idx] + length(z_list[[area_idx]]) - 1)
+    
+    # Apply the reverse order
+    rev_perm <- rev_perm_list[[area_idx]]
+    
+    # Un-sort EM trackers
+    fit_tracker[idx_range, ] <- fit_tracker[idx_range, , drop = FALSE][rev_perm, , drop = FALSE]
+    eta_tracker[idx_range, ] <- eta_tracker[idx_range, , drop = FALSE][rev_perm, , drop = FALSE]
+    theta_tracker[idx_range, ] <- theta_tracker[idx_range, , drop = FALSE][rev_perm, , drop = FALSE]
+    
+    # Un-sort the data lists so formulas in the output block align perfectly
+    z_list[[area_idx]] <- z_list[[area_idx]][rev_perm]
+    TESSERAData_obj$X_list[[area_idx]] <- TESSERAData_obj$X_list[[area_idx]][rev_perm, , drop = FALSE]
+    TESSERAData_obj$coords_list[[area_idx]] <- TESSERAData_obj$coords_list[[area_idx]][rev_perm, , drop = FALSE]
+    TESSERAData_obj$library_size_list[[area_idx]] <- TESSERAData_obj$library_size_list[[area_idx]][rev_perm]
+  }
+  # ----------------------------------------
+  # ==========================================
   
   ## Name stuff
   
@@ -573,6 +651,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
   out$performanceSummary <- summarize_TESSERA(TESSERAData_obj, out)
   return(out)
 }
+
 
 #' Check inputs for the TESSERA_spNNGP method.
 #'  Make sure that the input object has everything needed to run without error.

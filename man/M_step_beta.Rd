@@ -2,40 +2,50 @@
 % Please edit documentation in R/M_step.R
 \name{M_step_beta}
 \alias{M_step_beta}
-\title{Maximize the expected likelihood in beta, holding other variables constant.
+\title{M-step optimization for beta (covariate coefficients).
 Part of the M-Step in the EM algorithm.}
 \usage{
-M_step_beta(eta_list, Q_list, tau2_list, X_list)
+M_step_beta(
+  eta_list,
+  Q_list,
+  tau2_list,
+  X_list,
+  model_type = "spNNGP",
+  gamma_list = NULL,
+  XtDX_list = NULL,
+  XtWX_list = NULL,
+  XtWZX_list = NULL,
+  XtX_list = NULL,
+  XtDWIX_list = NULL
+)
 }
 \arguments{
-\item{eta_list}{List of the estimated means of eta.
-One vector per area.}
+\item{eta_list}{List of estimated means of eta.}
 
-\item{Q_list}{List of the unscaled precision matrices.
-One matrix per area, same ordering and length as eta_list.
-Depends on gamma, so that dependency is implicit.
-I.e., Q_list should be updated in each iteration after gamma is updated.}
+\item{Q_list}{List of unscaled precision matrices.}
 
-\item{tau2_list}{List or vector of precision matrix scaling values.
-Same length and ordering as eta_list, with one number per area.}
+\item{tau2_list}{List of precision/covariance matrix scalings.}
 
-\item{X_list}{List of covariate matrices.
-One matrix per area, same ordering and length as eta_list.}
+\item{X_list}{List of covariate matrices.}
+
+\item{model_type}{"CAR", "SAR", "Leroux", or "spNNGP".}
+
+\item{gamma_list}{List of current gamma estimates (required for lattice).}
+
+\item{XtDX_list}{Precomputed X^T D X (required for CAR/SAR).}
+
+\item{XtWX_list}{Precomputed X^T W X (required for CAR/SAR).}
+
+\item{XtWZX_list}{Precomputed X^T W Z X (required for SAR).}
+
+\item{XtX_list}{Precomputed X^T X (required for Leroux).}
+
+\item{XtDWIX_list}{Precomputed X^T (D - W - I) X (required for Leroux).}
 }
 \value{
-Maximum likelihood estimate of covariates beta.
+Estimated beta vector.
 }
 \description{
-Maximize the expected likelihood in beta, holding other variables constant.
+M-step optimization for beta (covariate coefficients).
 Part of the M-Step in the EM algorithm.
-}
-\note{
-Applies to ALL areas.
-
-Requires the Matrix library.
-
-Requires the pracma library.
-}
-\author{
-Florica J Constantine, florica AT berkeley.edu
 }

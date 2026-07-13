@@ -281,7 +281,6 @@ generate_data_one_area_spNNGP <- function(n_points,
                                           X = NULL,
                                           library_size = NULL) {
   # Covariate matrix
-  # Covariate matrix
   if (is.null(X)) {
     if ("rand_bern" == X_type) {
       X <- matrix((sign(stats::rnorm(
@@ -325,10 +324,12 @@ generate_data_one_area_spNNGP <- function(n_points,
   
   # Assign neighbors to isolated points
   zero_indices <- as.numeric(which(rowSums(W) == 0))
-  for (idx in 1:length(zero_indices)) {
-    set_idx <- order(d_mat[zero_indices[idx], ])[2]
-    W[zero_indices[idx], set_idx] <- 1
-    W[set_idx, zero_indices[idx]] <- 1
+  if (length(zero_indices) > 0) {
+    for (idx in 1:length(zero_indices)) {
+      set_idx <- order(d_mat[zero_indices[idx], ])[2]
+      W[zero_indices[idx], set_idx] <- 1
+      W[set_idx, zero_indices[idx]] <- 1
+    }
   }
   
   # Degree matrix
@@ -345,6 +346,7 @@ generate_data_one_area_spNNGP <- function(n_points,
   # Generate inverse precision (unscaled) of random effects
   sp_dist <- sparse_dist_LT(coords, nngp_k)
   close_to_zero_const <- 2.0 * .Machine$double.eps
+  
   if ((close_to_zero_const >= cov_params[1]) &&
       (close_to_zero_const >= cov_params[2])) {
     warning("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO. FAILSAFE: Q IS ZERO AND NOT USED")
@@ -353,20 +355,34 @@ generate_data_one_area_spNNGP <- function(n_points,
     A <- Matrix::Diagonal(n_points, 0)
     Dinv <- Matrix::Diagonal(n_points, 0)
   } else {
-    param_est <- nngp_prec_mat(sp_dist, coords, cov_type, cov_params)
+    # ==========================================
+    # --- Precompute Static Neighbor Distance Matrices ---
+    n_cols <- ncol(sp_dist)
+    nb_dist_list <- vector("list", n_cols)
+    
+    for (idx in 1:n_cols) {
+      keep_idx <- which(!is.na(sp_dist[(1 + nngp_k):(2 * nngp_k), idx]))
+      if (length(keep_idx) > 1) {
+        nb_dist_list[[idx]] <- as.matrix(stats::dist(coords[sp_dist[nngp_k + keep_idx, idx], , drop = FALSE], diag = TRUE, upper = TRUE))
+      } else {
+        nb_dist_list[[idx]] <- matrix(0.0, 1, 1)
+      }
+    }
+    # ==========================================
+    
+    param_est <- nngp_prec_mat(sp_dist, nb_dist_list, cov_type, cov_params)
     Q <- param_est$Q
     A <- param_est$A
     Dinv <- param_est$Dinv
   }
   
   # Spatial random effects
-  close_to_zero_const <- 2.0 * .Machine$double.eps
   if ((close_to_zero_const >= cov_params[1]) &&
       (close_to_zero_const >= cov_params[2])) {
     warning("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO. FAILSAFE: PHI IS ZERO.")
     eta_true <- as.numeric(X %*% beta_true)
     phi_true <- 0 * eta_true
-  } else{
+  } else {
     phi_true <- as.numeric(Matrix::solve(Matrix::chol(Q), stats::rnorm(n_points)))
     # Add in covariate effect
     eta_true <- as.numeric(X %*% beta_true) + phi_true
@@ -535,7 +551,7 @@ sample_Poisson_lattice <- function(model_type,
 #'
 #' @import Matrix
 #' @importFrom Matrix chol solve Diagonal
-#' @importFrom stats rnorm rpois
+#' @importFrom stats rnorm rpois dist
 #'
 #' @export
 #'
@@ -575,24 +591,38 @@ sample_Poisson_spNNGP <- function(cov_type,
   # Generate inverse precision (unscaled) of random effects
   sp_dist <- sparse_dist_LT(coords, nngp_k)
   close_to_zero_const <- 2.0 * .Machine$double.eps
+  
   if ((close_to_zero_const >= cov_params[1]) &&
       (close_to_zero_const >= cov_params[2])) {
     warning("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO. FAILSAFE: Q IS ZERO AND NOT USED")
-    
     Q <- Matrix::Diagonal(nrow(coords), 0)
   } else {
-    param_est <- nngp_prec_mat(sp_dist, coords, cov_type, cov_params)
+    # ==========================================
+    # --- Precompute Static Neighbor Distance Matrices ---
+    n_cols <- ncol(sp_dist)
+    nb_dist <- vector("list", n_cols)
+    
+    for (idx in 1:n_cols) {
+      keep_idx <- which(!is.na(sp_dist[(1 + nngp_k):(2 * nngp_k), idx]))
+      if (length(keep_idx) > 1) {
+        nb_dist[[idx]] <- as.matrix(stats::dist(coords[sp_dist[nngp_k + keep_idx, idx], , drop = FALSE], diag = TRUE, upper = TRUE))
+      } else {
+        nb_dist[[idx]] <- matrix(0.0, 1, 1)
+      }
+    }
+    # ==========================================
+    
+    param_est <- nngp_prec_mat(sp_dist, nb_dist, cov_type, cov_params)
     Q <- param_est$Q
   }
   
   # Spatial random effects
-  close_to_zero_const <- 2.0 * .Machine$double.eps
   if ((close_to_zero_const >= cov_params[1]) &&
       (close_to_zero_const >= cov_params[2])) {
     warning("BOTH NUGGET AND SPATIAL VARIANCE ARE ZERO. FAILSAFE: PHI IS ZERO.")
     eta_true <- as.numeric(X %*% beta_true)
     phi_true <- 0 * eta_true
-  } else{
+  } else {
     phi_true <- as.numeric(Matrix::solve(Matrix::chol(Q), stats::rnorm(nrow(coords))))
     # Add in covariate effect
     eta_true <- as.numeric(X %*% beta_true) + phi_true
@@ -610,7 +640,6 @@ sample_Poisson_spNNGP <- function(cov_type,
     theta_true = theta_true
   ))
 }
-
 
 #' Generate synthetic multi-sample spatial count data
 #'

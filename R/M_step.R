@@ -60,90 +60,74 @@ M_step_tau2 <- function(trace_scalars,
 }
 
 
-#' Maximize the expected likelihood in beta, holding other variables constant.
+#' M-step optimization for beta (covariate coefficients).
 #' Part of the M-Step in the EM algorithm.
 #'
-#' @author Florica J Constantine, florica AT berkeley.edu
-#'
-#' @note Applies to ALL areas.
-#'
-#' @param eta_list List of the estimated means of eta.
-#'  One vector per area.
-#' @param Q_list List of the unscaled precision matrices.
-#'  One matrix per area, same ordering and length as eta_list.
-#'  Depends on gamma, so that dependency is implicit.
-#'  I.e., Q_list should be updated in each iteration after gamma is updated.
-#' @param tau2_list List or vector of precision matrix scaling values.
-#'  Same length and ordering as eta_list, with one number per area.
+#' @param eta_list List of estimated means of eta.
+#' @param Q_list List of unscaled precision matrices.
+#' @param tau2_list List of precision/covariance matrix scalings.
 #' @param X_list List of covariate matrices.
-#'  One matrix per area, same ordering and length as eta_list.
+#' @param model_type "CAR", "SAR", "Leroux", or "spNNGP".
+#' @param gamma_list List of current gamma estimates (required for lattice).
+#' @param XtDX_list Precomputed X^T D X (required for CAR/SAR).
+#' @param XtWX_list Precomputed X^T W X (required for CAR/SAR).
+#' @param XtWZX_list Precomputed X^T W Z X (required for SAR).
+#' @param XtX_list Precomputed X^T X (required for Leroux).
+#' @param XtDWIX_list Precomputed X^T (D - W - I) X (required for Leroux).
 #'
-#' @returns Maximum likelihood estimate of covariates beta.
+#' @returns Estimated beta vector.
 #'
-#' @note Requires the Matrix library.
-#' @note Requires the pracma library.
-#'
-#' @import Matrix
-#' @importFrom pracma pinv
-M_step_beta <- function(eta_list, Q_list, tau2_list, X_list) {
-  # Dimension of beta (number of covariates, usually very small)
-  n_dim <- ncol(X_list[[1]])
+#' @importFrom Matrix solve crossprod
+M_step_beta <- function(eta_list, Q_list, tau2_list, X_list,
+                        model_type = "spNNGP",
+                        gamma_list = NULL,
+                        XtDX_list = NULL,
+                        XtWX_list = NULL,
+                        XtWZX_list = NULL,
+                        XtX_list = NULL,
+                        XtDWIX_list = NULL) {
   
-  # Create empty matrix/vector
-  # Using base R matrices because n_dim is small
-  zeta_vec <- matrix(0, nrow = n_dim, ncol = 1)
-  B <- matrix(0, nrow = n_dim, ncol = n_dim)
+  n_areas <- length(eta_list)
+  p <- ncol(X_list[[1]])
   
-  for (idx in 1:length(Q_list)) {
-    # X^\top Q (Resulting dimension: p x N)
-    term1 <- crossprod(X_list[[idx]], Q_list[[idx]])
+  B <- matrix(0, nrow = p, ncol = p)
+  zeta_vec <- matrix(0, nrow = p, ncol = 1)
+  
+  for (idx in 1:n_areas) {
+    # 1. Vector part: X^T Q eta 
+    # Dynamic, but incredibly fast O(Np) operation
+    Q_inv_tau2 <- Q_list[[idx]] / tau2_list[[idx]]
+    XtQ <- Matrix::crossprod(X_list[[idx]], Q_inv_tau2)
+    zeta_vec <- zeta_vec + as.numeric(XtQ %*% eta_list[[idx]])
     
-    # Update vector term: (p x N) %*% (N x 1) -> (p x 1)
-    zeta_vec <- zeta_vec + (term1 %*% eta_list[[idx]]) / tau2_list[[idx]]
-    
-    # Update matrix term: (p x N) %*% (N x p) -> (p x p)
-    B <- B + (term1 %*% X_list[[idx]]) / tau2_list[[idx]]
+    # 2. Matrix part: X^T Q X 
+    # Assembled from precomputed matrices for Lattice, dynamic for spNNGP
+    if (model_type == "CAR") {
+      B_area <- (XtDX_list[[idx]] - gamma_list[idx] * XtWX_list[[idx]]) / tau2_list[[idx]]
+      B <- B + B_area
+      
+    } else if (model_type == "SAR") {
+      B_area <- (XtDX_list[[idx]] - 2 * gamma_list[idx] * XtWX_list[[idx]] + 
+                   (gamma_list[idx]^2) * XtWZX_list[[idx]]) / tau2_list[[idx]]
+      B <- B + B_area
+      
+    } else if (model_type == "Leroux") {
+      B_area <- (gamma_list[idx] * XtDWIX_list[[idx]] + XtX_list[[idx]]) / tau2_list[[idx]]
+      B <- B + B_area
+      
+    } else if (model_type == "spNNGP") {
+      # Dynamic fallback for spatial covariance matrices
+      B <- B + as.matrix(XtQ %*% X_list[[idx]])
+      
+    } else {
+      stop("Invalid model type in M_step_beta")
+    }
   }
   
-  # Floating point math can cause symmetric matrices to lose exact symmetry.
-  # Force exact symmetry to prevent the linear solver from throwing false singular errors.
-  B <- (B + t(B)) / 2.0
-  
-  # Try basic inversion first (Base R solve is highly optimized for dense p x p)
-  err_flag <- tryCatch({
-    beta_hat <- solve(B, zeta_vec)
-    return(beta_hat)
-  }, error = function(cond) {
-    warning("INVERSION OF B FAILED; ATTEMPTING RIDGE REGULARIZATION")
-    err_flag <- TRUE
-  })
-  
-  # Fallback 1: Tiny Ridge Penalty
-  if (err_flag) {
-    err_flag <- tryCatch({
-      # Add small epsilon to diagonal to guarantee positive-definiteness
-      B_reg <- B + diag(1e-6, n_dim)
-      beta_hat <- solve(B_reg, zeta_vec)
-      return(beta_hat)
-    }, error = function(cond) {
-      warning("RIDGE INVERSION FAILED; FALLING BACK TO PSEUDOINVERSE")
-      err_flag <- TRUE
-    })
-  }
-  
-  # Fallback 2: Pseudoinverse (Safe here because B is small p x p)
-  if (err_flag) {
-    err_flag <- tryCatch({
-      beta_hat <- pracma::pinv(as.matrix(B)) %*% zeta_vec
-      return(beta_hat)
-    }, error = function(cond) {
-      warning("PSEUDOINVERSE OF B FAILED")
-      err_flag <- TRUE
-    })
-  }
-  if (err_flag) {
-    stop("OPTIMIZATION FOR BETA FAILED: CANNOT CONTINUE")
-  }
+  # beta = B^{-1} zeta
+  # Force back to base R to avoid S4 dispatch errors, beta = B^{-1} zeta
+  beta_hat <- base::solve(as.matrix(B), as.numeric(zeta_vec))
+  return(as.numeric(beta_hat))
 }
 
 
