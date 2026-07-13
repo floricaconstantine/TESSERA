@@ -106,7 +106,7 @@ TESSERA_spNNGP(
 
   Logical: If `TRUE`, treats the precision matrix \\Q\\ as dense during
   specific E-step calculations. This dramatically increases memory usage
-  but can lead to a 60 to 80 percent decrease in computation time.
+  but can lead to a potential decrease in computation time.
 
 ## Value
 

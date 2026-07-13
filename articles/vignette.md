@@ -899,9 +899,11 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 
     > Initial tau2 0.563382767126561 0.780540040364637 0.85314906554601 0.885038367492996 0.69014514253411 1.12430313332088 0.956206282962672 0.640916656926725 0.563928178735679 0.97936241032889 0.748210592803307 0.703848237054425 0.654279868785319 0.719527963629566
 
+    > Precomputing structural matrices for M_step_beta...
+
     > Ending early
 
-    > Time 3.8996901512146
+    > Time 1.00954822699229
 
 ``` r
 
@@ -909,7 +911,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 print(TESSERA_out$time)
 ```
 
-    > Time difference of 3.89969 mins
+    > Time difference of 1.009548 mins
 
 Once the algorithm has converged, the output object provides a
 comprehensive summary of the performance in the `performanceSummary`

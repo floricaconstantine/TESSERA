@@ -26,8 +26,8 @@
   eta - X beta. Part of the M-Step in the EM algorithm. ONLY APPLIES TO
   THE GAUSSIAN PROCESS MODEL.
 - [`M_step_beta()`](https://floricaconstantine.github.io/TESSERA/reference/M_step_beta.md)
-  : Maximize the expected likelihood in beta, holding other variables
-  constant. Part of the M-Step in the EM algorithm.
+  : M-step optimization for beta (covariate coefficients). Part of the
+  M-Step in the EM algorithm.
 - [`M_step_gamma_CAR()`](https://floricaconstantine.github.io/TESSERA/reference/M_step_gamma_CAR.md)
   : Maximize the expected likelihood in gamma, holding other variables
   constant. Part of the M-Step in the EM algorithm. ONLY APPLIES TO THE
@@ -117,7 +117,7 @@
   : Compute the Negative Hessian for tau^2.
 - [`nngp_prec_mat()`](https://floricaconstantine.github.io/TESSERA/reference/nngp_prec_mat.md)
   : Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix.
-  See https://mc-stan.org/users/documentation/case-studies/nngp.html.
+  (Documentation truncated for brevity)
 - [`normalize()`](https://floricaconstantine.github.io/TESSERA/reference/normalize.md)
   : Helper function for Moran's I: Center a vector.
 - [`plot_neighbor_distances()`](https://floricaconstantine.github.io/TESSERA/reference/plot_neighbor_distances.md)

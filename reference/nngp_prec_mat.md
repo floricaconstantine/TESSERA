@@ -1,53 +1,32 @@
-# Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix. See https://mc-stan.org/users/documentation/case-studies/nngp.html.
+# Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix. (Documentation truncated for brevity)
 
-Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix. See
-https://mc-stan.org/users/documentation/case-studies/nngp.html.
+Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix.
+(Documentation truncated for brevity)
 
 ## Usage
 
 ``` r
-nngp_prec_mat(sp_dist, coords, cov_type, cov_params)
+nngp_prec_mat(sp_dist, nb_dist, cov_type, cov_params)
 ```
 
 ## Arguments
 
 - sp_dist:
 
-  Output of sparse_dist_LT function. Basically, top few rows are nearest
-  distances, bottom few rows are indices. CALL THAT FUNCTION OR SEE IT
-  FOR MORE DETAILS.
+  Output of sparse_dist_LT function.
 
-- coords:
+- nb_dist:
 
-  Matrix (x, y) of coordinates.
+  Precomputed list of Euclidean distance matrices for neighbors.
 
 - cov_type:
 
-  String for covariance model type. "Exp", "Sph", "Gau", and "Mat" are
-  supported.
+  String for covariance model type.
 
 - cov_params:
 
-  Covariance/kernel parameters. Same order as in variogram functions.
-  Nugget variance (partial sill), Spatial variance (partial sill),
-  Spatial range (scales distance); if Matern, smoothness kappa.
+  Covariance/kernel parameters.
 
 ## Value
 
-A list with a sparse precision matrix and associated eigenvalues.
-
-Sparse precision matrix Q.
-
-Eigenvalues Dinv.
-
-Lower triangular factor A.
-
-## Note
-
-Applies to a single area.
-
-Requires the Matrix library.
-
-## Author
-
-Florica J Constantine, florica AT berkeley.edu
+A list with a sparse precision matrix Q, eigenvalues Dinv, and factor A.
