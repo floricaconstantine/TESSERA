@@ -122,7 +122,7 @@ where</p>
 <ul>
 <li>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>C</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">C_{i, j}</annotation></semantics></math>
-is the offset (e.g., library size),</li>
+is an offset (e.g., library size),</li>
 <li>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐗</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">\boldsymbol{X}_{i, j}</annotation></semantics></math>
 represents the covariates,</li>
@@ -149,9 +149,11 @@ a <strong>single set of fixed effects</strong>,
 across the entire dataset, even while permitting each individual sample
 its own independent spatial covariance structure. This provides a
 rigorous foundation for addressing differential expression across
-experimental conditions–such as comparing diseased versus healthy
+experimental conditions–such as comparing diseased vs. healthy
 tissue–while simultaneously accounting for the spatial autocorrelation
 inherent within each sample.</p>
+<p>In the case of spatial transcriptomics, the GLMM is fit separately
+for each gene.</p>
 <div class="section level3">
 <h3 id="supported-spatial-covariance-structures">Supported Spatial Covariance Structures<a class="anchor" aria-label="anchor" href="#supported-spatial-covariance-structures"></a>
 </h3>
@@ -166,8 +168,8 @@ defined via measurement-to-measurement adjacency matrices. Supported
 structures include:</p>
 <ul>
 <li>Leroux</li>
-<li>CAR (Conditional Autoregressive)</li>
-<li>SAR (Simultaneous Autoregressive)</li>
+<li>Conditional Autoregressive (CAR)</li>
+<li>Simultaneous Autoregressive (SAR)</li>
 </ul>
 </div>
 <div class="section level4">
@@ -636,8 +638,8 @@ condition.</p>
 to estimate absolute means for each interaction term, denoted by the
 <code>:</code> operator.</p>
 <p>For example, rather than modeling how the ‘DKD’ condition differs
-relative to a ‘Control’ baseline, <code>TESSERA</code> estimates the
-mean for each condition independently. This approach makes calculating
+relative to a ‘Control’ baseline, <code>TESSERA</code> estimates
+separate mean for each condition. This approach makes calculating
 differences between conditions much more intuitive when defining
 contrasts for hypothesis testing.</p>
 <div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
@@ -879,8 +881,8 @@ when performing statistical inference.</p>
 </h4>
 <p>The data preparation requirements depend on the spatial random effect
 model selected. <code>TESSERA</code> supports two primary classes of
-models, which differ in how they define and infer spatial correlation.
-The choice of model determines the preparation steps required.</p>
+models, which differ in how they define and infer spatial
+correlation.</p>
 <div class="section level5">
 <h5 id="lattice-models-leroux-car-sar">Lattice Models (Leroux, CAR, SAR)<a class="anchor" aria-label="anchor" href="#lattice-models-leroux-car-sar"></a>
 </h5>
@@ -963,7 +965,7 @@ for more complex or non-grid tissue architectures.</p>
 <p>In particular, for imaging-based or irregularly spaced data,
 determining adjacency is often more nuanced. We provide the
 <code><a href="../reference/plot_neighbor_distances.html">plot_neighbor_distances()</a></code> function as a diagnostic tool; it
-generates box-plots of the distance to the
+generates boxplots of the distance to the
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>-th
 nearest neighbor for every cell. A sharp “jump” in distance typically
 indicates the boundary where cells are no longer physically adjacent.
@@ -987,10 +989,10 @@ closest cell is likely not a direct neighbor.</p>
 <p><img src="vignette_files/figure-html/visualize_neighbors-1.png" class="r-plt" alt="" width="100%"></p>
 <p>However, in highly irregular or “noisy” spatial layouts, these plots
 may become difficult to interpret. In such cases, you may need to
-manually inspect your spatial coordinates, or process associated images
-of your data where available, to determine a reasonable distance
-threshold. This value can be passed directly to <code>prepData()</code>
-via the <code>D_THRESH</code> argument.</p>
+manually inspect spatial coordinates, or process associated images of
+your data where available, to determine a reasonable distance threshold.
+This value can be passed directly to <code>prepData()</code> via the
+<code>D_THRESH</code> argument.</p>
 </div>
 </div>
 </div>
@@ -1075,11 +1077,11 @@ wish to run the model locally, simply change the chunk header to
 <pre><code>&gt; Initial tau2 0.563382767126561 0.780540040364637 0.85314906554601 0.885038367492996 0.69014514253411 1.12430313332088 0.956206282962672 0.640916656926725 0.563928178735679 0.97936241032889 0.748210592803307 0.703848237054425 0.654279868785319 0.719527963629566</code></pre>
 <pre><code>&gt; Precomputing structural matrices for M_step_beta...</code></pre>
 <pre><code>&gt; Ending early</code></pre>
-<pre><code>&gt; Time 1.00954822699229</code></pre>
+<pre><code>&gt; Time 1.01406667629878</code></pre>
 <div class="sourceCode" id="cb48"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Output the run-time</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">TESSERA_out</span><span class="op">$</span><span class="va">time</span><span class="op">)</span></span></code></pre></div>
-<pre><code>&gt; Time difference of 1.009548 mins</code></pre>
+<pre><code>&gt; Time difference of 1.014067 mins</code></pre>
 <p>Once the algorithm has converged, the output object provides a
 comprehensive summary of the performance in the
 <code>performanceSummary</code> data frame, allowing for a sample-wise
@@ -1120,7 +1122,7 @@ spatial dependency in the data.</p>
 &gt; 1        0.08424563
 &gt; 2        0.09029756</code></pre>
 <p>The estimated fixed effects are stored in the <code>beta_hat</code>
-field. Each entry corresponds to a column in your design matrix.</p>
+field. Each entry corresponds to a column in the design matrix.</p>
 <div class="sourceCode" id="cb52"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Print fitted parameters</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">TESSERA_out</span><span class="op">$</span><span class="va">beta_hat</span><span class="op">)</span></span></code></pre></div>
@@ -1688,7 +1690,7 @@ al. 2026</a>)</span>.</p>
 &gt;  collate  C.UTF-8
 &gt;  ctype    C.UTF-8
 &gt;  tz       UTC
-&gt;  date     2026-07-13
+&gt;  date     2026-07-14
 &gt;  pandoc   3.8.3 @ /opt/hostedtoolcache/pandoc/3.8.3/x64/ (via rmarkdown)
 &gt;  quarto   NA
 &gt; 
@@ -1804,7 +1806,7 @@ al. 2026</a>)</span>.</p>
 &gt;  stringr                1.6.0       [90m2025-11-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  SummarizedExperiment * 1.42.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
 &gt;  systemfonts            1.3.2       [90m2026-03-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-&gt;  TESSERA              * 0.99.1      [90m2026-07-13 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
+&gt;  TESSERA              * 0.99.1      [90m2026-07-14 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
 &gt;  textshaping            1.0.5       [90m2026-03-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  tibble                 3.3.1       [90m2026-01-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  tidyselect             1.2.1       [90m2024-03-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m

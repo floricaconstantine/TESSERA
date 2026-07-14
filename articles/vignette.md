@@ -46,7 +46,7 @@ Z_{i, j} \sim \text{Pois}\left(C_{i, j} \exp\left(\boldsymbol{X}_{i, j}^\top \bo
 ```
 where
 
-- $`C_{i, j}`$ is the offset (e.g., library size),
+- $`C_{i, j}`$ is an offset (e.g., library size),
 - $`\boldsymbol{X}_{i, j}`$ represents the covariates,
 - $`\boldsymbol{\beta}`$ represents the fixed effects,
 - $`\phi_{i, j}`$ represents the spatial random effects.
@@ -65,9 +65,12 @@ set of fixed effects**, $`\boldsymbol{\beta}`$, across the entire
 dataset, even while permitting each individual sample its own
 independent spatial covariance structure. This provides a rigorous
 foundation for addressing differential expression across experimental
-conditions–such as comparing diseased versus healthy tissue–while
+conditions–such as comparing diseased vs. healthy tissue–while
 simultaneously accounting for the spatial autocorrelation inherent
 within each sample.
+
+In the case of spatial transcriptomics, the GLMM is fit separately for
+each gene.
 
 ### Supported Spatial Covariance Structures
 
@@ -81,8 +84,8 @@ defined via measurement-to-measurement adjacency matrices. Supported
 structures include:
 
 - Leroux
-- CAR (Conditional Autoregressive)
-- SAR (Simultaneous Autoregressive)
+- Conditional Autoregressive (CAR)
+- Simultaneous Autoregressive (SAR)
 
 #### Sparse Nearest-Neighbor Gaussian Process
 
@@ -537,10 +540,10 @@ global intercept, allowing the model to estimate absolute means for each
 interaction term, denoted by the `:` operator.
 
 For example, rather than modeling how the ‘DKD’ condition differs
-relative to a ‘Control’ baseline, `TESSERA` estimates the mean for each
-condition independently. This approach makes calculating differences
-between conditions much more intuitive when defining contrasts for
-hypothesis testing.
+relative to a ‘Control’ baseline, `TESSERA` estimates separate mean for
+each condition. This approach makes calculating differences between
+conditions much more intuitive when defining contrasts for hypothesis
+testing.
 
 ``` r
 
@@ -712,8 +715,7 @@ statistical inference.
 
 The data preparation requirements depend on the spatial random effect
 model selected. `TESSERA` supports two primary classes of models, which
-differ in how they define and infer spatial correlation. The choice of
-model determines the preparation steps required.
+differ in how they define and infer spatial correlation.
 
 ##### Lattice Models (Leroux, CAR, SAR)
 
@@ -774,7 +776,7 @@ architectures.
 In particular, for imaging-based or irregularly spaced data, determining
 adjacency is often more nuanced. We provide the
 [`plot_neighbor_distances()`](https://floricaconstantine.github.io/TESSERA/reference/plot_neighbor_distances.md)
-function as a diagnostic tool; it generates box-plots of the distance to
+function as a diagnostic tool; it generates boxplots of the distance to
 the $`k`$-th nearest neighbor for every cell. A sharp “jump” in distance
 typically indicates the boundary where cells are no longer physically
 adjacent. For example, a jump after the sixth neighbor suggests that the
@@ -802,8 +804,8 @@ p
 
 However, in highly irregular or “noisy” spatial layouts, these plots may
 become difficult to interpret. In such cases, you may need to manually
-inspect your spatial coordinates, or process associated images of your
-data where available, to determine a reasonable distance threshold. This
+inspect spatial coordinates, or process associated images of your data
+where available, to determine a reasonable distance threshold. This
 value can be passed directly to `prepData()` via the `D_THRESH`
 argument.
 
@@ -903,7 +905,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 
     > Ending early
 
-    > Time 1.00954822699229
+    > Time 1.01406667629878
 
 ``` r
 
@@ -911,7 +913,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 print(TESSERA_out$time)
 ```
 
-    > Time difference of 1.009548 mins
+    > Time difference of 1.014067 mins
 
 Once the algorithm has converged, the output object provides a
 comprehensive summary of the performance in the `performanceSummary`
@@ -957,7 +959,7 @@ head(TESSERA_out$performanceSummary, 2)
     > 2        0.09029756
 
 The estimated fixed effects are stored in the `beta_hat` field. Each
-entry corresponds to a column in your design matrix.
+entry corresponds to a column in the design matrix.
 
 ``` r
 
@@ -1584,7 +1586,7 @@ devtools::session_info()
     >  collate  C.UTF-8
     >  ctype    C.UTF-8
     >  tz       UTC
-    >  date     2026-07-13
+    >  date     2026-07-14
     >  pandoc   3.8.3 @ /opt/hostedtoolcache/pandoc/3.8.3/x64/ (via rmarkdown)
     >  quarto   NA
     > 
@@ -1700,7 +1702,7 @@ devtools::session_info()
     >  stringr                1.6.0       [90m2025-11-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  SummarizedExperiment * 1.42.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  systemfonts            1.3.2       [90m2026-03-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  TESSERA              * 0.99.1      [90m2026-07-13 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
+    >  TESSERA              * 0.99.1      [90m2026-07-14 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
     >  textshaping            1.0.5       [90m2026-03-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  tibble                 3.3.1       [90m2026-01-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  tidyselect             1.2.1       [90m2024-03-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
