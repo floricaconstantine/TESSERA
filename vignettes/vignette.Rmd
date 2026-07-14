@@ -59,7 +59,7 @@ This parameterization accounts for within-sample spatial autocorrelation while p
 A defining feature of `TESSERA` is its ability to estimate a **single set of fixed effects**, $\boldsymbol{\beta}$, across the entire dataset, even while permitting each individual sample its own independent spatial covariance structure.
 This provides a rigorous foundation for addressing differential expression across experimental conditions--such as comparing diseased vs. healthy tissue--while simultaneously accounting for the spatial autocorrelation inherent within each sample.
 
-In the case of spatial transcriptomics, we fit the GLMM separately for each gene. 
+In the case of spatial transcriptomics, the GLMM is fit separately for each gene. 
 
 ## Supported Spatial Covariance Structures
 
@@ -621,7 +621,7 @@ head(TESSERA_out$performanceSummary, 2)
 ```
 
 The estimated fixed effects are stored in the `beta_hat` field. 
-Each entry corresponds to a column in your design matrix.
+Each entry corresponds to a column in the design matrix.
 ```{r beta_out}
 # Print fitted parameters
 head(TESSERA_out$beta_hat)
