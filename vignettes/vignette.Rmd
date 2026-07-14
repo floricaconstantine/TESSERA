@@ -46,7 +46,7 @@ Investigators are frequently forced to either analyze samples in complete isolat
 $$Z_{i, j} \sim \text{Pois}\left(C_{i, j} \exp\left(\boldsymbol{X}_{i, j}^\top \boldsymbol{\beta} + \phi_{i, j}\right) \right),$$
 where
 
-* $C_{i, j}$ is the offset (e.g., library size),
+* $C_{i, j}$ is an offset (e.g., library size),
 * $\boldsymbol{X}_{i, j}$ represents the covariates,
 * $\boldsymbol{\beta}$ represents the fixed effects,
 * $\phi_{i, j}$ represents the spatial random effects. 
@@ -57,7 +57,9 @@ where $\boldsymbol{\Sigma}_i$ is a sample-specific covariance matrix.
 This parameterization accounts for within-sample spatial autocorrelation while permitting different samples to have their own unique, independent spatial covariance structures.
 
 A defining feature of `TESSERA` is its ability to estimate a **single set of fixed effects**, $\boldsymbol{\beta}$, across the entire dataset, even while permitting each individual sample its own independent spatial covariance structure.
-This provides a rigorous foundation for addressing differential expression across experimental conditions--such as comparing diseased versus healthy tissue--while simultaneously accounting for the spatial autocorrelation inherent within each sample.
+This provides a rigorous foundation for addressing differential expression across experimental conditions--such as comparing diseased vs. healthy tissue--while simultaneously accounting for the spatial autocorrelation inherent within each sample.
+
+In the case of spatial transcriptomics, we fit the GLMM separately for each gene. 
 
 ## Supported Spatial Covariance Structures
 
@@ -67,8 +69,8 @@ This provides a rigorous foundation for addressing differential expression acros
 These models are designed for data where spatial relationships are defined via measurement-to-measurement adjacency matrices. Supported structures include:
 
 * Leroux
-* CAR (Conditional Autoregressive)
-* SAR (Simultaneous Autoregressive)
+* Conditional Autoregressive (CAR)
+* Simultaneous Autoregressive (SAR)
 
 ### Sparse Nearest-Neighbor Gaussian Process
 
@@ -372,7 +374,7 @@ new_nested_sample_col <- "nested_id"
 The design matrix is constructed using the formula `~ 0 + Group:celltype + Group:nested_id`. 
 The `0 +` term removes the global intercept, allowing the model to estimate absolute means for each interaction term, denoted by the `:` operator.
 
-For example, rather than modeling how the 'DKD' condition differs relative to a 'Control' baseline, `TESSERA` estimates the mean for each condition independently. 
+For example, rather than modeling how the 'DKD' condition differs relative to a 'Control' baseline, `TESSERA` estimates separate mean for each condition. 
 This approach makes calculating differences between conditions much more intuitive when defining contrasts for hypothesis testing.
 ```{r design_formula}
 # Build the formula string: ~ 0 + Group:celltype + Group:nested_id
@@ -494,7 +496,7 @@ The function returns a `TESSERA_data` object: a structured list containing coord
 
 The data preparation requirements depend on the spatial random effect model selected. 
 `TESSERA` supports two primary classes of models, which differ in how they define and infer spatial correlation.
-The choice of model determines the preparation steps required.
+
 
 #### Lattice Models (Leroux, CAR, SAR)
 Lattice models define spatial correlation based on a measurement-measurement adjacency matrix (i.e., identifying which cells are physically adjacent).
@@ -523,7 +525,7 @@ For structured grid-based datasets, such as next-generation sequencing datasets 
 Ultimately, `expected_num_neighbors` serves to automate the discovery of a valid `D_THRESH` argument for structured data, while `D_THRESH` itself offers the manual control required for more complex or non-grid tissue architectures.
 
 In particular, for imaging-based or irregularly spaced data, determining adjacency is often more nuanced. 
-We provide the `plot_neighbor_distances()` function as a diagnostic tool; it generates box-plots of the distance to the $k$-th nearest neighbor for every cell. 
+We provide the `plot_neighbor_distances()` function as a diagnostic tool; it generates boxplots of the distance to the $k$-th nearest neighbor for every cell. 
 A sharp "jump" in distance typically indicates the boundary where cells are no longer physically adjacent. 
 For example, a jump after the sixth neighbor suggests that the seventh closest cell is likely not a direct neighbor.
 ```{r visualize_neighbors, out.width="100%", fig.height=4, fig.width=6}
@@ -544,7 +546,7 @@ p
 ```
 
 However, in highly irregular or "noisy" spatial layouts, these plots may become difficult to interpret. 
-In such cases, you may need to manually inspect your spatial coordinates, or process associated images of your data where available, to determine a reasonable distance threshold. 
+In such cases, you may need to manually inspect spatial coordinates, or process associated images of your data where available, to determine a reasonable distance threshold. 
 This value can be passed directly to `prepData()` via the `D_THRESH` argument. 
 
 # Model Fitting
