@@ -13,7 +13,7 @@ Q_matrix_SAR(W, D, gamma_val, precomp = NULL)
 
 \item{gamma_val}{Correlation parameter.}
 
-\item{precomp}{Precomputed W D^{-1} W matrix.}
+\item{precomp}{Precomputed W D^\{-1\} W matrix.}
 }
 \value{
 Unscaled precision matrix.
