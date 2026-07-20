@@ -17,8 +17,7 @@ TESSERA_spNNGP(
   beta_init = "glm",
   cov_init = "BRISC",
   cov_fit_method = "BRISC",
-  verbose = FALSE,
-  dense_matrices = FALSE
+  verbose = FALSE
 )
 }
 \arguments{
@@ -64,10 +63,6 @@ variogram), or a numeric vector/matrix.}
 of covariance parameters. Options are "BRISC" or "variogram".}
 
 \item{verbose}{Logical: Whether to print iteration-wise parameter updates.}
-
-\item{dense_matrices}{Logical: If \code{TRUE}, treats the precision matrix \eqn{Q}
-as dense during specific E-step calculations. This dramatically increases
-memory usage but can lead to a potential decrease in computation time.}
 }
 \value{
 A list containing the following components:

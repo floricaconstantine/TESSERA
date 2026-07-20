@@ -31,14 +31,14 @@ Imports:
   reshape2,
   Rfast,
   ggplot2,
-  BRISC
+  BRISC, 
+  MASS
 Suggests: 
   testthat (>= 3.0.0),
   devtools,
   knitr,
   rmarkdown,
   BiocStyle,
-  MASS,
   MatrixGenerics,
   sparseMatrixStats,
   SpatialExperiment,

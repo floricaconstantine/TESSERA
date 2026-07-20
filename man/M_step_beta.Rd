@@ -49,3 +49,6 @@ Estimated beta vector.
 M-step optimization for beta (covariate coefficients).
 Part of the M-Step in the EM algorithm.
 }
+\author{
+Florica J Constantine, florica AT berkeley.edu
+}

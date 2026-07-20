@@ -18,14 +18,16 @@ N_test <- rep(100, n)
 
 test_that("E_step_Vhat returns a valid subset matching the exact dense inverse diagonal",
           {
-            Vhat_sparse <- E_step_Vhat(Q_test, tau2_test, z_test)
+            # Precompute Vinv before passing to the updated function
+            V_inv_manual <- (Q_test / tau2_test) + Matrix::Diagonal(n, 0.5 + z_test)
+            
+            Vhat_sparse <- E_step_Vhat(V_inv_manual)
             
             # Ensure it returns a matrix-like object
             expect_true(inherits(Vhat_sparse, "Matrix") ||
                           is.matrix(Vhat_sparse))
             
             # Compute the exact dense inverse manually
-            V_inv_manual <- (Q_test / tau2_test) + Matrix::Diagonal(n, 0.5 + z_test)
             V_exact_dense <- Matrix::solve(V_inv_manual)
             
             # The Takahashi subset MUST exactly match the diagonal of the true dense inverse
@@ -40,30 +42,33 @@ test_that("E_step_Vhat handles inversion failure gracefully via fallbacks",
             Q_singular <- Matrix::Matrix(0, 3, 3, sparse = TRUE)
             z_singular <- rep(-0.5, 3) # Creates a 0 diagonal in Vinv
             
+            # Precompute the singular Vinv
+            Vinv_singular <- (Q_singular / 1) + Matrix::Diagonal(3, 0.5 + z_singular)
+            
             # Suppress all the expected fallback warnings so they don't clutter the console,
             # and capture the final returned matrix.
             suppressWarnings({
-              res <- E_step_Vhat(Q_singular, 1, z_singular)
+              res <- E_step_Vhat(Vinv_singular)
             })
             
             # Verify that despite the internal failures, it successfully fell back to the
             # pseudoinverse and returned a valid matrix
-            expect_true(inherits(res, "matrix") || inherits(res, "Matrix"))
+            expect_true(inherits(res, "matrix") ||
+                          inherits(res, "Matrix"))
             expect_equal(dim(res), c(3, 3))
           })
 
 test_that("E_step_etahat computes the correct sparse linear system solution",
           {
-            # Note: Vhat is no longer passed into E_step_etahat
-            eta_hat <- E_step_etahat(Q_test, tau2_test, beta_test, X_test, z_test, N_test)
+            # Precompute Vinv for the updated function signature
+            Vinv <- (Q_test / tau2_test) + Matrix::Diagonal(n, 0.5 + z_test)
+            
+            eta_hat <- E_step_etahat(Vinv, Q_test, tau2_test, beta_test, X_test, z_test, N_test)
             
             # Manual reconstruction of the right-hand side
             term1 <- z_test + 0.5
             term1 <- term1 * log(term1 / N_test) - 0.5
             term2 <- (Q_test %*% (X_test %*% beta_test)) / tau2_test
-            
-            # Manual reconstruction of Vinv
-            Vinv <- (Q_test / tau2_test) + Matrix::Diagonal(n, 0.5 + z_test)
             
             # The expectation should be the exact solution to Vinv * eta = (term1 + term2)
             expected_eta <- as.numeric(Matrix::solve(Vinv, term1 + term2))

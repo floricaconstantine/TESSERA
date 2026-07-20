@@ -14,9 +14,8 @@
 #'  to avoid an O(N^3) dense matrix inversion. It only computes the diagonal and
 #'  non-zero off-diagonal elements that match the sparsity pattern of the precision matrix.
 #'
-#' @param Q Unscaled precision matrix.
-#' @param tau2 Precision/covariance matrix scaling.
-#' @param z Observed counts.
+#' @param Vinv Precomputed Precision matrix.
+#' @param P Cholesky Permutation (precomputed).
 #'
 #' @returns Estimated covariance matrix (sparse subset).
 #'
@@ -28,15 +27,15 @@
 #' @importFrom Matrix solve
 #' @importFrom methods as
 #' @importFrom sparseinv Takahashi_Davis
-E_step_Vhat <- function(Q, tau2, z) {
+E_step_Vhat <- function(Vinv, P = NULL) {
   # V^{-1} = Q / tau^2 + Diagonal(0.5 + z)
-  Vinv <- (Q / tau2) + Matrix::Diagonal(dim(Q)[1], 0.5 + z)
+  # Vinv <- (Q / tau2) + Matrix::Diagonal(dim(Q)[1], 0.5 + z)
   
   # Try Takahashi sparse inverse subset first
   res <- tryCatch({
-    # Old: Vinv_sparse <- methods::as(Vinv, "dgCMatrix")
-    Vinv_sparse <- methods::as(methods::as(Vinv, "generalMatrix"), "CsparseMatrix")
-    V <- sparseinv::Takahashi_Davis(Vinv_sparse)
+    # Vinv_sparse <- methods::as(methods::as(Vinv, "generalMatrix"), "CsparseMatrix")
+    Vinv <- methods::as(Vinv, "dgCMatrix")
+    V <- sparseinv::Takahashi_Davis(Vinv, P = P)
     methods::as(V, "symmetricMatrix")
   }, error = function(cond) {
     warning("TAKAHASHI SPARSE INVERSE FAILED; FALLING BACK TO DENSE INVERSION")
@@ -78,6 +77,7 @@ E_step_Vhat <- function(Q, tau2, z) {
 #'
 #' @note This method is an Empirical Bayes approximation.
 #'
+#' @param Vinv Precomputed Precision matrix.
 #' @param Q Unscaled precision matrix.
 #' @param tau2 Precision/covariance matrix scaling.
 #' @param beta_hat Current estimate of covariate effects.
@@ -89,7 +89,7 @@ E_step_Vhat <- function(Q, tau2, z) {
 #'
 #' @importFrom Matrix Diagonal
 #' @importFrom Matrix solve
-E_step_etahat <- function(Q, tau2, beta_hat, X, z, N) {
+E_step_etahat <- function(Vinv, Q, tau2, beta_hat, X, z, N) {
   # (z_i + 1/2) log[(z_i + 1/2) / N_i] - (1/2)
   term1 <- z + 0.5
   term1 <- term1 * log(term1 / N) - 0.5
@@ -98,12 +98,12 @@ E_step_etahat <- function(Q, tau2, beta_hat, X, z, N) {
   term2 <- (Q %*% (X %*% beta_hat)) / tau2
   
   # Reconstruct the sparse precision matrix V^{-1}
-  Vinv <- (Q / tau2) + Matrix::Diagonal(dim(Q)[1], 0.5 + z)
+  # Vinv <- (Q / tau2) + Matrix::Diagonal(dim(Q)[1], 0.5 + z)
   
   # Solve the sparse linear system V^{-1} eta_hat = (term1 + term2)
-  eta_hat <- Matrix::solve(Vinv, (term1 + term2))
+  eta_hat <- as.numeric(Matrix::solve(Vinv, (term1 + term2)))
   
-  return(as.numeric(eta_hat))
+  return(eta_hat)
 }
 
 

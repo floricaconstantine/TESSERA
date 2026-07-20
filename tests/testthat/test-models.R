@@ -6,22 +6,44 @@ W_test <- Matrix::Matrix(c(0, 1, 0, 1, 0, 1, 0, 1, 0), nrow = 3, sparse = TRUE)
 D_test <- Matrix::Diagonal(3, rowSums(as.matrix(W_test)))
 gamma_test <- 0.8
 
+# --- Precomputations for new signatures ---
+# SAR: W D^{-1} W
+D_inv_test <- Matrix::Diagonal(n = nrow(D_test), x = 1 / Matrix::diag(D_test))
+precomp_sar_test <- W_test %*% D_inv_test %*% W_test
+
+# Leroux: list(D_minus_W, id_mat)
+precomp_leroux_test <- list(D_minus_W = D_test - W_test,
+                            id_mat = Matrix::Diagonal(n = nrow(W_test), 1))
+# ----------------------------------------
+
 test_that("Precision matrix functions return correct structures", {
-  # CAR: Check for base matrix type
+  # CAR: Check for base matrix type (precomp not needed)
   Q_car <- Q_matrix_CAR(W_test, D_test, gamma_test)
   # Q_car could be sparse Matrix depending on inputs, so we check inheritence
   expect_true(inherits(Q_car, "Matrix") || is.matrix(Q_car))
   expect_true(isSymmetric(as.matrix(Q_car)))
   
-  # SAR: Check for the S4 Matrix class
-  Q_sar <- Q_matrix_SAR(W_test, D_test, gamma_test)
+  # SAR: Check for the S4 Matrix class and correct mathematical expansion
+  Q_sar <- Q_matrix_SAR(W_test, D_test, gamma_test, precomp = precomp_sar_test)
   expect_s4_class(Q_sar, "Matrix")
   
-  # Leroux
-  Q_leroux <- Q_matrix_Leroux(W_test, D_test, 1)
-  expect_equal(as.matrix(Q_leroux),
+  # Mathematical verification of SAR expansion
+  Q_sar_expected <- D_test - (2 * gamma_test * W_test) + ((gamma_test^2) * precomp_sar_test)
+  expect_equal(as.matrix(Q_sar), as.matrix(Q_sar_expected), ignore_attr = TRUE)
+  
+  # Leroux: Check with gamma = 1
+  Q_leroux_gamma1 <- Q_matrix_Leroux(W_test, D_test, 1, precomp = precomp_leroux_test)
+  expect_equal(as.matrix(Q_leroux_gamma1),
                as.matrix(D_test - W_test),
                ignore_attr = TRUE)
+  
+  # Leroux: Check with gamma = 0 to ensure identity matrix precomp triggers correctly
+  Q_leroux_gamma0 <- Q_matrix_Leroux(W_test, D_test, 0, precomp = precomp_leroux_test)
+  expect_equal(
+    as.matrix(Q_leroux_gamma0),
+    as.matrix(precomp_leroux_test$id_mat),
+    ignore_attr = TRUE
+  )
 })
 
 test_that("nngp_prec_mat produces valid sparse matrices with precomputed distances",

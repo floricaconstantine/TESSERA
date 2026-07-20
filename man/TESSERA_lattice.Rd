@@ -16,8 +16,7 @@ TESSERA_lattice(
   beta_init = "glm",
   gamma_init = "moran",
   tau2_init = "var",
-  verbose = TRUE,
-  dense_matrices = FALSE
+  verbose = TRUE
 )
 }
 \arguments{
@@ -61,10 +60,6 @@ Poisson-lognormal variance), "var" (variance of residuals), "random",
 or numeric.}
 
 \item{verbose}{Logical: Whether to print iteration-wise parameter updates.}
-
-\item{dense_matrices}{Logical: If \code{TRUE}, treats the precision matrix \eqn{Q}
-as dense during specific E-step calculations. This increases memory usage
-but can improve computation speed by 10 to 20 percent.}
 }
 \value{
 A list containing the following components:

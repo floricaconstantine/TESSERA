@@ -12,9 +12,10 @@
 #' @param W Neighbor/adjacency matrix (symmetric, binary).
 #' @param D Degree matrix (diagonal, values are row-sums of W).
 #' @param gamma_val Correlation parameter.
+#' @param precomp Optional precomputed matrices (unused for CAR).
 #'
 #' @returns Unscaled precision matrix.
-Q_matrix_CAR <- function(W, D, gamma_val) {
+Q_matrix_CAR <- function(W, D, gamma_val, precomp = NULL) {
   return(D - gamma_val * W)
 }
 
@@ -27,6 +28,7 @@ Q_matrix_CAR <- function(W, D, gamma_val) {
 #' @param W Neighbor/adjacency matrix (symmetric, binary).
 #' @param D Degree matrix (diagonal, values are row-sums of W).
 #' @param gamma_val Correlation parameter.
+#' @param precomp Precomputed W D^{-1} W matrix.
 #'
 #' @returns Unscaled precision matrix.
 #'
@@ -35,17 +37,13 @@ Q_matrix_CAR <- function(W, D, gamma_val) {
 #' @import Matrix
 #' @importFrom Matrix Diagonal
 #' @importFrom Matrix diag
-Q_matrix_SAR <- function(W, D, gamma_val) {
-  # D^\{-1\}
-  D_inv <-
-    Matrix::Diagonal(dim(W)[1], 1 / Matrix::diag(D))
-  # Identity matrix
-  id_mat <- Matrix::Diagonal(dim(W)[1], 1)
-  # I - gamma Z = I - gamma D^\{-1\} W
-  I_gamma_Z <- id_mat - ((gamma_val * D_inv) %*% W)
-  
-  # (I - gamma Z)^\top D (I - gamma Z)
-  return((t(I_gamma_Z) %*% D) %*% I_gamma_Z)
+Q_matrix_SAR <- function(W, D, gamma_val, precomp = NULL) {
+  if (is.null(precomp)) {
+    D_inv <- Matrix::Diagonal(n = dim(W)[1], x = 1 / Matrix::diag(D))
+    precomp <- W %*% D_inv %*% W
+  }
+  # Q = D - 2*gamma*W + gamma^2 * W D^{-1} W
+  return(D - (2 * gamma_val * W) + ((gamma_val^2) * precomp))
 }
 
 #' Compute the unscaled precision matrix in a Leroux model.
@@ -57,20 +55,22 @@ Q_matrix_SAR <- function(W, D, gamma_val) {
 #' @param W Neighbor/adjacency matrix (symmetric, binary).
 #' @param D Degree matrix (diagonal, values are row-sums of W).
 #' @param gamma_val Correlation parameter.
+#' @param precomp Precomputed list containing D_minus_W and id_mat.
 #'
 #' @returns Unscaled precision matrix.
 #'
 #' @note Requires the Matrix library.
 #'
 #' @import Matrix
-#' @importFrom Matrix Diagonal
-Q_matrix_Leroux <- function(W, D, gamma_val) {
-  # Identity matrix
-  id_mat <- Matrix::Diagonal(dim(W)[1], 1)
-  
+Q_matrix_Leroux <- function(W, D, gamma_val, precomp = NULL) {
+  if (is.null(precomp)) {
+    precomp <- list(D_minus_W = D - W,
+                    id_mat = Matrix::Diagonal(n = dim(W)[1], 1))
+  }
   # gamma (D - W) + (1 - gamma) I
-  return(gamma_val * (D - W) + (1 - gamma_val) * id_mat)
+  return((gamma_val * precomp$D_minus_W) + ((1 - gamma_val) * precomp$id_mat))
 }
+
 
 ## Negative Hessians (for Wald tests, etc.)
 

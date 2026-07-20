@@ -62,6 +62,8 @@ M_step_tau2 <- function(trace_scalars,
 
 #' M-step optimization for beta (covariate coefficients).
 #' Part of the M-Step in the EM algorithm.
+#' 
+#' @author Florica J Constantine, florica AT berkeley.edu
 #'
 #' @param eta_list List of estimated means of eta.
 #' @param Q_list List of unscaled precision matrices.
@@ -78,6 +80,7 @@ M_step_tau2 <- function(trace_scalars,
 #' @returns Estimated beta vector.
 #'
 #' @importFrom Matrix solve crossprod
+#' @importFrom MASS ginv
 M_step_beta <- function(eta_list, Q_list, tau2_list, X_list,
                         model_type = "spNNGP",
                         gamma_list = NULL,
@@ -124,9 +127,18 @@ M_step_beta <- function(eta_list, Q_list, tau2_list, X_list,
     }
   }
   
-  # beta = B^{-1} zeta
-  # Force back to base R to avoid S4 dispatch errors, beta = B^{-1} zeta
-  beta_hat <- base::solve(as.matrix(B), as.numeric(zeta_vec))
+  # Force back to base R to avoid S4 dispatch errors
+  B_mat <- as.matrix(B)
+  zeta_num <- as.numeric(zeta_vec)
+  
+  # beta = B^{-1} zeta with robust pseudo-inverse fallback
+  beta_hat <- tryCatch({
+    base::solve(B_mat, zeta_num)
+  }, error = function(cond) {
+    warning("M_step_beta: Matrix is computationally singular. Falling back to pseudo-inverse.")
+    as.numeric(MASS::ginv(B_mat) %*% zeta_num)
+  })
+  
   return(as.numeric(beta_hat))
 }
 

@@ -4,7 +4,7 @@
 \alias{Q_matrix_SAR}
 \title{Compute the unscaled precision matrix in a SAR model.}
 \usage{
-Q_matrix_SAR(W, D, gamma_val)
+Q_matrix_SAR(W, D, gamma_val, precomp = NULL)
 }
 \arguments{
 \item{W}{Neighbor/adjacency matrix (symmetric, binary).}
@@ -12,6 +12,8 @@ Q_matrix_SAR(W, D, gamma_val)
 \item{D}{Degree matrix (diagonal, values are row-sums of W).}
 
 \item{gamma_val}{Correlation parameter.}
+
+\item{precomp}{Precomputed W D^{-1} W matrix.}
 }
 \value{
 Unscaled precision matrix.

@@ -6,9 +6,11 @@
 Part of the E-Step in the EM algorithm.
 Follows Clayton and Kaldor (1987) for the Poisson-Gaussian model.}
 \usage{
-E_step_etahat(Q, tau2, beta_hat, X, z, N)
+E_step_etahat(Vinv, Q, tau2, beta_hat, X, z, N)
 }
 \arguments{
+\item{Vinv}{Precomputed Precision matrix.}
+
 \item{Q}{Unscaled precision matrix.}
 
 \item{tau2}{Precision/covariance matrix scaling.}

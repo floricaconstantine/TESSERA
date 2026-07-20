@@ -6,14 +6,12 @@
 Part of the E-Step in the EM algorithm.
 Follows Clayton and Kaldor (1987) for the Poisson-Gaussian model.}
 \usage{
-E_step_Vhat(Q, tau2, z)
+E_step_Vhat(Vinv, P = NULL)
 }
 \arguments{
-\item{Q}{Unscaled precision matrix.}
+\item{Vinv}{Precomputed Precision matrix.}
 
-\item{tau2}{Precision/covariance matrix scaling.}
-
-\item{z}{Observed counts.}
+\item{P}{Cholesky Permutation (precomputed).}
 }
 \value{
 Estimated covariance matrix (sparse subset).

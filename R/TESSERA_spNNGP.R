@@ -45,9 +45,6 @@
 #' @param cov_fit_method Character: The method used for the M-step update
 #'   of covariance parameters. Options are "BRISC" or "variogram".
 #' @param verbose Logical: Whether to print iteration-wise parameter updates.
-#' @param dense_matrices Logical: If \code{TRUE}, treats the precision matrix \eqn{Q}
-#'   as dense during specific E-step calculations. This dramatically increases
-#'   memory usage but can lead to a potential decrease in computation time.
 #'
 #' @return A list containing the following components:
 #' \itemize{
@@ -76,6 +73,7 @@
 #'
 #' @import Matrix
 #' @importFrom Matrix diag
+#' @importFrom sparseinv cholPermute
 #' @importFrom stats coef cor dpois poisson predict rnorm var
 #' @importFrom Rcpp sourceCpp evalCpp
 #' @useDynLib TESSERA
@@ -110,8 +108,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
                            beta_init = "glm",
                            cov_init = "BRISC",
                            cov_fit_method = "BRISC",
-                           verbose = FALSE,
-                           dense_matrices = FALSE)
+                           verbose = FALSE)
 {
   # Start clock
   t0_EM <- Sys.time()
@@ -327,6 +324,9 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     A_hat_list[[area_idx]] <- param_est$A
   }
   
+  # Store permutation pattern
+  V_chol_perm_list <- list()
+  
   # Loop over EM iterations
   for (em_idx in 1:em_iters) {
     if (verbose || (0 == (em_idx %% 100))) {
@@ -350,14 +350,20 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     
     for (area_idx in 1:n_areas) {
       # Compute Vhat for the CURRENT area only
-      if (dense_matrices) {
-        Vhat_current <- E_step_Vhat(as.matrix(Q_hat_list[[area_idx]]), 1.0, z_list[[area_idx]])
-      } else {
-        Vhat_current <- E_step_Vhat(Q_hat_list[[area_idx]], 1.0, z_list[[area_idx]])
+      # Vhat_current <- E_step_Vhat(Q_hat_list[[area_idx]], 1.0, z_list[[area_idx]])
+      Vinv <- (Q_hat_list[[area_idx]] / 1.0) + Matrix::Diagonal(dim(Q_hat_list[[area_idx]])[1], 0.5 + z_list[[area_idx]])
+      
+      # Compute and store permutation pattern for later
+      if (1 == em_idx) {
+        V_chol_perm_list[[area_idx]] <- sparseinv::cholPermute(Vinv)
       }
       
-      # Get the mean (Vhat argument removed; reconstructs sparse Vinv internally)
+      # Compute Vhat for the CURRENT area only
+      Vhat_current <- E_step_Vhat(Vinv, V_chol_perm_list[[area_idx]]$P)
+      
+      # Get the mean
       eta_hat_list[[area_idx]] <- E_step_etahat(
+        Vinv,
         Q_hat_list[[area_idx]],
         1.0,
         beta_tracker[, em_idx],
@@ -468,7 +474,8 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
       beta_tracker[, 1 + em_idx] <- M_step_beta(
         eta_list = eta_hat_list,
         Q_list = Q_hat_list,
-        tau2_list = rep(1, n_areas), # tau^2
+        tau2_list = rep(1, n_areas),
+        # tau^2
         X_list = TESSERAData_obj$X_list,
         model_type = "spNNGP"
       )

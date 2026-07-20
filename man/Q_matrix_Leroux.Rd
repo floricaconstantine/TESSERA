@@ -4,7 +4,7 @@
 \alias{Q_matrix_Leroux}
 \title{Compute the unscaled precision matrix in a Leroux model.}
 \usage{
-Q_matrix_Leroux(W, D, gamma_val)
+Q_matrix_Leroux(W, D, gamma_val, precomp = NULL)
 }
 \arguments{
 \item{W}{Neighbor/adjacency matrix (symmetric, binary).}
@@ -12,6 +12,8 @@ Q_matrix_Leroux(W, D, gamma_val)
 \item{D}{Degree matrix (diagonal, values are row-sums of W).}
 
 \item{gamma_val}{Correlation parameter.}
+
+\item{precomp}{Precomputed list containing D_minus_W and id_mat.}
 }
 \value{
 Unscaled precision matrix.
