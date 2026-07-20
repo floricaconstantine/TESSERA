@@ -24,7 +24,7 @@ Q_matrix_SAR(W, D, gamma_val, precomp = NULL)
 
 - precomp:
 
-  Precomputed W D^-1 W matrix.
+  Precomputed W D^{-1} W matrix.
 
 ## Value
 
