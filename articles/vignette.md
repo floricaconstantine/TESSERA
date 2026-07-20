@@ -905,7 +905,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 
     > Ending early
 
-    > Time 1.01406667629878
+    > Time 57.7286064624786
 
 ``` r
 
@@ -913,7 +913,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 print(TESSERA_out$time)
 ```
 
-    > Time difference of 1.014067 mins
+    > Time difference of 57.72861 secs
 
 Once the algorithm has converged, the output object provides a
 comprehensive summary of the performance in the `performanceSummary`
@@ -1586,7 +1586,7 @@ devtools::session_info()
     >  collate  C.UTF-8
     >  ctype    C.UTF-8
     >  tz       UTC
-    >  date     2026-07-14
+    >  date     2026-07-20
     >  pandoc   3.8.3 @ /opt/hostedtoolcache/pandoc/3.8.3/x64/ (via rmarkdown)
     >  quarto   NA
     > 
@@ -1633,7 +1633,7 @@ devtools::session_info()
     >  gtable                 0.3.6       [90m2024-10-25 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  htmltools              0.5.9       [90m2025-12-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  htmlwidgets            1.6.4       [90m2023-12-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  httr2                  1.2.3       [90m2026-06-23 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  httr2                  1.3.0       [90m2026-07-13 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  intervals              0.15.5      [90m2024-08-23 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  IRanges              * 2.46.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  jquerylib              0.1.4       [90m2021-04-26 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1667,7 +1667,6 @@ devtools::session_info()
     >  R6                     2.6.1       [90m2025-02-15 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  ragg                   1.5.2       [90m2026-03-23 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  RANN                   2.6.2       [90m2024-08-25 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  rappdirs               0.3.4       [90m2026-01-17 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  RColorBrewer           1.1-3       [90m2022-04-03 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  Rcpp                   1.1.2       [90m2026-07-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  RcppParallel           5.1.11-2    [90m2026-03-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1687,7 +1686,7 @@ devtools::session_info()
     >  Seqinfo              * 1.2.0       [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  sessioninfo            1.2.4       [90m2026-06-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  SingleCellExperiment * 1.34.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
-    >  sp                     2.2-1       [90m2026-02-13 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  sp                     2.2-3       [90m2026-07-19 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  spacetime              1.3-3       [90m2025-02-13 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  spam                   2.11-4      [90m2026-05-29 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  SparseArray            1.12.2      [90m2026-05-01 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
@@ -1697,12 +1696,12 @@ devtools::session_info()
     >  spatstat.data          3.1-9       [90m2025-10-18 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  spatstat.geom          3.8-1       [90m2026-05-23 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  spatstat.univar        3.2-0       [90m2026-05-18 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  spatstat.utils         3.2-3       [90m2026-05-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  spatstat.utils         3.2-4       [90m2026-07-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  stringi                1.8.7       [90m2025-03-27 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  stringr                1.6.0       [90m2025-11-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  SummarizedExperiment * 1.42.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  systemfonts            1.3.2       [90m2026-03-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  TESSERA              * 0.99.1      [90m2026-07-14 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
+    >  TESSERA              * 0.99.1      [90m2026-07-20 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
     >  textshaping            1.0.5       [90m2026-03-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  tibble                 3.3.1       [90m2026-01-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  tidyselect             1.2.1       [90m2024-03-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m

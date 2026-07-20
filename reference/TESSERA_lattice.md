@@ -21,8 +21,7 @@ TESSERA_lattice(
   beta_init = "glm",
   gamma_init = "moran",
   tau2_init = "var",
-  verbose = TRUE,
-  dense_matrices = FALSE
+  verbose = TRUE
 )
 ```
 
@@ -95,12 +94,6 @@ TESSERA_lattice(
 - verbose:
 
   Logical: Whether to print iteration-wise parameter updates.
-
-- dense_matrices:
-
-  Logical: If `TRUE`, treats the precision matrix \\Q\\ as dense during
-  specific E-step calculations. This increases memory usage but can
-  improve computation speed by 10 to 20 percent.
 
 ## Value
 

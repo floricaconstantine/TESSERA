@@ -5,7 +5,7 @@ Compute the unscaled precision matrix in a Leroux model.
 ## Usage
 
 ``` r
-Q_matrix_Leroux(W, D, gamma_val)
+Q_matrix_Leroux(W, D, gamma_val, precomp = NULL)
 ```
 
 ## Arguments
@@ -21,6 +21,10 @@ Q_matrix_Leroux(W, D, gamma_val)
 - gamma_val:
 
   Correlation parameter.
+
+- precomp:
+
+  Precomputed list containing D_minus_W and id_mat.
 
 ## Value
 

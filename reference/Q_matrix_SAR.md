@@ -5,7 +5,7 @@ Compute the unscaled precision matrix in a SAR model.
 ## Usage
 
 ``` r
-Q_matrix_SAR(W, D, gamma_val)
+Q_matrix_SAR(W, D, gamma_val, precomp = NULL)
 ```
 
 ## Arguments
@@ -21,6 +21,10 @@ Q_matrix_SAR(W, D, gamma_val)
 - gamma_val:
 
   Correlation parameter.
+
+- precomp:
+
+  Precomputed W D^-1 W matrix.
 
 ## Value
 

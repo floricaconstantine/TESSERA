@@ -47,23 +47,19 @@ Follows Clayton and Kaldor (1987) for the Poisson-Gaussian model.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">E_step_Vhat</span><span class="op">(</span><span class="va">Q</span>, <span class="va">tau2</span>, <span class="va">z</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">E_step_Vhat</span><span class="op">(</span><span class="va">Vinv</span>, P <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
 
 
-<dl><dt id="arg-q">Q<a class="anchor" aria-label="anchor" href="#arg-q"></a></dt>
-<dd><p>Unscaled precision matrix.</p></dd>
+<dl><dt id="arg-vinv">Vinv<a class="anchor" aria-label="anchor" href="#arg-vinv"></a></dt>
+<dd><p>Precomputed Precision matrix.</p></dd>
 
 
-<dt id="arg-tau-">tau2<a class="anchor" aria-label="anchor" href="#arg-tau-"></a></dt>
-<dd><p>Precision/covariance matrix scaling.</p></dd>
-
-
-<dt id="arg-z">z<a class="anchor" aria-label="anchor" href="#arg-z"></a></dt>
-<dd><p>Observed counts.</p></dd>
+<dt id="arg-p">P<a class="anchor" aria-label="anchor" href="#arg-p"></a></dt>
+<dd><p>Cholesky Permutation (precomputed).</p></dd>
 
 </dl></div>
     <div class="section level2">

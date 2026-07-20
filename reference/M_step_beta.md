@@ -70,3 +70,7 @@ M_step_beta(
 ## Value
 
 Estimated beta vector.
+
+## Author
+
+Florica J Constantine, florica AT berkeley.edu

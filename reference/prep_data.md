@@ -155,7 +155,7 @@ TESSERA_data <- prep_data(
 #> Using supplied adjacency matrix.
 #> Estimating distance threshold: 0.0904206905630113
 #> Subsetting provided adjacency matrix.
-#> Starting Leroux eigenvalue computation for area 1 at 2026-07-14 03:43:52.014298 
-#> Starting Leroux eigenvalue computation for area 2 at 2026-07-14 03:43:52.017292 
-#> Starting Leroux eigenvalue computation for area 3 at 2026-07-14 03:43:52.022994 
+#> Starting Leroux eigenvalue computation for area 1 at 2026-07-20 17:42:11.364584 
+#> Starting Leroux eigenvalue computation for area 2 at 2026-07-20 17:42:11.367586 
+#> Starting Leroux eigenvalue computation for area 3 at 2026-07-20 17:42:11.373354 
 ```

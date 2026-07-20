@@ -7,22 +7,18 @@ Poisson-Gaussian model.
 ## Usage
 
 ``` r
-E_step_Vhat(Q, tau2, z)
+E_step_Vhat(Vinv, P = NULL)
 ```
 
 ## Arguments
 
-- Q:
+- Vinv:
 
-  Unscaled precision matrix.
+  Precomputed Precision matrix.
 
-- tau2:
+- P:
 
-  Precision/covariance matrix scaling.
-
-- z:
-
-  Observed counts.
+  Cholesky Permutation (precomputed).
 
 ## Value
 

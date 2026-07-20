@@ -5,7 +5,7 @@ Compute the unscaled precision matrix in a CAR model.
 ## Usage
 
 ``` r
-Q_matrix_CAR(W, D, gamma_val)
+Q_matrix_CAR(W, D, gamma_val, precomp = NULL)
 ```
 
 ## Arguments
@@ -21,6 +21,10 @@ Q_matrix_CAR(W, D, gamma_val)
 - gamma_val:
 
   Correlation parameter.
+
+- precomp:
+
+  Optional precomputed matrices (unused for CAR).
 
 ## Value
 

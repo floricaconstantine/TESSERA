@@ -7,10 +7,14 @@ Poisson-Gaussian model.
 ## Usage
 
 ``` r
-E_step_etahat(Q, tau2, beta_hat, X, z, N)
+E_step_etahat(Vinv, Q, tau2, beta_hat, X, z, N)
 ```
 
 ## Arguments
+
+- Vinv:
+
+  Precomputed Precision matrix.
 
 - Q:
 
