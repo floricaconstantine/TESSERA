@@ -28,7 +28,7 @@ Q_matrix_CAR <- function(W, D, gamma_val, precomp = NULL) {
 #' @param W Neighbor/adjacency matrix (symmetric, binary).
 #' @param D Degree matrix (diagonal, values are row-sums of W).
 #' @param gamma_val Correlation parameter.
-#' @param precomp Precomputed W D^{-1} W matrix.
+#' @param precomp Precomputed W D^\{-1\} W matrix.
 #'
 #' @returns Unscaled precision matrix.
 #'
