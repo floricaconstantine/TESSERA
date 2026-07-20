@@ -905,7 +905,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 
     > Ending early
 
-    > Time 57.7286064624786
+    > Time 55.3701431751251
 
 ``` r
 
@@ -913,7 +913,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 print(TESSERA_out$time)
 ```
 
-    > Time difference of 57.72861 secs
+    > Time difference of 55.37014 secs
 
 Once the algorithm has converged, the output object provides a
 comprehensive summary of the performance in the `performanceSummary`
