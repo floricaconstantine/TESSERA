@@ -10,7 +10,7 @@ output:
 bibliography: references.bib
 link-citations: true
 vignette: >
-  %\VignetteIndexEntry{TESSERA: Tool for Estimating Spatial and Sample-level Effects via Regression Analysis}
+  %\VignetteIndexEntry{TESSERA}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
