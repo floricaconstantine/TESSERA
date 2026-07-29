@@ -10,11 +10,22 @@ For example, identifying significant differences between distinct experimental c
 
 ## Installation
 
-**TESSERA** is currently in the process of submission to Bioconductor. Until the official release, please install the development version from [GitHub](https://github.com/floricaconstantine/TESSERA) using the following code:
+**TESSERA** is currently in the process of submission to Bioconductor. 
+Until the official release, please install the development version from [GitHub](https://github.com/floricaconstantine/TESSERA) using the following code:
 ```r
 if (!require("remotes", quietly = TRUE))
     install.packages("remotes")
 remotes::install_github("floricaconstantine/TESSERA")
+```
+To install and build the vignette, please use
+```r
+if (!require("remotes", quietly = TRUE))
+    install.packages("remotes")
+remotes::install_github("floricaconstantine/TESSERA", build_vignettes = TRUE)
+```
+after which the vignette can be accessed by
+```r
+vignette("TESSERA")
 ```
 
 After acceptance, the release version of **TESSERA** will be available on [Bioconductor](https://bioconductor.org/packages/TESSERA) and can be installed with the following code:
