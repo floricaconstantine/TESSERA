@@ -846,9 +846,9 @@ behavior using the following settings:
   convergence.
 
 Fitting the `TESSERA` model can be computationally intensive even with
-all the implemented speed-ups, taking approximately 12 minutes for a
-single gene on an M1 MacBook with 16 GB of RAM. We will load a
-pre-computed result object for this vignette
+all the implemented speed-ups, taking under a minute for a single gene
+on an M1 MacBook with 16 GB of RAM. We will load a pre-computed result
+object for this vignette
 
 ``` r
 
@@ -879,7 +879,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
   # How many CM steps to run per E-Step
   opt_iters = 5,
   # Min ECM iterations before early stopping
-  em_min_iters = 15,
+  em_min_iters = 30,
   # Tolerance for early stopping
   em_tol = 1e-3,
   # How to determine early stopping: Relative change in log likelihood
@@ -905,7 +905,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 
     > Ending early
 
-    > Time 57.7977108955383
+    > Time 1.84352700710297
 
 ``` r
 
@@ -913,7 +913,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 print(TESSERA_out$time)
 ```
 
-    > Time difference of 57.79771 secs
+    > Time difference of 1.843527 mins
 
 Once the algorithm has converged, the output object provides a
 comprehensive summary of the performance in the `performanceSummary`
@@ -943,17 +943,17 @@ head(TESSERA_out$performanceSummary, 2)
 ```
 
     >    gene fit_model    sample n_cells gamma_hat  tau2_hat kernel_type nugget_hat
-    > 1 ACTA2    Leroux HK2529_ST    2970 0.3534340 0.6471708          NA         NA
-    > 2 ACTA2    Leroux HK2671_ST    2013 0.8875726 1.4297136          NA         NA
+    > 1 ACTA2    Leroux HK2529_ST    2970 0.3886196 0.6703255          NA         NA
+    > 2 ACTA2    Leroux HK2671_ST    2013 0.8900785 1.4209554          NA         NA
     >   sill_hat range_hat smoothness_hat MSE_counts_sample MSE_counts_total
-    > 1       NA        NA             NA          1.344692         1.807373
-    > 2       NA        NA             NA          1.217016         1.807373
+    > 1       NA        NA             NA          1.370619         1.876706
+    > 2       NA        NA             NA          1.229162         1.876706
     >   Mean_counts2_sample Mean_counts2_total Moran_counts Moran_predictions
-    > 1            13.60236           56.69332   0.01143411        0.02921505
-    > 2            45.41083           56.69332   0.04299766        0.05003665
+    > 1            13.60236           56.69332   0.01143411        0.02935555
+    > 2            45.41083           56.69332   0.04299766        0.05009071
     >   Moran_residuals  Moran_phi  Moran_eta Moran_Xbeta Moran_theta
-    > 1    0.0006048731 0.03196715 0.03449316  0.11150974  0.02106583
-    > 2   -0.0054987870 0.09087874 0.07396928  0.03187866  0.04924273
+    > 1   -0.0001252761 0.03422718 0.03487546  0.11236183  0.02142430
+    > 2   -0.0054881055 0.09143652 0.07421738  0.03189907  0.04930114
     >   Moran_librarysize
     > 1        0.08424563
     > 2        0.09029756
@@ -968,11 +968,11 @@ head(TESSERA_out$beta_hat)
 ```
 
     > GroupControl:celltypeC_TAL     GroupDKD:celltypeC_TAL 
-    >                  -7.238039                  -7.045009 
+    >                  -7.239800                  -7.044187 
     >     GroupHKD:celltypeC_TAL  GroupControl:celltypeCD4T 
-    >                  -8.308204                  -6.931760 
+    >                  -8.316878                  -6.929636 
     >      GroupDKD:celltypeCD4T      GroupHKD:celltypeCD4T 
-    >                  -6.871734                  -8.129911
+    >                  -6.866512                  -8.133489
 
 ### Parallelization for multiple genes
 
@@ -1261,11 +1261,11 @@ head(one_gene_ct_wald, 2)
 ```
 
     >             gene fit_model kernel_type contrast_indices contrast_val
-    > C_TAL-CD4T ACTA2    Leroux          NA      1_2_3_4_5_6   -0.2192822
-    > C_TAL-CNT  ACTA2    Leroux          NA      1_2_3_7_8_9    0.2746252
+    > C_TAL-CD4T ACTA2    Leroux          NA      1_2_3_4_5_6   -0.2237425
+    > C_TAL-CNT  ACTA2    Leroux          NA      1_2_3_7_8_9    0.2712516
     >            contrast_se wald_stat_t
-    > C_TAL-CD4T  0.02851594   -7.689811
-    > C_TAL-CNT   0.02020265   13.593524
+    > C_TAL-CD4T  0.02795613   -8.003342
+    > C_TAL-CNT   0.01978993   13.706549
 
 #### DE within a cell type between conditions
 
@@ -1364,11 +1364,11 @@ head(one_gene_wald, 2)
 ```
 
     >                    gene fit_model kernel_type contrast_indices contrast_val
-    > C_TAL:Control-DKD ACTA2    Leroux          NA              1_2   -0.1930309
-    > C_TAL:Control-HKD ACTA2    Leroux          NA              1_3    1.0701649
+    > C_TAL:Control-DKD ACTA2    Leroux          NA              1_2   -0.1956137
+    > C_TAL:Control-HKD ACTA2    Leroux          NA              1_3    1.0770781
     >                   contrast_se wald_stat_t
-    > C_TAL:Control-DKD  0.08324288   -2.318888
-    > C_TAL:Control-HKD  0.13379417    7.998591
+    > C_TAL:Control-DKD  0.08399547   -2.328861
+    > C_TAL:Control-HKD  0.13376148    8.052229
 
 We can inspect the data frame created in the aggregation script, from
 running `TESSERA` on the top 3,000 genes.
@@ -1530,6 +1530,19 @@ p
 
 ![](TESSERA_files/figure-html/n_sig_plot-1.png)
 
+We may also make a volcano plot.
+
+``` r
+
+p <- ggplot(wald_df, aes(x = contrast_val, y = -log10(wald_pval_adj))) 
+p <- p + geom_point(alpha = 0.6, size = 1.8) 
+p <- p + labs(x = "Contrast Value", y = expression(-log[10]~"(Adjusted P-value)"))
+p <- p + theme_bw()
+p
+```
+
+![](TESSERA_files/figure-html/unnamed-chunk-1-1.png)
+
 #### `fdrtool` $`p`$-values
 
 Another empirical null estimation procedure to obtain $`p`$-values is
@@ -1586,7 +1599,7 @@ devtools::session_info()
     >  collate  C.UTF-8
     >  ctype    C.UTF-8
     >  tz       UTC
-    >  date     2026-07-27
+    >  date     2026-07-29
     >  pandoc   3.8.3 @ /opt/hostedtoolcache/pandoc/3.8.3/x64/ (via rmarkdown)
     >  quarto   NA
     > 
@@ -1669,7 +1682,7 @@ devtools::session_info()
     >  RANN                   2.6.2       [90m2024-08-25 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  RColorBrewer           1.1-3       [90m2022-04-03 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  Rcpp                   1.1.2       [90m2026-07-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  RcppParallel           6.1.0       [90m2026-07-25 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  RcppParallel           6.1.1       [90m2026-07-27 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  rdist                  0.0.5       [90m2020-05-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  reshape2             * 1.4.5       [90m2025-11-12 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  Rfast                  2.1.5.2     [90m2025-10-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1701,7 +1714,7 @@ devtools::session_info()
     >  stringr                1.6.0       [90m2025-11-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  SummarizedExperiment * 1.42.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  systemfonts            1.3.2       [90m2026-03-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  TESSERA              * 0.99.1      [90m2026-07-27 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
+    >  TESSERA              * 0.99.1      [90m2026-07-29 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
     >  textshaping            1.0.5       [90m2026-03-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  tibble                 3.3.1       [90m2026-01-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  tidyselect             1.2.1       [90m2024-03-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
