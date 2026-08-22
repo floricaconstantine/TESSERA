@@ -30,7 +30,7 @@ The development of `TESSERA` is driven by the rapid growth of spatial transcript
 In this context, samples often consist of independent tissue slices with disparate coordinate systems, varying cell type distributions, and differing underlying tissue architectures. 
 
 These factors often preclude the use of traditional spatial methods that rely on the assumption of a single, continuous coordinate plane.
-`TESSERA` bridges this gap by allowing for sample-specific spatial modeling within a unified global inference framework. 
+`TESSERA` bridges this gap by allowing for sample-specific spatial modeling within a unified global cross-sample inference framework that allows. 
 This allows investigators to ask different types of differential expression questions, both within and between samples. 
 For more details on the underlying methodology, please see our `TESSERA` methodological manuscript [@constantine2026tessera].
 
@@ -56,7 +56,7 @@ $$\boldsymbol{\phi}_i \sim N(\mathbf{0}, \boldsymbol{\Sigma}_i),$$
 where $\boldsymbol{\Sigma}_i$ is a sample-specific covariance matrix. 
 This parameterization accounts for within-sample spatial autocorrelation while permitting different samples to have their own unique, independent spatial covariance structures.
 
-A defining feature of `TESSERA` is its ability to estimate a **single set of fixed effects**, $\boldsymbol{\beta}$, across the entire dataset, even while permitting each individual sample its own independent spatial covariance structure.
+A defining feature of `TESSERA` is its ability to estimate a **single set of fixed effects**, $\boldsymbol{\beta}$, across the entire dataset, even while permitting each individual sample to have its own independent spatial covariance structure.
 This provides a rigorous foundation for addressing differential expression across experimental conditions--such as comparing diseased vs. healthy tissue--while simultaneously accounting for the spatial autocorrelation inherent within each sample.
 
 In the case of spatial transcriptomics, the GLMM is fit separately for each gene. 
@@ -92,14 +92,14 @@ Selecting the appropriate covariance model depends on the geometry of the datase
 
 Parameter estimation is carried out using an Expectation-Conditional-Maximization (ECM) algorithm. The E-step computes the expected complete-data log-likelihood, while subsequent CM steps sequentially maximizes this log-likelihood by updating the fixed effects $\boldsymbol{\beta}$ and covariance parameters of the random effects.
 
-## Hypothesis Testing & Empirical Nulls
+## Hypothesis Testing and Empirical Null Distributions
 
 Because finite-sample GLMMs are prone to structural asymptotic biases, the true null distribution of the Wald test statistics is typically unknown. 
-`TESSERA` addresses this by modeling the Wald statistics as a scaled, non-central $\chi_1^2$ distribution, estimating an empirical null distribution directly from the data across thousands of parallelized per-gene models.
+`TESSERA` addresses this by modeling the Wald statistics using a scaled, non-central $\chi_1^2$ distribution, where an empirical null distribution is computed by fiting thousands of parallelized per-gene models.
 
 # Package Design
 
-`TESSERA` isolates data engineering from model execution. For most standard workflows, you only need to interact with a few high-level functions and a unified data container.
+`TESSERA` isolates data engineering from model fitting. For most standard workflows, the user only needs to interact with a few high-level functions and a unified data container.
 
 ## Object Classes and Data Flow
 
@@ -112,7 +112,7 @@ For lattice models, it pre-computes matrix eigenvalues and neighborhood weights 
 
 ## Core Functions at a Glance
 
-The table below outlines the primary functions you will encounter in a typical analysis pipeline, moving from exploratory analysis to downstream statistical inference.
+The table below outlines the primary functions encountered in a typical analysis pipeline, moving from exploratory adata nalysis to downstream statistical inference.
 
 | Function | Step | Purpose | Primary Inputs | Primary Outputs |
 | :--- | :--- | :--- | :--- | :--- |
