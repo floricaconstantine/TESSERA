@@ -118,9 +118,9 @@ The table below outlines the primary functions encountered in a typical analysis
 | :--- | :--- | :--- | :--- | :--- |
 | `prep_data()` | **Data Prep** | Assembles inputs and pre-computes eigenvalues of spatial matrices. | Data matrix or `SpatialExperiment` object, Design matrix, model type | `TESSERA_data` object |
 | `TESSERA_lattice()` / `TESSERA_spNNGP()` | **Fitting** | Fits the overdispersed GLMM model for a single gene. | `TESSERA_data`, gene name, optimization specs | Fitted model list object (`TESSERA_out`) |
-| `calc_Wald_statistics()` | **Inference** | Conducts Wald tests against a user-defined contrast matrix. | `TESSERA_out`, contrast matrix | Data frame of test statistics |
+| `calc_Wald_statistics()` | **Inference** | Conducts Wald tests for a user-defined contrast matrix. | `TESSERA_out`, contrast matrix | Data frame of test statistics |
 | `select_Wald_threshold()` | **Inference** | Sweeps over statistics to fit the empirical null distribution. | Vector of Wald statistics | Empirical null parameter list |
-| `calc_scaled_noncentral_chi2_pvalues()` | **Inference** | Computes empirical p-values using the fitted empirical null distribution. | Vector of Wald statistics, empirical null parameters | Vector of empirical p-values |
+| `calc_scaled_noncentral_chi2_pvalues()` | **Inference** | Computes empirical *p*-values using the fitted empirical null distribution. | Vector of Wald statistics, empirical null parameters | Vector of empirical *p*-values |
 
 # Installation
 
@@ -149,7 +149,7 @@ For detailed specifications on these formats, please refer to the [Pre-processin
 
 ## Load and Inspect Data
 
-`TESSERA` utilizes the `Imports` namespace specification for its dependencies rather than `Depends`. 
+Note that `TESSERA` utilizes the `Imports` namespace specification for its dependencies rather than `Depends`. 
 This means that while all required packages are loaded internally to ensure `TESSERA` functions run correctly, their functions are not automatically attached to your global environment. 
 If you wish to use non-`TESSERA` functions directly in your session, you will need to load those packages explicitly using `library()` or reference them using the double colon operator (e.g., `ggplot2::`). 
 For clarity, this vignette explicitly loads all external packages required for the workflow below.
@@ -179,7 +179,7 @@ library(fdrtool)
 library(ggplot2)
 ```
 
-To keep the package lightweight while providing realistic, high-resolution spatial datasets, the data for this vignette is hosted externally. The following helper function uses `BiocFileCache` to download the necessary files from the `TESSERA_manuscript` repository and store them locally, ensuring that subsequent runs are fast and do not require an active internet connection.
+To keep the package lightweight while providing realistic, high-resolution spatial datasets, the data for this vignette are hosted externally. The following helper function uses `BiocFileCache` to download the necessary files from the `TESSERA_manuscript` repository and store them locally, ensuring that subsequent runs are fast and do not require an active internet connection.
 
 ```{r get_data}
 # Define helper function to grab data files from the TESSERA_manuscript repository
@@ -242,7 +242,7 @@ p <- p + ggplot2::labs(x = "Sample ID", y = "Number of cells")
 p
 ```
 
-We examine the number of cells per cell type across all cells and see that it varies widely by cell type.
+We examine the number of cells per cell type across all cells and see that it varies widely.
 ```{r num_cells_celltype}
 # Number of cells per cell type
 sort(table(SummarizedExperiment::colData(spe)[, celltype_col]))
@@ -264,14 +264,14 @@ p
 
 For compatibility with standard visualization tools, we append the spatial coordinates directly to the metadata.
 
-**Note**: It is essential for the row names of the coordinates in a SpatialExperiment object to match the row names of the metadata and the column names of the count matrix; it is not necessary to add the coordinates to the metadata, but it is necessary for the row names to match. 
+**Note**: It is essential for the row names of the coordinates in a 'SpatialExperiment' object to match the row names of the metadata and the column names of the count matrix; it is not necessary to add the coordinates to the metadata, but it is necessary for the row names to match. 
 ```{r append_coords}
 # Add the spatial coordinates into the metadata (convenience)
 SummarizedExperiment::colData(spe) <- cbind(SummarizedExperiment::colData(spe), 
                                             SpatialExperiment::spatialCoords(spe))
 ```
 
-To focus our analysis on the most informative features, we sort the genes by raw count variance. 
+To focus our analysis on the most informative features (here, genes), we sort the genes by raw count variance. 
 In a typical workflow, you might subset the data object to the top $N$ genes (e.g., the top 3,000 or 5,000 genes) before fitting the model.
 ```{r sort_data, fig.height=4, fig.width=6}
 # Calculate variance across all spots for each gene
@@ -410,7 +410,7 @@ This removes any columns that represent combinations of factors not present in t
 X_mat <- X_mat[, colSums(X_mat) != 0]
 ```
 
-We ensure the matrix is full rank (i.e., that there is no multi-collinearity that would prevent the model from being fitted).
+We ensure the matrix is of full rank (i.e., that there is no multi-collinearity that would prevent the model from being fitted).
 ```{r full_rank}
 # Ensure the design matrix is full rank
 if (Matrix::rankMatrix(X_mat)[1] != ncol(X_mat)) {
