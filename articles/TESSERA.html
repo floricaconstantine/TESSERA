@@ -298,7 +298,7 @@ specs</td>
 <tr class="odd">
 <td align="left"><code><a href="../reference/calc_Wald_statistics.html">calc_Wald_statistics()</a></code></td>
 <td align="left"><strong>Inference</strong></td>
-<td align="left">Conducts Wald tests against a user-defined contrast
+<td align="left">Conducts Wald tests for a user-defined contrast
 matrix.</td>
 <td align="left">
 <code>TESSERA_out</code>, contrast matrix</td>
@@ -315,11 +315,11 @@ distribution.</td>
 <tr class="odd">
 <td align="left"><code><a href="../reference/calc_scaled_noncentral_chi2_pvalues.html">calc_scaled_noncentral_chi2_pvalues()</a></code></td>
 <td align="left"><strong>Inference</strong></td>
-<td align="left">Computes empirical p-values using the fitted empirical
-null distribution.</td>
+<td align="left">Computes empirical <em>p</em>-values using the fitted
+empirical null distribution.</td>
 <td align="left">Vector of Wald statistics, empirical null
 parameters</td>
-<td align="left">Vector of empirical p-values</td>
+<td align="left">Vector of empirical <em>p</em>-values</td>
 </tr>
 </tbody>
 </table>
@@ -357,16 +357,17 @@ section.</p>
 <div class="section level3">
 <h3 id="load-and-inspect-data">Load and Inspect Data<a class="anchor" aria-label="anchor" href="#load-and-inspect-data"></a>
 </h3>
-<p><code>TESSERA</code> utilizes the <code>Imports</code> namespace
-specification for its dependencies rather than <code>Depends</code>.
-This means that while all required packages are loaded internally to
-ensure <code>TESSERA</code> functions run correctly, their functions are
-not automatically attached to your global environment. If you wish to
-use non-<code>TESSERA</code> functions directly in your session, you
-will need to load those packages explicitly using <code><a href="https://rdrr.io/r/base/library.html" class="external-link">library()</a></code>
-or reference them using the double colon operator (e.g.,
-<code>ggplot2::</code>). For clarity, this vignette explicitly loads all
-external packages required for the workflow below.</p>
+<p>Note that <code>TESSERA</code> utilizes the <code>Imports</code>
+namespace specification for its dependencies rather than
+<code>Depends</code>. This means that while all required packages are
+loaded internally to ensure <code>TESSERA</code> functions run
+correctly, their functions are not automatically attached to your global
+environment. If you wish to use non-<code>TESSERA</code> functions
+directly in your session, you will need to load those packages
+explicitly using <code><a href="https://rdrr.io/r/base/library.html" class="external-link">library()</a></code> or reference them using the
+double colon operator (e.g., <code>ggplot2::</code>). For clarity, this
+vignette explicitly loads all external packages required for the
+workflow below.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># TESSERA</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://floricaconstantine.github.io/TESSERA/">TESSERA</a></span><span class="op">)</span></span>
@@ -392,7 +393,7 @@ external packages required for the workflow below.</p>
 <span><span class="co"># Visualization</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span></code></pre></div>
 <p>To keep the package lightweight while providing realistic,
-high-resolution spatial datasets, the data for this vignette is hosted
+high-resolution spatial datasets, the data for this vignette are hosted
 externally. The following helper function uses
 <code>BiocFileCache</code> to download the necessary files from the
 <code>TESSERA_manuscript</code> repository and store them locally,
@@ -467,7 +468,7 @@ several thousand cells.</p>
 <span><span class="va">p</span></span></code></pre></div>
 <p><img src="TESSERA_files/figure-html/plot_num_cells_samp-1.png" class="r-plt" alt="" width="700"></p>
 <p>We examine the number of cells per cell type across all cells and see
-that it varies widely by cell type.</p>
+that it varies widely.</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Number of cells per cell type</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="fu">SummarizedExperiment</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/SummarizedExperiment/man/SummarizedExperiment-class.html" class="external-link">colData</a></span><span class="op">(</span><span class="va">spe</span><span class="op">)</span><span class="op">[</span>, <span class="va">celltype_col</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
@@ -506,17 +507,17 @@ that it varies widely by cell type.</p>
 <p>For compatibility with standard visualization tools, we append the
 spatial coordinates directly to the metadata.</p>
 <p><strong>Note</strong>: It is essential for the row names of the
-coordinates in a SpatialExperiment object to match the row names of the
-metadata and the column names of the count matrix; it is not necessary
-to add the coordinates to the metadata, but it is necessary for the row
-names to match.</p>
+coordinates in a ‘SpatialExperiment’ object to match the row names of
+the metadata and the column names of the count matrix; it is not
+necessary to add the coordinates to the metadata, but it is necessary
+for the row names to match.</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Add the spatial coordinates into the metadata (convenience)</span></span>
 <span><span class="fu">SummarizedExperiment</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/SummarizedExperiment/man/SummarizedExperiment-class.html" class="external-link">colData</a></span><span class="op">(</span><span class="va">spe</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span><span class="fu">SummarizedExperiment</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/SummarizedExperiment/man/SummarizedExperiment-class.html" class="external-link">colData</a></span><span class="op">(</span><span class="va">spe</span><span class="op">)</span>, </span>
 <span>                                            <span class="fu">SpatialExperiment</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/SpatialExperiment/man/SpatialExperiment-methods.html" class="external-link">spatialCoords</a></span><span class="op">(</span><span class="va">spe</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>To focus our analysis on the most informative features, we sort the
-genes by raw count variance. In a typical workflow, you might subset the
-data object to the top
+<p>To focus our analysis on the most informative features (here, genes),
+we sort the genes by raw count variance. In a typical workflow, you
+might subset the data object to the top
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
 genes (e.g., the top 3,000 or 5,000 genes) before fitting the model.</p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
@@ -667,7 +668,7 @@ combinations of factors not present in the data.</p>
 <div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Toss out zero (empty) columns</span></span>
 <span><span class="va">X_mat</span> <span class="op">&lt;-</span> <span class="va">X_mat</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/pkg/Matrix/man/colSums-methods.html" class="external-link">colSums</a></span><span class="op">(</span><span class="va">X_mat</span><span class="op">)</span> <span class="op">!=</span> <span class="fl">0</span><span class="op">]</span></span></code></pre></div>
-<p>We ensure the matrix is full rank (i.e., that there is no
+<p>We ensure the matrix is of full rank (i.e., that there is no
 multi-collinearity that would prevent the model from being fitted).</p>
 <div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Ensure the design matrix is full rank</span></span>
@@ -1065,18 +1066,18 @@ wish to run the model locally, simply change the chunk header to
 <span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <pre><code>&gt; GLM initialization for beta.</code></pre>
-<pre><code>&gt; Initial beta -7.13522831551576 -7.12040905160536 -8.13714298255497 -6.96756415697791 -6.91919663632653 -7.99560579350004 -7.30140922194711 -7.51656255878487 -8.55787323214764 -7.63736057429745 -7.67862307038956 -8.6494140244182 -7.44034953026733 -8.18397826684718 -8.71768512820289 -6.99679179433722 -7.82159634379454 -8.51487208022052 -6.50647596140761 -6.00056592977337 -6.93621715807116 -6.94341310243413 -7.94973784026385 -6.45254497955884 -6.73232438462994 -7.88505151671919 -6.94404553018973 -6.98999472505835 -7.7403099848976 -6.78182207029973 -7.06266455833092 -7.97474441277781 -6.73263186359268 -7.3744444701992 -8.31530596990008 -7.00520816060125 -7.55468977031936 -8.73898748345861 -5.3714175165325 -6.26716382406212 -7.05617339435978 -6.02654926311934 -6.20306772348003 -7.26059298332335 -6.71149788245984 -6.94454858579608 -7.9073156337175 -6.40986933504034 -7.1055591821662 -8.29443505665354 -7.76311563407897 -7.75397442544582 -8.85319095560598 -6.14517639251781 -6.32483073252897 -7.71653968001066 -6.41124075468643 -6.71868578001464 -7.7206958648343 -6.5727494532204 -7.0453478247218 -8.10312598612214 -7.51606368196316 -7.58358248873972 -8.77601209452772 -7.86637494353081 -8.2038203599041 -9.20459732663122 -7.40662629556781 -7.37903027049645 -8.55445555449986 -6.33110801696818 -7.33361075941818 -7.66694182479729 -4.78301143572986 -5.14823395361239 -6.08791248895381 -0.588640834398518 0.0463313469587713 1.68001782615806 -0.479298716599917 -0.306905271952515 0.776172632769981 0.835207521780332 1.0970347212499 0.084618214795013 1.22121704839535 0.660718474187344</code></pre>
+<pre><code>&gt; Initial beta -7.13522831551576 -7.12040905160537 -8.13714298255497 -6.96756415697791 -6.91919663632653 -7.99560579350004 -7.30140922194711 -7.51656255878487 -8.55787323214763 -7.63736057429745 -7.67862307038957 -8.6494140244182 -7.44034953026733 -8.18397826684718 -8.71768512820289 -6.99679179433722 -7.82159634379454 -8.51487208022052 -6.50647596140761 -6.00056592977337 -6.93621715807116 -6.94341310243413 -7.94973784026385 -6.45254497955884 -6.73232438462994 -7.88505151671919 -6.94404553018973 -6.98999472505835 -7.7403099848976 -6.78182207029973 -7.06266455833092 -7.97474441277781 -6.73263186359268 -7.3744444701992 -8.31530596990008 -7.00520816060125 -7.55468977031936 -8.73898748345861 -5.3714175165325 -6.26716382406212 -7.05617339435978 -6.02654926311934 -6.20306772348003 -7.26059298332335 -6.71149788245984 -6.94454858579607 -7.9073156337175 -6.40986933504034 -7.1055591821662 -8.29443505665354 -7.76311563407897 -7.75397442544582 -8.85319095560598 -6.14517639251781 -6.32483073252897 -7.71653968001067 -6.41124075468644 -6.71868578001464 -7.7206958648343 -6.57274945322039 -7.0453478247218 -8.10312598612214 -7.51606368196316 -7.58358248873972 -8.77601209452772 -7.86637494353081 -8.2038203599041 -9.20459732663122 -7.40662629556781 -7.37903027049645 -8.55445555449986 -6.33110801696818 -7.33361075941818 -7.66694182479729 -4.78301143572986 -5.14823395361239 -6.08791248895381 -0.588640834398518 0.0463313469587711 1.68001782615806 -0.479298716599917 -0.306905271952515 0.776172632769981 0.835207521780332 1.0970347212499 0.084618214795013 1.22121704839535 0.660718474187344</code></pre>
 <pre><code>&gt; Moran initialization for gamma</code></pre>
-<pre><code>&gt; Initial gamma 0.12668743451868 0.208436049046155 0.225781254010715 0.127716364596879 0.271846370836017 0.298925860807711 0.178778966628895 0.14959487896061 0.301669218899599 0.325339582858285 0.102627495689076 0.0246573307557426 0.115651844260356 0.12590063878428</code></pre>
+<pre><code>&gt; Initial gamma 0.126687434518681 0.208436049046155 0.225781254010715 0.127716364596879 0.271846370836017 0.29892586080771 0.178778966628895 0.149594878960611 0.301669218899599 0.325339582858285 0.102627495689076 0.0246573307557427 0.115651844260356 0.12590063878428</code></pre>
 <pre><code>&gt; Variance initialization for tau^2</code></pre>
-<pre><code>&gt; Initial tau2 0.563382767126561 0.780540040364637 0.85314906554601 0.885038367492996 0.69014514253411 1.12430313332088 0.956206282962672 0.640916656926725 0.563928178735679 0.979362410328891 0.748210592803307 0.703848237054425 0.654279868785319 0.719527963629566</code></pre>
+<pre><code>&gt; Initial tau2 0.563382767126561 0.780540040364637 0.85314906554601 0.885038367492996 0.69014514253411 1.12430313332088 0.956206282962672 0.640916656926725 0.563928178735679 0.97936241032889 0.748210592803307 0.703848237054425 0.654279868785319 0.719527963629566</code></pre>
 <pre><code>&gt; Precomputing structural matrices for M_step_beta...</code></pre>
 <pre><code>&gt; Ending early</code></pre>
-<pre><code>&gt; Time 1.41588418881098</code></pre>
+<pre><code>&gt; Time 1.82033494313558</code></pre>
 <div class="sourceCode" id="cb48"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Output the run-time</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">TESSERA_out</span><span class="op">$</span><span class="va">time</span><span class="op">)</span></span></code></pre></div>
-<pre><code>&gt; Time difference of 1.415884 mins</code></pre>
+<pre><code>&gt; Time difference of 1.820335 mins</code></pre>
 <p>Once the algorithm has converged, the output object provides a
 comprehensive summary of the performance in the
 <code>performanceSummary</code> data frame, allowing for a sample-wise

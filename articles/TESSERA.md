@@ -164,9 +164,9 @@ statistical inference.
 |:---|:---|:---|:---|:---|
 | [`prep_data()`](https://floricaconstantine.github.io/TESSERA/reference/prep_data.md) | **Data Prep** | Assembles inputs and pre-computes eigenvalues of spatial matrices. | Data matrix or `SpatialExperiment` object, Design matrix, model type | `TESSERA_data` object |
 | [`TESSERA_lattice()`](https://floricaconstantine.github.io/TESSERA/reference/TESSERA_lattice.md) / [`TESSERA_spNNGP()`](https://floricaconstantine.github.io/TESSERA/reference/TESSERA_spNNGP.md) | **Fitting** | Fits the overdispersed GLMM model for a single gene. | `TESSERA_data`, gene name, optimization specs | Fitted model list object (`TESSERA_out`) |
-| [`calc_Wald_statistics()`](https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_statistics.md) | **Inference** | Conducts Wald tests against a user-defined contrast matrix. | `TESSERA_out`, contrast matrix | Data frame of test statistics |
+| [`calc_Wald_statistics()`](https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_statistics.md) | **Inference** | Conducts Wald tests for a user-defined contrast matrix. | `TESSERA_out`, contrast matrix | Data frame of test statistics |
 | [`select_Wald_threshold()`](https://floricaconstantine.github.io/TESSERA/reference/select_Wald_threshold.md) | **Inference** | Sweeps over statistics to fit the empirical null distribution. | Vector of Wald statistics | Empirical null parameter list |
-| [`calc_scaled_noncentral_chi2_pvalues()`](https://floricaconstantine.github.io/TESSERA/reference/calc_scaled_noncentral_chi2_pvalues.md) | **Inference** | Computes empirical p-values using the fitted empirical null distribution. | Vector of Wald statistics, empirical null parameters | Vector of empirical p-values |
+| [`calc_scaled_noncentral_chi2_pvalues()`](https://floricaconstantine.github.io/TESSERA/reference/calc_scaled_noncentral_chi2_pvalues.md) | **Inference** | Computes empirical *p*-values using the fitted empirical null distribution. | Vector of Wald statistics, empirical null parameters | Vector of empirical *p*-values |
 
 ## Installation
 
@@ -205,12 +205,12 @@ For detailed specifications on these formats, please refer to the
 
 ### Load and Inspect Data
 
-`TESSERA` utilizes the `Imports` namespace specification for its
-dependencies rather than `Depends`. This means that while all required
-packages are loaded internally to ensure `TESSERA` functions run
-correctly, their functions are not automatically attached to your global
-environment. If you wish to use non-`TESSERA` functions directly in your
-session, you will need to load those packages explicitly using
+Note that `TESSERA` utilizes the `Imports` namespace specification for
+its dependencies rather than `Depends`. This means that while all
+required packages are loaded internally to ensure `TESSERA` functions
+run correctly, their functions are not automatically attached to your
+global environment. If you wish to use non-`TESSERA` functions directly
+in your session, you will need to load those packages explicitly using
 [`library()`](https://rdrr.io/r/base/library.html) or reference them
 using the double colon operator (e.g., `ggplot2::`). For clarity, this
 vignette explicitly loads all external packages required for the
@@ -244,7 +244,7 @@ library(ggplot2)
 ```
 
 To keep the package lightweight while providing realistic,
-high-resolution spatial datasets, the data for this vignette is hosted
+high-resolution spatial datasets, the data for this vignette are hosted
 externally. The following helper function uses `BiocFileCache` to
 download the necessary files from the `TESSERA_manuscript` repository
 and store them locally, ensuring that subsequent runs are fast and do
@@ -344,7 +344,7 @@ p
 ![](TESSERA_files/figure-html/plot_num_cells_samp-1.png)
 
 We examine the number of cells per cell type across all cells and see
-that it varies widely by cell type.
+that it varies widely.
 
 ``` r
 
@@ -393,8 +393,8 @@ For compatibility with standard visualization tools, we append the
 spatial coordinates directly to the metadata.
 
 **Note**: It is essential for the row names of the coordinates in a
-SpatialExperiment object to match the row names of the metadata and the
-column names of the count matrix; it is not necessary to add the
+‘SpatialExperiment’ object to match the row names of the metadata and
+the column names of the count matrix; it is not necessary to add the
 coordinates to the metadata, but it is necessary for the row names to
 match.
 
@@ -405,10 +405,10 @@ SummarizedExperiment::colData(spe) <- cbind(SummarizedExperiment::colData(spe),
                                             SpatialExperiment::spatialCoords(spe))
 ```
 
-To focus our analysis on the most informative features, we sort the
-genes by raw count variance. In a typical workflow, you might subset the
-data object to the top $`N`$ genes (e.g., the top 3,000 or 5,000 genes)
-before fitting the model.
+To focus our analysis on the most informative features (here, genes), we
+sort the genes by raw count variance. In a typical workflow, you might
+subset the data object to the top $`N`$ genes (e.g., the top 3,000 or
+5,000 genes) before fitting the model.
 
 ``` r
 
@@ -590,7 +590,7 @@ combinations of factors not present in the data.
 X_mat <- X_mat[, colSums(X_mat) != 0]
 ```
 
-We ensure the matrix is full rank (i.e., that there is no
+We ensure the matrix is of full rank (i.e., that there is no
 multi-collinearity that would prevent the model from being fitted).
 
 ``` r
@@ -891,21 +891,21 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 
     > GLM initialization for beta.
 
-    > Initial beta -7.13522831551576 -7.12040905160536 -8.13714298255497 -6.96756415697791 -6.91919663632653 -7.99560579350004 -7.30140922194711 -7.51656255878487 -8.55787323214764 -7.63736057429745 -7.67862307038956 -8.6494140244182 -7.44034953026733 -8.18397826684718 -8.71768512820289 -6.99679179433722 -7.82159634379454 -8.51487208022052 -6.50647596140761 -6.00056592977337 -6.93621715807116 -6.94341310243413 -7.94973784026385 -6.45254497955884 -6.73232438462994 -7.88505151671919 -6.94404553018973 -6.98999472505835 -7.7403099848976 -6.78182207029973 -7.06266455833092 -7.97474441277781 -6.73263186359268 -7.3744444701992 -8.31530596990008 -7.00520816060125 -7.55468977031936 -8.73898748345861 -5.3714175165325 -6.26716382406212 -7.05617339435978 -6.02654926311934 -6.20306772348003 -7.26059298332335 -6.71149788245984 -6.94454858579608 -7.9073156337175 -6.40986933504034 -7.1055591821662 -8.29443505665354 -7.76311563407897 -7.75397442544582 -8.85319095560598 -6.14517639251781 -6.32483073252897 -7.71653968001066 -6.41124075468643 -6.71868578001464 -7.7206958648343 -6.5727494532204 -7.0453478247218 -8.10312598612214 -7.51606368196316 -7.58358248873972 -8.77601209452772 -7.86637494353081 -8.2038203599041 -9.20459732663122 -7.40662629556781 -7.37903027049645 -8.55445555449986 -6.33110801696818 -7.33361075941818 -7.66694182479729 -4.78301143572986 -5.14823395361239 -6.08791248895381 -0.588640834398518 0.0463313469587713 1.68001782615806 -0.479298716599917 -0.306905271952515 0.776172632769981 0.835207521780332 1.0970347212499 0.084618214795013 1.22121704839535 0.660718474187344
+    > Initial beta -7.13522831551576 -7.12040905160537 -8.13714298255497 -6.96756415697791 -6.91919663632653 -7.99560579350004 -7.30140922194711 -7.51656255878487 -8.55787323214763 -7.63736057429745 -7.67862307038957 -8.6494140244182 -7.44034953026733 -8.18397826684718 -8.71768512820289 -6.99679179433722 -7.82159634379454 -8.51487208022052 -6.50647596140761 -6.00056592977337 -6.93621715807116 -6.94341310243413 -7.94973784026385 -6.45254497955884 -6.73232438462994 -7.88505151671919 -6.94404553018973 -6.98999472505835 -7.7403099848976 -6.78182207029973 -7.06266455833092 -7.97474441277781 -6.73263186359268 -7.3744444701992 -8.31530596990008 -7.00520816060125 -7.55468977031936 -8.73898748345861 -5.3714175165325 -6.26716382406212 -7.05617339435978 -6.02654926311934 -6.20306772348003 -7.26059298332335 -6.71149788245984 -6.94454858579607 -7.9073156337175 -6.40986933504034 -7.1055591821662 -8.29443505665354 -7.76311563407897 -7.75397442544582 -8.85319095560598 -6.14517639251781 -6.32483073252897 -7.71653968001067 -6.41124075468644 -6.71868578001464 -7.7206958648343 -6.57274945322039 -7.0453478247218 -8.10312598612214 -7.51606368196316 -7.58358248873972 -8.77601209452772 -7.86637494353081 -8.2038203599041 -9.20459732663122 -7.40662629556781 -7.37903027049645 -8.55445555449986 -6.33110801696818 -7.33361075941818 -7.66694182479729 -4.78301143572986 -5.14823395361239 -6.08791248895381 -0.588640834398518 0.0463313469587711 1.68001782615806 -0.479298716599917 -0.306905271952515 0.776172632769981 0.835207521780332 1.0970347212499 0.084618214795013 1.22121704839535 0.660718474187344
 
     > Moran initialization for gamma
 
-    > Initial gamma 0.12668743451868 0.208436049046155 0.225781254010715 0.127716364596879 0.271846370836017 0.298925860807711 0.178778966628895 0.14959487896061 0.301669218899599 0.325339582858285 0.102627495689076 0.0246573307557426 0.115651844260356 0.12590063878428
+    > Initial gamma 0.126687434518681 0.208436049046155 0.225781254010715 0.127716364596879 0.271846370836017 0.29892586080771 0.178778966628895 0.149594878960611 0.301669218899599 0.325339582858285 0.102627495689076 0.0246573307557427 0.115651844260356 0.12590063878428
 
     > Variance initialization for tau^2
 
-    > Initial tau2 0.563382767126561 0.780540040364637 0.85314906554601 0.885038367492996 0.69014514253411 1.12430313332088 0.956206282962672 0.640916656926725 0.563928178735679 0.979362410328891 0.748210592803307 0.703848237054425 0.654279868785319 0.719527963629566
+    > Initial tau2 0.563382767126561 0.780540040364637 0.85314906554601 0.885038367492996 0.69014514253411 1.12430313332088 0.956206282962672 0.640916656926725 0.563928178735679 0.97936241032889 0.748210592803307 0.703848237054425 0.654279868785319 0.719527963629566
 
     > Precomputing structural matrices for M_step_beta...
 
     > Ending early
 
-    > Time 1.41588418881098
+    > Time 1.82033494313558
 
 ``` r
 
@@ -913,7 +913,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 print(TESSERA_out$time)
 ```
 
-    > Time difference of 1.415884 mins
+    > Time difference of 1.820335 mins
 
 Once the algorithm has converged, the output object provides a
 comprehensive summary of the performance in the `performanceSummary`
