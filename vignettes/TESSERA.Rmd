@@ -1038,7 +1038,7 @@ for (cd in unique(wald_df$contrast_description)) {
 }
 ```
 
-# Session information
+# Session Information
 
 ```{r sessioninfo}
 devtools::session_info()
