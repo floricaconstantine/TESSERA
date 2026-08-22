@@ -79,12 +79,12 @@ architectures.</p>
 <p>These factors often preclude the use of traditional spatial methods
 that rely on the assumption of a single, continuous coordinate plane.
 <code>TESSERA</code> bridges this gap by allowing for sample-specific
-spatial modeling within a unified global inference framework. This
-allows investigators to ask different types of differential expression
-questions, both within and between samples. For more details on the
-underlying methodology, please see our <code>TESSERA</code>
-methodological manuscript <span class="citation">(<a href="#ref-constantine2026tessera">Constantine et al.
-2026</a>)</span>.</p>
+spatial modeling within a unified global cross-sample inference
+framework that allows. This allows investigators to ask different types
+of differential expression questions, both within and between samples.
+For more details on the underlying methodology, please see our
+<code>TESSERA</code> methodological manuscript <span class="citation">(<a href="#ref-constantine2026tessera">Constantine et
+al. 2026</a>)</span>.</p>
 </div>
 <div class="section level3">
 <h3 id="limitations-of-existing-methods">Limitations of Existing Methods<a class="anchor" aria-label="anchor" href="#limitations-of-existing-methods"></a>
@@ -142,8 +142,8 @@ structures.</p>
 a <strong>single set of fixed effects</strong>,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝛃</mi><annotation encoding="application/x-tex">\boldsymbol{\beta}</annotation></semantics></math>,
 across the entire dataset, even while permitting each individual sample
-its own independent spatial covariance structure. This provides a
-rigorous foundation for addressing differential expression across
+to have its own independent spatial covariance structure. This provides
+a rigorous foundation for addressing differential expression across
 experimental conditions–such as comparing diseased vs. healthy
 tissue–while simultaneously accounting for the spatial autocorrelation
 inherent within each sample.</p>
@@ -212,22 +212,22 @@ effects
 and covariance parameters of the random effects.</p>
 </div>
 <div class="section level3">
-<h3 id="hypothesis-testing-empirical-nulls">Hypothesis Testing &amp; Empirical Nulls<a class="anchor" aria-label="anchor" href="#hypothesis-testing-empirical-nulls"></a>
+<h3 id="hypothesis-testing-and-empirical-null-distributions">Hypothesis Testing and Empirical Null Distributions<a class="anchor" aria-label="anchor" href="#hypothesis-testing-and-empirical-null-distributions"></a>
 </h3>
 <p>Because finite-sample GLMMs are prone to structural asymptotic
 biases, the true null distribution of the Wald test statistics is
 typically unknown. <code>TESSERA</code> addresses this by modeling the
-Wald statistics as a scaled, non-central
+Wald statistics using a scaled, non-central
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>χ</mi><mn>1</mn><mn>2</mn></msubsup><annotation encoding="application/x-tex">\chi_1^2</annotation></semantics></math>
-distribution, estimating an empirical null distribution directly from
-the data across thousands of parallelized per-gene models.</p>
+distribution, where an empirical null distribution is computed by fiting
+thousands of parallelized per-gene models.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="package-design">Package Design<a class="anchor" aria-label="anchor" href="#package-design"></a>
 </h2>
-<p><code>TESSERA</code> isolates data engineering from model execution.
-For most standard workflows, you only need to interact with a few
+<p><code>TESSERA</code> isolates data engineering from model fitting.
+For most standard workflows, the user only needs to interact with a few
 high-level functions and a unified data container.</p>
 <div class="section level3">
 <h3 id="object-classes-and-data-flow">Object Classes and Data Flow<a class="anchor" aria-label="anchor" href="#object-classes-and-data-flow"></a>
@@ -252,8 +252,8 @@ to be re-calculated during gene-by-gene iteration.</li>
 <div class="section level3">
 <h3 id="core-functions-at-a-glance">Core Functions at a Glance<a class="anchor" aria-label="anchor" href="#core-functions-at-a-glance"></a>
 </h3>
-<p>The table below outlines the primary functions you will encounter in
-a typical analysis pipeline, moving from exploratory analysis to
+<p>The table below outlines the primary functions encountered in a
+typical analysis pipeline, moving from exploratory adata nalysis to
 downstream statistical inference.</p>
 <table class="table">
 <colgroup>
@@ -1065,18 +1065,18 @@ wish to run the model locally, simply change the chunk header to
 <span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <pre><code>&gt; GLM initialization for beta.</code></pre>
-<pre><code>&gt; Initial beta -7.13522831551576 -7.12040905160537 -8.13714298255497 -6.96756415697791 -6.91919663632653 -7.99560579350004 -7.30140922194711 -7.51656255878487 -8.55787323214763 -7.63736057429745 -7.67862307038957 -8.6494140244182 -7.44034953026733 -8.18397826684718 -8.71768512820289 -6.99679179433722 -7.82159634379454 -8.51487208022052 -6.50647596140761 -6.00056592977337 -6.93621715807116 -6.94341310243413 -7.94973784026385 -6.45254497955884 -6.73232438462994 -7.88505151671919 -6.94404553018973 -6.98999472505835 -7.7403099848976 -6.78182207029973 -7.06266455833092 -7.97474441277781 -6.73263186359268 -7.3744444701992 -8.31530596990008 -7.00520816060125 -7.55468977031936 -8.73898748345861 -5.3714175165325 -6.26716382406212 -7.05617339435978 -6.02654926311934 -6.20306772348003 -7.26059298332335 -6.71149788245984 -6.94454858579607 -7.9073156337175 -6.40986933504034 -7.1055591821662 -8.29443505665354 -7.76311563407897 -7.75397442544582 -8.85319095560598 -6.14517639251781 -6.32483073252897 -7.71653968001067 -6.41124075468644 -6.71868578001464 -7.7206958648343 -6.57274945322039 -7.0453478247218 -8.10312598612214 -7.51606368196316 -7.58358248873972 -8.77601209452772 -7.86637494353081 -8.2038203599041 -9.20459732663122 -7.40662629556781 -7.37903027049645 -8.55445555449986 -6.33110801696818 -7.33361075941818 -7.66694182479729 -4.78301143572986 -5.14823395361239 -6.08791248895381 -0.588640834398518 0.0463313469587711 1.68001782615806 -0.479298716599917 -0.306905271952515 0.776172632769981 0.835207521780332 1.0970347212499 0.084618214795013 1.22121704839535 0.660718474187344</code></pre>
+<pre><code>&gt; Initial beta -7.13522831551576 -7.12040905160536 -8.13714298255497 -6.96756415697791 -6.91919663632653 -7.99560579350004 -7.30140922194711 -7.51656255878487 -8.55787323214764 -7.63736057429745 -7.67862307038956 -8.6494140244182 -7.44034953026733 -8.18397826684718 -8.71768512820289 -6.99679179433722 -7.82159634379454 -8.51487208022052 -6.50647596140761 -6.00056592977337 -6.93621715807116 -6.94341310243413 -7.94973784026385 -6.45254497955884 -6.73232438462994 -7.88505151671919 -6.94404553018973 -6.98999472505835 -7.7403099848976 -6.78182207029973 -7.06266455833092 -7.97474441277781 -6.73263186359268 -7.3744444701992 -8.31530596990008 -7.00520816060125 -7.55468977031936 -8.73898748345861 -5.3714175165325 -6.26716382406212 -7.05617339435978 -6.02654926311934 -6.20306772348003 -7.26059298332335 -6.71149788245984 -6.94454858579608 -7.9073156337175 -6.40986933504034 -7.1055591821662 -8.29443505665354 -7.76311563407897 -7.75397442544582 -8.85319095560598 -6.14517639251781 -6.32483073252897 -7.71653968001066 -6.41124075468643 -6.71868578001464 -7.7206958648343 -6.5727494532204 -7.0453478247218 -8.10312598612214 -7.51606368196316 -7.58358248873972 -8.77601209452772 -7.86637494353081 -8.2038203599041 -9.20459732663122 -7.40662629556781 -7.37903027049645 -8.55445555449986 -6.33110801696818 -7.33361075941818 -7.66694182479729 -4.78301143572986 -5.14823395361239 -6.08791248895381 -0.588640834398518 0.0463313469587713 1.68001782615806 -0.479298716599917 -0.306905271952515 0.776172632769981 0.835207521780332 1.0970347212499 0.084618214795013 1.22121704839535 0.660718474187344</code></pre>
 <pre><code>&gt; Moran initialization for gamma</code></pre>
-<pre><code>&gt; Initial gamma 0.126687434518681 0.208436049046155 0.225781254010715 0.127716364596879 0.271846370836017 0.29892586080771 0.178778966628895 0.149594878960611 0.301669218899599 0.325339582858285 0.102627495689076 0.0246573307557427 0.115651844260356 0.12590063878428</code></pre>
+<pre><code>&gt; Initial gamma 0.12668743451868 0.208436049046155 0.225781254010715 0.127716364596879 0.271846370836017 0.298925860807711 0.178778966628895 0.14959487896061 0.301669218899599 0.325339582858285 0.102627495689076 0.0246573307557426 0.115651844260356 0.12590063878428</code></pre>
 <pre><code>&gt; Variance initialization for tau^2</code></pre>
-<pre><code>&gt; Initial tau2 0.563382767126561 0.780540040364637 0.85314906554601 0.885038367492996 0.69014514253411 1.12430313332088 0.956206282962672 0.640916656926725 0.563928178735679 0.97936241032889 0.748210592803307 0.703848237054425 0.654279868785319 0.719527963629566</code></pre>
+<pre><code>&gt; Initial tau2 0.563382767126561 0.780540040364637 0.85314906554601 0.885038367492996 0.69014514253411 1.12430313332088 0.956206282962672 0.640916656926725 0.563928178735679 0.979362410328891 0.748210592803307 0.703848237054425 0.654279868785319 0.719527963629566</code></pre>
 <pre><code>&gt; Precomputing structural matrices for M_step_beta...</code></pre>
 <pre><code>&gt; Ending early</code></pre>
-<pre><code>&gt; Time 1.84352700710297</code></pre>
+<pre><code>&gt; Time 1.41588418881098</code></pre>
 <div class="sourceCode" id="cb48"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Output the run-time</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">TESSERA_out</span><span class="op">$</span><span class="va">time</span><span class="op">)</span></span></code></pre></div>
-<pre><code>&gt; Time difference of 1.843527 mins</code></pre>
+<pre><code>&gt; Time difference of 1.415884 mins</code></pre>
 <p>Once the algorithm has converged, the output object provides a
 comprehensive summary of the performance in the
 <code>performanceSummary</code> data frame, allowing for a sample-wise
@@ -1693,7 +1693,7 @@ al. 2026</a>)</span>.</p>
 &gt;  collate  C.UTF-8
 &gt;  ctype    C.UTF-8
 &gt;  tz       UTC
-&gt;  date     2026-07-29
+&gt;  date     2026-08-22
 &gt;  pandoc   3.8.3 @ /opt/hostedtoolcache/pandoc/3.8.3/x64/ (via rmarkdown)
 &gt;  quarto   NA
 &gt; 
@@ -1706,11 +1706,11 @@ al. 2026</a>)</span>.</p>
 &gt;  BiocManager            1.30.27     [90m2025-11-14 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  BiocStyle            * 2.40.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
 &gt;  bit                    4.6.0       [90m2025-03-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-&gt;  bit64                  4.8.2       [90m2026-05-19 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+&gt;  bit64                  4.8.4       [90m2026-08-20 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  blob                   1.3.0       [90m2026-01-14 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  bookdown               0.47        [90m2026-06-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  BRISC                  1.0.6       [90m2024-10-02 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-&gt;  bslib                  0.11.0      [90m2026-05-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+&gt;  bslib                  0.12.0      [90m2026-08-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  cachem                 1.1.0       [90m2024-05-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  cli                    3.6.6       [90m2026-04-09 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  colorspace             2.1-3       [90m2026-07-12 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1776,7 +1776,7 @@ al. 2026</a>)</span>.</p>
 &gt;  RANN                   2.6.2       [90m2024-08-25 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  RColorBrewer           1.1-3       [90m2022-04-03 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  Rcpp                   1.1.2       [90m2026-07-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-&gt;  RcppParallel           6.1.1       [90m2026-07-27 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+&gt;  RcppParallel           6.2.0       [90m2026-07-30 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  rdist                  0.0.5       [90m2020-05-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  reshape2             * 1.4.5       [90m2025-11-12 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  Rfast                  2.1.5.2     [90m2025-10-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1804,11 +1804,11 @@ al. 2026</a>)</span>.</p>
 &gt;  spatstat.geom          3.8-2       [90m2026-07-24 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  spatstat.univar        3.2-0       [90m2026-05-18 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  spatstat.utils         3.2-4       [90m2026-07-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-&gt;  stringi                1.8.7       [90m2025-03-27 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+&gt;  stringi                1.8.9       [90m2026-08-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  stringr                1.6.0       [90m2025-11-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  SummarizedExperiment * 1.42.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
 &gt;  systemfonts            1.3.2       [90m2026-03-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-&gt;  TESSERA              * 0.99.1      [90m2026-07-29 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
+&gt;  TESSERA              * 0.99.1      [90m2026-08-22 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
 &gt;  textshaping            1.0.5       [90m2026-03-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  tibble                 3.3.1       [90m2026-01-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  tidyselect             1.2.1       [90m2024-03-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1820,7 +1820,7 @@ al. 2026</a>)</span>.</p>
 &gt;  XVector                0.52.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
 &gt;  yaml                   2.3.12      [90m2025-12-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt;  zigg                   0.0.2       [90m2025-02-07 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-&gt;  zoo                    1.8-15      [90m2025-12-15 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+&gt;  zoo                    1.9-0       [90m2026-07-31 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
 &gt; 
 &gt;  [90m [1] /home/runner/work/_temp/Library [39m
 &gt;  [90m [2] /opt/R/4.6.1/lib/R/site-library [39m

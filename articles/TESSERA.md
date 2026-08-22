@@ -19,10 +19,10 @@ cell type distributions, and differing underlying tissue architectures.
 These factors often preclude the use of traditional spatial methods that
 rely on the assumption of a single, continuous coordinate plane.
 `TESSERA` bridges this gap by allowing for sample-specific spatial
-modeling within a unified global inference framework. This allows
-investigators to ask different types of differential expression
-questions, both within and between samples. For more details on the
-underlying methodology, please see our `TESSERA` methodological
+modeling within a unified global cross-sample inference framework that
+allows. This allows investigators to ask different types of differential
+expression questions, both within and between samples. For more details
+on the underlying methodology, please see our `TESSERA` methodological
 manuscript ([Constantine et al. 2026](#ref-constantine2026tessera)).
 
 ### Limitations of Existing Methods
@@ -62,7 +62,7 @@ spatial covariance structures.
 
 A defining feature of `TESSERA` is its ability to estimate a **single
 set of fixed effects**, $`\boldsymbol{\beta}`$, across the entire
-dataset, even while permitting each individual sample its own
+dataset, even while permitting each individual sample to have its own
 independent spatial covariance structure. This provides a rigorous
 foundation for addressing differential expression across experimental
 conditions–such as comparing diseased vs. healthy tissue–while
@@ -122,20 +122,20 @@ steps sequentially maximizes this log-likelihood by updating the fixed
 effects $`\boldsymbol{\beta}`$ and covariance parameters of the random
 effects.
 
-### Hypothesis Testing & Empirical Nulls
+### Hypothesis Testing and Empirical Null Distributions
 
 Because finite-sample GLMMs are prone to structural asymptotic biases,
 the true null distribution of the Wald test statistics is typically
-unknown. `TESSERA` addresses this by modeling the Wald statistics as a
-scaled, non-central $`\chi_1^2`$ distribution, estimating an empirical
-null distribution directly from the data across thousands of
-parallelized per-gene models.
+unknown. `TESSERA` addresses this by modeling the Wald statistics using
+a scaled, non-central $`\chi_1^2`$ distribution, where an empirical null
+distribution is computed by fiting thousands of parallelized per-gene
+models.
 
 ## Package Design
 
-`TESSERA` isolates data engineering from model execution. For most
-standard workflows, you only need to interact with a few high-level
-functions and a unified data container.
+`TESSERA` isolates data engineering from model fitting. For most
+standard workflows, the user only needs to interact with a few
+high-level functions and a unified data container.
 
 ### Object Classes and Data Flow
 
@@ -156,9 +156,9 @@ seamlessly handle multi-sample groupings:
 
 ### Core Functions at a Glance
 
-The table below outlines the primary functions you will encounter in a
-typical analysis pipeline, moving from exploratory analysis to
-downstream statistical inference.
+The table below outlines the primary functions encountered in a typical
+analysis pipeline, moving from exploratory adata nalysis to downstream
+statistical inference.
 
 | Function | Step | Purpose | Primary Inputs | Primary Outputs |
 |:---|:---|:---|:---|:---|
@@ -891,21 +891,21 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 
     > GLM initialization for beta.
 
-    > Initial beta -7.13522831551576 -7.12040905160537 -8.13714298255497 -6.96756415697791 -6.91919663632653 -7.99560579350004 -7.30140922194711 -7.51656255878487 -8.55787323214763 -7.63736057429745 -7.67862307038957 -8.6494140244182 -7.44034953026733 -8.18397826684718 -8.71768512820289 -6.99679179433722 -7.82159634379454 -8.51487208022052 -6.50647596140761 -6.00056592977337 -6.93621715807116 -6.94341310243413 -7.94973784026385 -6.45254497955884 -6.73232438462994 -7.88505151671919 -6.94404553018973 -6.98999472505835 -7.7403099848976 -6.78182207029973 -7.06266455833092 -7.97474441277781 -6.73263186359268 -7.3744444701992 -8.31530596990008 -7.00520816060125 -7.55468977031936 -8.73898748345861 -5.3714175165325 -6.26716382406212 -7.05617339435978 -6.02654926311934 -6.20306772348003 -7.26059298332335 -6.71149788245984 -6.94454858579607 -7.9073156337175 -6.40986933504034 -7.1055591821662 -8.29443505665354 -7.76311563407897 -7.75397442544582 -8.85319095560598 -6.14517639251781 -6.32483073252897 -7.71653968001067 -6.41124075468644 -6.71868578001464 -7.7206958648343 -6.57274945322039 -7.0453478247218 -8.10312598612214 -7.51606368196316 -7.58358248873972 -8.77601209452772 -7.86637494353081 -8.2038203599041 -9.20459732663122 -7.40662629556781 -7.37903027049645 -8.55445555449986 -6.33110801696818 -7.33361075941818 -7.66694182479729 -4.78301143572986 -5.14823395361239 -6.08791248895381 -0.588640834398518 0.0463313469587711 1.68001782615806 -0.479298716599917 -0.306905271952515 0.776172632769981 0.835207521780332 1.0970347212499 0.084618214795013 1.22121704839535 0.660718474187344
+    > Initial beta -7.13522831551576 -7.12040905160536 -8.13714298255497 -6.96756415697791 -6.91919663632653 -7.99560579350004 -7.30140922194711 -7.51656255878487 -8.55787323214764 -7.63736057429745 -7.67862307038956 -8.6494140244182 -7.44034953026733 -8.18397826684718 -8.71768512820289 -6.99679179433722 -7.82159634379454 -8.51487208022052 -6.50647596140761 -6.00056592977337 -6.93621715807116 -6.94341310243413 -7.94973784026385 -6.45254497955884 -6.73232438462994 -7.88505151671919 -6.94404553018973 -6.98999472505835 -7.7403099848976 -6.78182207029973 -7.06266455833092 -7.97474441277781 -6.73263186359268 -7.3744444701992 -8.31530596990008 -7.00520816060125 -7.55468977031936 -8.73898748345861 -5.3714175165325 -6.26716382406212 -7.05617339435978 -6.02654926311934 -6.20306772348003 -7.26059298332335 -6.71149788245984 -6.94454858579608 -7.9073156337175 -6.40986933504034 -7.1055591821662 -8.29443505665354 -7.76311563407897 -7.75397442544582 -8.85319095560598 -6.14517639251781 -6.32483073252897 -7.71653968001066 -6.41124075468643 -6.71868578001464 -7.7206958648343 -6.5727494532204 -7.0453478247218 -8.10312598612214 -7.51606368196316 -7.58358248873972 -8.77601209452772 -7.86637494353081 -8.2038203599041 -9.20459732663122 -7.40662629556781 -7.37903027049645 -8.55445555449986 -6.33110801696818 -7.33361075941818 -7.66694182479729 -4.78301143572986 -5.14823395361239 -6.08791248895381 -0.588640834398518 0.0463313469587713 1.68001782615806 -0.479298716599917 -0.306905271952515 0.776172632769981 0.835207521780332 1.0970347212499 0.084618214795013 1.22121704839535 0.660718474187344
 
     > Moran initialization for gamma
 
-    > Initial gamma 0.126687434518681 0.208436049046155 0.225781254010715 0.127716364596879 0.271846370836017 0.29892586080771 0.178778966628895 0.149594878960611 0.301669218899599 0.325339582858285 0.102627495689076 0.0246573307557427 0.115651844260356 0.12590063878428
+    > Initial gamma 0.12668743451868 0.208436049046155 0.225781254010715 0.127716364596879 0.271846370836017 0.298925860807711 0.178778966628895 0.14959487896061 0.301669218899599 0.325339582858285 0.102627495689076 0.0246573307557426 0.115651844260356 0.12590063878428
 
     > Variance initialization for tau^2
 
-    > Initial tau2 0.563382767126561 0.780540040364637 0.85314906554601 0.885038367492996 0.69014514253411 1.12430313332088 0.956206282962672 0.640916656926725 0.563928178735679 0.97936241032889 0.748210592803307 0.703848237054425 0.654279868785319 0.719527963629566
+    > Initial tau2 0.563382767126561 0.780540040364637 0.85314906554601 0.885038367492996 0.69014514253411 1.12430313332088 0.956206282962672 0.640916656926725 0.563928178735679 0.979362410328891 0.748210592803307 0.703848237054425 0.654279868785319 0.719527963629566
 
     > Precomputing structural matrices for M_step_beta...
 
     > Ending early
 
-    > Time 1.84352700710297
+    > Time 1.41588418881098
 
 ``` r
 
@@ -913,7 +913,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 print(TESSERA_out$time)
 ```
 
-    > Time difference of 1.843527 mins
+    > Time difference of 1.415884 mins
 
 Once the algorithm has converged, the output object provides a
 comprehensive summary of the performance in the `performanceSummary`
@@ -1599,7 +1599,7 @@ devtools::session_info()
     >  collate  C.UTF-8
     >  ctype    C.UTF-8
     >  tz       UTC
-    >  date     2026-07-29
+    >  date     2026-08-22
     >  pandoc   3.8.3 @ /opt/hostedtoolcache/pandoc/3.8.3/x64/ (via rmarkdown)
     >  quarto   NA
     > 
@@ -1612,11 +1612,11 @@ devtools::session_info()
     >  BiocManager            1.30.27     [90m2025-11-14 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  BiocStyle            * 2.40.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  bit                    4.6.0       [90m2025-03-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  bit64                  4.8.2       [90m2026-05-19 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  bit64                  4.8.4       [90m2026-08-20 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  blob                   1.3.0       [90m2026-01-14 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  bookdown               0.47        [90m2026-06-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  BRISC                  1.0.6       [90m2024-10-02 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  bslib                  0.11.0      [90m2026-05-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  bslib                  0.12.0      [90m2026-08-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  cachem                 1.1.0       [90m2024-05-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  cli                    3.6.6       [90m2026-04-09 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  colorspace             2.1-3       [90m2026-07-12 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1682,7 +1682,7 @@ devtools::session_info()
     >  RANN                   2.6.2       [90m2024-08-25 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  RColorBrewer           1.1-3       [90m2022-04-03 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  Rcpp                   1.1.2       [90m2026-07-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  RcppParallel           6.1.1       [90m2026-07-27 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  RcppParallel           6.2.0       [90m2026-07-30 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  rdist                  0.0.5       [90m2020-05-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  reshape2             * 1.4.5       [90m2025-11-12 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  Rfast                  2.1.5.2     [90m2025-10-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1710,11 +1710,11 @@ devtools::session_info()
     >  spatstat.geom          3.8-2       [90m2026-07-24 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  spatstat.univar        3.2-0       [90m2026-05-18 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  spatstat.utils         3.2-4       [90m2026-07-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  stringi                1.8.7       [90m2025-03-27 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  stringi                1.8.9       [90m2026-08-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  stringr                1.6.0       [90m2025-11-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  SummarizedExperiment * 1.42.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  systemfonts            1.3.2       [90m2026-03-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  TESSERA              * 0.99.1      [90m2026-07-29 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
+    >  TESSERA              * 0.99.1      [90m2026-08-22 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
     >  textshaping            1.0.5       [90m2026-03-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  tibble                 3.3.1       [90m2026-01-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  tidyselect             1.2.1       [90m2024-03-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1726,7 +1726,7 @@ devtools::session_info()
     >  XVector                0.52.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  yaml                   2.3.12      [90m2025-12-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  zigg                   0.0.2       [90m2025-02-07 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  zoo                    1.8-15      [90m2025-12-15 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  zoo                    1.9-0       [90m2026-07-31 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     > 
     >  [90m [1] /home/runner/work/_temp/Library [39m
     >  [90m [2] /opt/R/4.6.1/lib/R/site-library [39m
