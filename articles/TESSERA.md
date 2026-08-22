@@ -39,6 +39,8 @@ core assumptions and dramatically inflates False Discovery Rates (FDR).
 
 ## Method
 
+### TESSERA Model
+
 `TESSERA` fits an overdispersed Poisson GLMM. For an observation $`j`$
 in sample $`i`$, the counts $`Z_{i, j}`$ are modeled as:
 ``` math
@@ -162,11 +164,11 @@ statistical inference.
 
 | Function | Step | Purpose | Primary Inputs | Primary Outputs |
 |:---|:---|:---|:---|:---|
-| [`prep_data()`](https://floricaconstantine.github.io/TESSERA/reference/prep_data.md) | **Data Prep** | Assembles inputs and pre-computes eigenvalues of spatial matrices. | Data matrix or `SpatialExperiment` object, Design matrix, model type | `TESSERA_data` object |
+| [`prep_data()`](https://floricaconstantine.github.io/TESSERA/reference/prep_data.md) | **Data Prep** | Assembles inputs and pre-computes eigenvalues of spatial matrices. | Data matrix or `SpatialExperiment` object, design matrix, model type | `TESSERA_data` object |
 | [`TESSERA_lattice()`](https://floricaconstantine.github.io/TESSERA/reference/TESSERA_lattice.md) / [`TESSERA_spNNGP()`](https://floricaconstantine.github.io/TESSERA/reference/TESSERA_spNNGP.md) | **Fitting** | Fits the overdispersed GLMM model for a single gene. | `TESSERA_data`, gene name, optimization specs | Fitted model list object (`TESSERA_out`) |
 | [`calc_Wald_statistics()`](https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_statistics.md) | **Inference** | Conducts Wald tests for a user-defined contrast matrix. | `TESSERA_out`, contrast matrix | Data frame of test statistics |
 | [`select_Wald_threshold()`](https://floricaconstantine.github.io/TESSERA/reference/select_Wald_threshold.md) | **Inference** | Sweeps over statistics to fit the empirical null distribution. | Vector of Wald statistics | Empirical null parameter list |
-| [`calc_scaled_noncentral_chi2_pvalues()`](https://floricaconstantine.github.io/TESSERA/reference/calc_scaled_noncentral_chi2_pvalues.md) | **Inference** | Computes empirical *p*-values using the fitted empirical null distribution. | Vector of Wald statistics, empirical null parameters | Vector of empirical *p*-values |
+| [`calc_scaled_noncentral_chi2_pvalues()`](https://floricaconstantine.github.io/TESSERA/reference/calc_scaled_noncentral_chi2_pvalues.md) | **Inference** | Computes empirical $`p`$-values using the fitted empirical null distribution. | Vector of Wald statistics, empirical null parameters | Vector of empirical $`p`$-values |
 
 ## Installation
 
@@ -638,7 +640,7 @@ inherent to each. A key goal of the preparation step is computational
 efficiency: we pre-compute quantities that are shared across all genes
 to drastically reduce the time required for model fitting.
 
-#### The `prep_data` function
+#### The `prep_data` Function
 
 The `prep_data` function acts as a wrapper that converts your data into
 the structured format `TESSERA` expects. You can provide data either as
@@ -663,7 +665,7 @@ a `SpatialExperiment` object or as raw matrices and data frames.
 | `design_formula` | A standard R formula object (e.g., `~ 0 + Group:celltype`). |
 | `design_mat` | A pre-constructed design matrix. Zero columns will be dropped automatically. |
 
-##### 3. Spatial & Model Configuration
+##### 3. Spatial and Model Configuration
 
 | Argument | Description |
 |:---|:---|
@@ -737,14 +739,14 @@ are physically adjacent).
   $`n \times n`$ matrix (where $`n`$ is the number of cells per sample).
   For $`n < 3000`$, this typically uses $`< 1`$ GB of RAM.
 
-##### Sparse Nearest-Neighbor Gaussian Process (spNNGP)
+##### Sparse Nearest-Neighbor Gaussian Process (spNNGP) Models
 
 spNNGP models define spatial correlation as a function of pairwise
 distances between cells using a kernel function (e.g., Matern,
 Exponential, Gaussian, or Spherical).
 
 - **The “Sparse” Advantage:** The “sparse nearest-neighbor” improvement
-  over a traditional Gaussian Process is an approximation that enables
+  over a traditional Gaussian process is an approximation that enables
   greater scalability by discarding the correlation between far-away
   pairs of cells.
 - **No Pre-computation:** spNNGP models do not require adjacency
@@ -773,7 +775,7 @@ cells within this distance as adjacent. Ultimately,
 the manual control required for more complex or non-grid tissue
 architectures.
 
-In particular, for imaging-based or irregularly spaced data, determining
+In particular, for imaging-based or irregularly-spaced data, determining
 adjacency is often more nuanced. We provide the
 [`plot_neighbor_distances()`](https://floricaconstantine.github.io/TESSERA/reference/plot_neighbor_distances.md)
 function as a diagnostic tool; it generates boxplots of the distance to
@@ -811,7 +813,7 @@ argument.
 
 ## Model Fitting
 
-### Running the ECM algorithm
+### Running the ECM Algorithm
 
 `TESSERA` fits models on a single gene at a time. This independence
 means there is no information sharing between genes during the fitting
@@ -828,7 +830,7 @@ most spatial transcriptomics datasets, you can fine-tune the convergence
 behavior using the following settings:
 
 - **Iteration Limits:** `em_iters` sets the maximum number of allowed
-  iterations. `em_min_iters` enforces a minimum number of steps to
+  iterations. `em_min_iters` enforces a minimum number of iterations to
   prevent the algorithm from exiting before the log-likelihood has
   stabilized.
 
@@ -905,7 +907,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 
     > Ending early
 
-    > Time 1.82033494313558
+    > Time 1.81083629131317
 
 ``` r
 
@@ -913,7 +915,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 print(TESSERA_out$time)
 ```
 
-    > Time difference of 1.820335 mins
+    > Time difference of 1.810836 mins
 
 Once the algorithm has converged, the output object provides a
 comprehensive summary of the performance in the `performanceSummary`
@@ -974,11 +976,11 @@ head(TESSERA_out$beta_hat)
     >      GroupDKD:celltypeCD4T      GroupHKD:celltypeCD4T 
     >                  -6.866512                  -8.133489
 
-### Parallelization for multiple genes
+### Parallelization for Multiple Genes
 
 For the purposes of this vignette, we have already run `TESSERA` on the
 top 3,000 genes (selected by raw count variance) as described in Section
-[Parallelize via HPC cluster](#parallelize-hpc). The output data frames
+[Parallelize via HPC Cluster](#parallelize-hpc). The output data frames
 from each individual gene’s run were row-bound to aggregate the results
 into a single combined data frame. We load this compiled data frame here
 to demonstrate downstream analysis and visualization.
@@ -1003,7 +1005,7 @@ for all gene-sample pairs.
 performance_df <- TESSERA_all$perf_df
 ```
 
-##### Parallelize via HPC cluster
+##### Parallelize via HPC Cluster
 
 `TESSERA` can be run in parallel (or serial) to fit to multiple genes.
 However, `TESSERA` is computationally intensive if run on hundreds or
@@ -1053,7 +1055,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 print(TESSERA_out$time)
 ```
 
-##### Parallelize via `futures` package
+##### Parallelize via `futures` Package
 
 The following code (not run) shows an example of how to use the
 `futures` package to parallelize `TESSERA` on 50 genes.
@@ -1121,7 +1123,7 @@ independent, `TESSERA` accounts for the inherent spatial correlation
 between measurements. By explicitly modeling this spatial covariance
 structure, the method effectively controls the Type I error rate. This
 prevents the inflation of false positives that commonly occurs when
-spatial autocorrelation is ignored–a frequent issue in non-spatial
+spatial autocorrelation is ignored—a frequent issue in non-spatial
 models that can lead to misleading biological conclusions.
 
 For a comprehensive discussion of the model’s statistical properties,
@@ -1133,11 +1135,11 @@ The results of the hypothesis tests, including specific contrasts,
 estimated values, associated standard errors, and Wald statistics, are
 contained in the `wald_df` data frame. Shown below are the results for
 between-condition comparisons performed within each cell type, a process
-elaborated upon in the [DE within a cell type between
-conditions](#de-within-celltype) section.
+elaborated upon in the [DE Within a Cell Type between
+Conditions](#de-within-celltype) section.
 
 The aggregated results were obtained via the workflow described in
-Section [Parallelize via HPC cluster](#parallelize-hpc).
+Section [Parallelize via HPC Cluster](#parallelize-hpc).
 
 ``` r
 
@@ -1173,10 +1175,10 @@ single cell type. These examples are not exhaustive; the framework is
 flexible, allowing for the construction of custom contrasts to suit a
 wide range of research objectives.
 
-#### DE between cell types
+#### DE between Cell Types
 
 We demonstrate how to construct a contrast matrix for testing
-differential expression between two cell types $`c_1`$ and $`c_2`$. The
+differential expression between two cell types, $`c_1`$ and $`c_2`$. The
 contrasts of interest are
 ``` math
 \frac{1}{3}\left(\beta_{c_1, \textit{Control}} + \beta_{c_1, \textit{DKD}} + \beta_{c_1, \textit{HKD}}\right) - \frac{1}{3}\left(\beta_{c_2, \textit{Control}} + \beta_{c_2, \textit{DKD}} + \beta_{c_2, \textit{HKD}}\right).
@@ -1186,7 +1188,7 @@ and generate all possible pairwise combinations.
 
 ``` r
 
-# Get list of cell types from the SpatialExperiment object
+# Get list of cell types from the `SpatialExperiment` object
 cell_type_list <- levels(SummarizedExperiment::colData(spe)[, celltype_col])
 
 # Generate all possible pairs of cell types
@@ -1267,7 +1269,7 @@ head(one_gene_ct_wald, 2)
     > C_TAL-CD4T  0.02795613   -8.003342
     > C_TAL-CNT   0.01978993   13.706549
 
-#### DE within a cell type between conditions
+#### DE within a Cell Type between Conditions
 
 Beyond comparing cell types, we can construct a contrast matrix to test
 for differential expression between experimental conditions *within* a
@@ -1387,11 +1389,11 @@ head(wald_df, 2)
     > 1   -3.194293    C_TAL:Control-DKD
     > 2    7.659783    C_TAL:Control-HKD
 
-### Empirical Null Estimation
+### Empirical Null Distribution Estimation
 
 For a generalized linear mixed model (GLMM), such as the one implemented
 in `TESSERA`, the null distribution of Wald test statistics is typically
-not known. With a sufficient number of samples (meaning independent
+not known. With a sufficient number of samples (meaning, independent
 experimental units, not individual cells), it will approach a normal
 distribution or a $`\chi_1^2`$ distribution (depending on if the
 statistics are squared). However, in the finite-sample regime, GLMMs are
@@ -1405,15 +1407,15 @@ forward: we can use Efron’s idea of estimating the null distribution
 directly from the data ([Efron 2004](#ref-efron2004large)). In our case,
 we believe that the square of the Wald statistics computed previously
 can be modeled as a scaled, non-central $`\chi_1^2`$ distribution. The
-functions below provide functionality to find the optimal parameter
-estimates. Essentially, we look for a threshold below which most of the
-statistics come from the null distribution; for these statistics, the
-$`p`$-values should look uniformly distributed on $`(0, 1)`$.
+functions below may be used to find optimal parameter estimates for this
+distribution. Essentially, we look for a threshold below which most of
+the statistics come from the null distribution; for these statistics,
+the $`p`$-values should look uniformly distributed on $`(0, 1)`$.
 
-In general, empirical null estimation procedures rely on having
-sufficient statistics that come from the null distribution, as
+In general, empirical null distribution estimation procedures rely on
+having sufficient statistics that come from the null distribution, as
 otherwise, there will not be enough data to reliably estimate a
-distribution, or, the statistics used to estimate the distribution will
+distribution, or the statistics used to estimate the distribution will
 not be from the null distribution. Moreover, having more than one
 contrast (of a similar nature, e.g., DE within a cell type) strengthens
 the procedure by providing more data and capturing a wider range of
@@ -1477,17 +1479,17 @@ wald_thresh_selection$threshold
 
     > [1] 119.2417
 
-### Obtaining $`p`$-values
+### Obtaining $`p`$-Values
 
 Once the empirical null distribution is fit, we can calculate
-$`p`$-values and perform testing for differential expression, in this
-case, between conditions within a cell type.
+$`p`$-values and perform hypothesis testing for differential expression,
+in this case, between conditions within a cell type.
 
 #### `TESSERA` $`p`$-values
 
 We compute the $`p`$-values and apply the Benjamini-Hochberg (BH)
-adjustment within each contrast to control the False Discovery Rate
-(FDR) at a level of 0.05.
+adjustment over genes within each contrast to control the False
+Discovery Rate (FDR) at a level of 0.05.
 
 ``` r
 
@@ -1545,8 +1547,8 @@ p
 
 #### `fdrtool` $`p`$-values
 
-Another empirical null estimation procedure to obtain $`p`$-values is
-the False Non-Discovery Rate (FNDR) method from the
+Another empirical null distribution estimation procedure to obtain
+$`p`$-values is the False Non-Discovery Rate (FNDR) method from the
 *[fdrtool](https://CRAN.R-project.org/package=fdrtool)* package
 ([Strimmer 2008](#ref-strimmer2008fdrtool)). While both empirical null
 estimation procedures can be used to generate $`p`$-values, there are

@@ -104,6 +104,9 @@ core assumptions and dramatically inflates False Discovery Rates
 <div class="section level2">
 <h2 id="method">Method<a class="anchor" aria-label="anchor" href="#method"></a>
 </h2>
+<div class="section level3">
+<h3 id="tessera-model">TESSERA Model<a class="anchor" aria-label="anchor" href="#tessera-model"></a>
+</h3>
 <p><code>TESSERA</code> fits an overdispersed Poisson GLMM. For an
 observation
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
@@ -149,6 +152,7 @@ tissue–while simultaneously accounting for the spatial autocorrelation
 inherent within each sample.</p>
 <p>In the case of spatial transcriptomics, the GLMM is fit separately
 for each gene.</p>
+</div>
 <div class="section level3">
 <h3 id="supported-spatial-covariance-structures">Supported Spatial Covariance Structures<a class="anchor" aria-label="anchor" href="#supported-spatial-covariance-structures"></a>
 </h3>
@@ -277,7 +281,7 @@ downstream statistical inference.</p>
 <td align="left">Assembles inputs and pre-computes eigenvalues of
 spatial matrices.</td>
 <td align="left">Data matrix or <code>SpatialExperiment</code> object,
-Design matrix, model type</td>
+design matrix, model type</td>
 <td align="left">
 <code>TESSERA_data</code> object</td>
 </tr>
@@ -315,11 +319,13 @@ distribution.</td>
 <tr class="odd">
 <td align="left"><code><a href="../reference/calc_scaled_noncentral_chi2_pvalues.html">calc_scaled_noncentral_chi2_pvalues()</a></code></td>
 <td align="left"><strong>Inference</strong></td>
-<td align="left">Computes empirical <em>p</em>-values using the fitted
-empirical null distribution.</td>
+<td align="left">Computes empirical
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-values
+using the fitted empirical null distribution.</td>
 <td align="left">Vector of Wald statistics, empirical null
 parameters</td>
-<td align="left">Vector of empirical <em>p</em>-values</td>
+<td align="left">Vector of empirical
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-values</td>
 </tr>
 </tbody>
 </table>
@@ -709,7 +715,7 @@ computational efficiency: we pre-compute quantities that are shared
 across all genes to drastically reduce the time required for model
 fitting.</p>
 <div class="section level4">
-<h4 id="the-prep_data-function">The <code>prep_data</code> function<a class="anchor" aria-label="anchor" href="#the-prep_data-function"></a>
+<h4 id="the-prep_data-function">The <code>prep_data</code> Function<a class="anchor" aria-label="anchor" href="#the-prep_data-function"></a>
 </h4>
 <p>The <code>prep_data</code> function acts as a wrapper that converts
 your data into the structured format <code>TESSERA</code> expects. You
@@ -791,7 +797,7 @@ dropped automatically.</td>
 </table>
 </div>
 <div class="section level5">
-<h5 id="spatial-model-configuration">3. Spatial &amp; Model Configuration<a class="anchor" aria-label="anchor" href="#spatial-model-configuration"></a>
+<h5 id="spatial-and-model-configuration">3. Spatial and Model Configuration<a class="anchor" aria-label="anchor" href="#spatial-and-model-configuration"></a>
 </h5>
 <table class="table">
 <colgroup>
@@ -917,7 +923,7 @@ GB of RAM.</li>
 </ul>
 </div>
 <div class="section level5">
-<h5 id="sparse-nearest-neighbor-gaussian-process-spnngp">Sparse Nearest-Neighbor Gaussian Process (spNNGP)<a class="anchor" aria-label="anchor" href="#sparse-nearest-neighbor-gaussian-process-spnngp"></a>
+<h5 id="sparse-nearest-neighbor-gaussian-process-spnngp-models">Sparse Nearest-Neighbor Gaussian Process (spNNGP) Models<a class="anchor" aria-label="anchor" href="#sparse-nearest-neighbor-gaussian-process-spnngp-models"></a>
 </h5>
 <p>spNNGP models define spatial correlation as a function of pairwise
 distances between cells using a kernel function (e.g., Matern,
@@ -925,7 +931,7 @@ Exponential, Gaussian, or Spherical).</p>
 <ul>
 <li>
 <strong>The “Sparse” Advantage:</strong> The “sparse
-nearest-neighbor” improvement over a traditional Gaussian Process is an
+nearest-neighbor” improvement over a traditional Gaussian process is an
 approximation that enables greater scalability by discarding the
 correlation between far-away pairs of cells.</li>
 <li>
@@ -958,7 +964,7 @@ Ultimately, <code>expected_num_neighbors</code> serves to automate the
 discovery of a valid <code>D_THRESH</code> argument for structured data,
 while <code>D_THRESH</code> itself offers the manual control required
 for more complex or non-grid tissue architectures.</p>
-<p>In particular, for imaging-based or irregularly spaced data,
+<p>In particular, for imaging-based or irregularly-spaced data,
 determining adjacency is often more nuanced. We provide the
 <code><a href="../reference/plot_neighbor_distances.html">plot_neighbor_distances()</a></code> function as a diagnostic tool; it
 generates boxplots of the distance to the
@@ -996,7 +1002,7 @@ This value can be passed directly to <code>prepData()</code> via the
 <h2 id="model-fitting">Model Fitting<a class="anchor" aria-label="anchor" href="#model-fitting"></a>
 </h2>
 <div class="section level3">
-<h3 id="run-tessera">Running the ECM algorithm<a class="anchor" aria-label="anchor" href="#run-tessera"></a>
+<h3 id="run-tessera">Running the ECM Algorithm<a class="anchor" aria-label="anchor" href="#run-tessera"></a>
 </h3>
 <p><code>TESSERA</code> fits models on a single gene at a time. This
 independence means there is no information sharing between genes during
@@ -1014,8 +1020,8 @@ the convergence behavior using the following settings:</p>
 <ul>
 <li><p><strong>Iteration Limits:</strong> <code>em_iters</code> sets the
 maximum number of allowed iterations. <code>em_min_iters</code> enforces
-a minimum number of steps to prevent the algorithm from exiting before
-the log-likelihood has stabilized.</p></li>
+a minimum number of iterations to prevent the algorithm from exiting
+before the log-likelihood has stabilized.</p></li>
 <li><p><strong>Convergence Tolerance:</strong> <code>em_tol</code> is
 the numerical threshold for stopping, and <code>em_stopping</code>
 defines the metric used (typically the relative change in
@@ -1073,11 +1079,11 @@ wish to run the model locally, simply change the chunk header to
 <pre><code>&gt; Initial tau2 0.563382767126561 0.780540040364637 0.85314906554601 0.885038367492996 0.69014514253411 1.12430313332088 0.956206282962672 0.640916656926725 0.563928178735679 0.97936241032889 0.748210592803307 0.703848237054425 0.654279868785319 0.719527963629566</code></pre>
 <pre><code>&gt; Precomputing structural matrices for M_step_beta...</code></pre>
 <pre><code>&gt; Ending early</code></pre>
-<pre><code>&gt; Time 1.82033494313558</code></pre>
+<pre><code>&gt; Time 1.81083629131317</code></pre>
 <div class="sourceCode" id="cb48"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Output the run-time</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">TESSERA_out</span><span class="op">$</span><span class="va">time</span><span class="op">)</span></span></code></pre></div>
-<pre><code>&gt; Time difference of 1.820335 mins</code></pre>
+<pre><code>&gt; Time difference of 1.810836 mins</code></pre>
 <p>Once the algorithm has converged, the output object provides a
 comprehensive summary of the performance in the
 <code>performanceSummary</code> data frame, allowing for a sample-wise
@@ -1130,12 +1136,12 @@ field. Each entry corresponds to a column in the design matrix.</p>
 &gt;                  -6.866512                  -8.133489</code></pre>
 </div>
 <div class="section level3">
-<h3 id="parallelization-for-multiple-genes">Parallelization for multiple genes<a class="anchor" aria-label="anchor" href="#parallelization-for-multiple-genes"></a>
+<h3 id="parallelization-for-multiple-genes">Parallelization for Multiple Genes<a class="anchor" aria-label="anchor" href="#parallelization-for-multiple-genes"></a>
 </h3>
 <p>For the purposes of this vignette, we have already run
 <code>TESSERA</code> on the top 3,000 genes (selected by raw count
 variance) as described in Section <a href="#parallelize-hpc">Parallelize
-via HPC cluster</a>. The output data frames from each individual gene’s
+via HPC Cluster</a>. The output data frames from each individual gene’s
 run were row-bound to aggregate the results into a single combined data
 frame. We load this compiled data frame here to demonstrate downstream
 analysis and visualization.</p>
@@ -1153,7 +1159,7 @@ pairs.</p>
 <code class="sourceCode R"><span><span class="co"># Extract sample-level performance metrics for all 3,000 genes</span></span>
 <span><span class="va">performance_df</span> <span class="op">&lt;-</span> <span class="va">TESSERA_all</span><span class="op">$</span><span class="va">perf_df</span></span></code></pre></div>
 <div class="section level5">
-<h5 id="parallelize-hpc">Parallelize via HPC cluster<a class="anchor" aria-label="anchor" href="#parallelize-hpc"></a>
+<h5 id="parallelize-hpc">Parallelize via HPC Cluster<a class="anchor" aria-label="anchor" href="#parallelize-hpc"></a>
 </h5>
 <p><code>TESSERA</code> can be run in parallel (or serial) to fit to
 multiple genes. However, <code>TESSERA</code> is computationally
@@ -1201,7 +1207,7 @@ with the below parameterization.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">TESSERA_out</span><span class="op">$</span><span class="va">time</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level5">
-<h5 id="parallelize-futures">Parallelize via <code>futures</code> package<a class="anchor" aria-label="anchor" href="#parallelize-futures"></a>
+<h5 id="parallelize-futures">Parallelize via <code>futures</code> Package<a class="anchor" aria-label="anchor" href="#parallelize-futures"></a>
 </h5>
 <p>The following code (not run) shows an example of how to use the
 <code>futures</code> package to parallelize <code>TESSERA</code> on 50
@@ -1270,7 +1276,7 @@ independent, <code>TESSERA</code> accounts for the inherent spatial
 correlation between measurements. By explicitly modeling this spatial
 covariance structure, the method effectively controls the Type I error
 rate. This prevents the inflation of false positives that commonly
-occurs when spatial autocorrelation is ignored–a frequent issue in
+occurs when spatial autocorrelation is ignored—a frequent issue in
 non-spatial models that can lead to misleading biological
 conclusions.</p>
 <p>For a comprehensive discussion of the model’s statistical properties,
@@ -1282,9 +1288,9 @@ estimated values, associated standard errors, and Wald statistics, are
 contained in the <code>wald_df</code> data frame. Shown below are the
 results for between-condition comparisons performed within each cell
 type, a process elaborated upon in the <a href="#de-within-celltype">DE
-within a cell type between conditions</a> section.</p>
+Within a Cell Type between Conditions</a> section.</p>
 <p>The aggregated results were obtained via the workflow described in
-Section <a href="#parallelize-hpc">Parallelize via HPC cluster</a>.</p>
+Section <a href="#parallelize-hpc">Parallelize via HPC Cluster</a>.</p>
 <div class="sourceCode" id="cb59"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Extract Wald test results for all gene-contrast pairs</span></span>
 <span><span class="va">wald_df</span> <span class="op">&lt;-</span> <span class="va">TESSERA_all</span><span class="op">$</span><span class="va">wald_df</span></span>
@@ -1320,10 +1326,10 @@ within a single cell type. These examples are not exhaustive; the
 framework is flexible, allowing for the construction of custom contrasts
 to suit a wide range of research objectives.</p>
 <div class="section level4">
-<h4 id="de-between-cell-types">DE between cell types<a class="anchor" aria-label="anchor" href="#de-between-cell-types"></a>
+<h4 id="de-between-cell-types">DE between Cell Types<a class="anchor" aria-label="anchor" href="#de-between-cell-types"></a>
 </h4>
 <p>We demonstrate how to construct a contrast matrix for testing
-differential expression between two cell types
+differential expression between two cell types,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>c</mi><mn>1</mn></msub><annotation encoding="application/x-tex">c_1</annotation></semantics></math>
 and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>c</mi><mn>2</mn></msub><annotation encoding="application/x-tex">c_2</annotation></semantics></math>.
@@ -1332,7 +1338,7 @@ The contrasts of interest are
 First, we extract the cell type levels from the SpatialExperiment object
 and generate all possible pairwise combinations.</p>
 <div class="sourceCode" id="cb61"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Get list of cell types from the SpatialExperiment object</span></span>
+<code class="sourceCode R"><span><span class="co"># Get list of cell types from the `SpatialExperiment` object</span></span>
 <span><span class="va">cell_type_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/levels.html" class="external-link">levels</a></span><span class="op">(</span><span class="fu">SummarizedExperiment</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/SummarizedExperiment/man/SummarizedExperiment-class.html" class="external-link">colData</a></span><span class="op">(</span><span class="va">spe</span><span class="op">)</span><span class="op">[</span>, <span class="va">celltype_col</span><span class="op">]</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Generate all possible pairs of cell types</span></span>
@@ -1402,7 +1408,7 @@ gene <em>ACTA2</em> below.</p>
 &gt; C_TAL-CNT   0.01978993   13.706549</code></pre>
 </div>
 <div class="section level4">
-<h4 id="de-within-celltype">DE within a cell type between conditions<a class="anchor" aria-label="anchor" href="#de-within-celltype"></a>
+<h4 id="de-within-celltype">DE within a Cell Type between Conditions<a class="anchor" aria-label="anchor" href="#de-within-celltype"></a>
 </h4>
 <p>Beyond comparing cell types, we can construct a contrast matrix to
 test for differential expression between experimental conditions
@@ -1504,12 +1510,12 @@ running <code>TESSERA</code> on the top 3,000 genes.</p>
 </div>
 </div>
 <div class="section level3">
-<h3 id="empirical-null-estimation">Empirical Null Estimation<a class="anchor" aria-label="anchor" href="#empirical-null-estimation"></a>
+<h3 id="empirical-null-distribution-estimation">Empirical Null Distribution Estimation<a class="anchor" aria-label="anchor" href="#empirical-null-distribution-estimation"></a>
 </h3>
 <p>For a generalized linear mixed model (GLMM), such as the one
 implemented in <code>TESSERA</code>, the null distribution of Wald test
 statistics is typically not known. With a sufficient number of samples
-(meaning independent experimental units, not individual cells), it will
+(meaning, independent experimental units, not individual cells), it will
 approach a normal distribution or a
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>χ</mi><mn>1</mn><mn>2</mn></msubsup><annotation encoding="application/x-tex">\chi_1^2</annotation></semantics></math>
 distribution (depending on if the statistics are squared). However, in
@@ -1523,17 +1529,17 @@ directly from the data <span class="citation">(<a href="#ref-efron2004large">Efr
 believe that the square of the Wald statistics computed previously can
 be modeled as a scaled, non-central
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>χ</mi><mn>1</mn><mn>2</mn></msubsup><annotation encoding="application/x-tex">\chi_1^2</annotation></semantics></math>
-distribution. The functions below provide functionality to find the
-optimal parameter estimates. Essentially, we look for a threshold below
-which most of the statistics come from the null distribution; for these
-statistics, the
+distribution. The functions below may be used to find optimal parameter
+estimates for this distribution. Essentially, we look for a threshold
+below which most of the statistics come from the null distribution; for
+these statistics, the
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-values
 should look uniformly distributed on
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(0, 1)</annotation></semantics></math>.</p>
-<p>In general, empirical null estimation procedures rely on having
-sufficient statistics that come from the null distribution, as
+<p>In general, empirical null distribution estimation procedures rely on
+having sufficient statistics that come from the null distribution, as
 otherwise, there will not be enough data to reliably estimate a
-distribution, or, the statistics used to estimate the distribution will
+distribution, or the statistics used to estimate the distribution will
 not be from the null distribution. Moreover, having more than one
 contrast (of a similar nature, e.g., DE within a cell type) strengthens
 the procedure by providing more data and capturing a wider range of
@@ -1583,12 +1589,12 @@ null distribution.</p>
 </div>
 <div class="section level3">
 <h3 id="obtaining-p-values">Obtaining
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-values<a class="anchor" aria-label="anchor" href="#obtaining-p-values"></a>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-Values<a class="anchor" aria-label="anchor" href="#obtaining-p-values"></a>
 </h3>
 <p>Once the empirical null distribution is fit, we can calculate
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-values
-and perform testing for differential expression, in this case, between
-conditions within a cell type.</p>
+and perform hypothesis testing for differential expression, in this
+case, between conditions within a cell type.</p>
 <div class="section level4">
 <h4 id="tessera-p-values">
 <code>TESSERA</code>
@@ -1596,8 +1602,9 @@ conditions within a cell type.</p>
 </h4>
 <p>We compute the
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-values
-and apply the Benjamini-Hochberg (BH) adjustment within each contrast to
-control the False Discovery Rate (FDR) at a level of 0.05.</p>
+and apply the Benjamini-Hochberg (BH) adjustment over genes within each
+contrast to control the False Discovery Rate (FDR) at a level of
+0.05.</p>
 <div class="sourceCode" id="cb82"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># FDR level</span></span>
 <span><span class="va">PVAL_THRESH</span> <span class="op">&lt;-</span> <span class="fl">0.05</span></span>
@@ -1645,7 +1652,7 @@ the fewest number of DE genes.</p>
 <code>fdrtool</code>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-values<a class="anchor" aria-label="anchor" href="#fdrtool-p-values"></a>
 </h4>
-<p>Another empirical null estimation procedure to obtain
+<p>Another empirical null distribution estimation procedure to obtain
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-values
 is the False Non-Discovery Rate (FNDR) method from the <em><a href="https://CRAN.R-project.org/package=fdrtool" class="external-link">fdrtool</a></em>
 package <span class="citation">(<a href="#ref-strimmer2008fdrtool">Strimmer 2008</a>)</span>. While both
