@@ -907,7 +907,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 
     > Ending early
 
-    > Time 1.81083629131317
+    > Time 1.81655573050181
 
 ``` r
 
@@ -915,7 +915,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 print(TESSERA_out$time)
 ```
 
-    > Time difference of 1.810836 mins
+    > Time difference of 1.816556 mins
 
 Once the algorithm has converged, the output object provides a
 comprehensive summary of the performance in the `performanceSummary`
@@ -1584,7 +1584,7 @@ for (cd in unique(wald_df$contrast_description)) {
 }
 ```
 
-## Session information
+## Session Information
 
 ``` r
 
