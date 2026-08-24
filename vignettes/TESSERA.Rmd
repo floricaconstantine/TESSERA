@@ -96,7 +96,7 @@ Parameter estimation is carried out using an Expectation-Conditional-Maximizatio
 
 ## Hypothesis Testing and Empirical Null Distributions
 
-Because finite-sample GLMMs are prone to structural asymptotic biases, the true null distribution of the Wald test statistics is typically unknown. 
+In finite-sample settings, the true null distribution of the Wald test statistics for a GLMM is typically unknown. 
 `TESSERA` addresses this by modeling the Wald statistics using a scaled, non-central $\chi_1^2$ distribution, where an empirical null distribution is computed by fiting thousands of parallelized per-gene models.
 
 # Package Design
@@ -109,7 +109,7 @@ The package revolves around a specialized class structure designed to seamlessly
 
 * **Input Integration:** `TESSERA` acts as a downstream companion to the Bioconductor ecosystem. 
 It natively ingests `SpatialExperiment` objects, automatically unpacking coordinates, counts, and spatial metadata.
-* **The `TESSERA_data` Container:** The main preprocessing function, `prep_data()`, compiles these inputs into a structured, optimized list object. 
+* **The `TESSERA_data` Container:** The main preprocessing function, `prep_data()`, compiles these inputs into a structured list object. 
 For lattice models, it pre-computes matrix eigenvalues and neighborhood weights once across the entire tissue layout, caching these static matrices so they do not have to be re-calculated during gene-by-gene iteration.
 
 ## Core Functions at a Glance
@@ -244,7 +244,7 @@ p <- p + ggplot2::labs(x = "Sample ID", y = "Number of cells")
 p
 ```
 
-We examine the number of cells per cell type across all cells and see that it varies widely.
+We examine the number of cells per cell type across all samples and see that it varies widely.
 ```{r num_cells_celltype}
 # Number of cells per cell type
 sort(table(SummarizedExperiment::colData(spe)[, celltype_col]))
@@ -274,7 +274,7 @@ SummarizedExperiment::colData(spe) <- cbind(SummarizedExperiment::colData(spe),
 ```
 
 To focus our analysis on the most informative features (here, genes), we sort the genes by raw count variance. 
-In a typical workflow, you might subset the data object to the top $N$ genes (e.g., the top 3,000 or 5,000 genes) before fitting the model.
+In a typical workflow, you might subset the data object to the top $G$ genes (e.g., the top 3,000 or 5,000 genes) before fitting the model.
 ```{r sort_data, fig.height=4, fig.width=6}
 # Calculate variance across all spots for each gene
 rv <- MatrixGenerics::rowVars(SingleCellExperiment::counts(spe))
