@@ -126,12 +126,11 @@ effects.
 
 ### Hypothesis Testing and Empirical Null Distributions
 
-Because finite-sample GLMMs are prone to structural asymptotic biases,
-the true null distribution of the Wald test statistics is typically
-unknown. `TESSERA` addresses this by modeling the Wald statistics using
-a scaled, non-central $`\chi_1^2`$ distribution, where an empirical null
-distribution is computed by fiting thousands of parallelized per-gene
-models.
+In finite-sample settings, the true null distribution of the Wald test
+statistics for a GLMM is typically unknown. `TESSERA` addresses this by
+modeling the Wald statistics using a scaled, non-central $`\chi_1^2`$
+distribution, where an empirical null distribution is computed by fiting
+thousands of parallelized per-gene models.
 
 ## Package Design
 
@@ -150,11 +149,10 @@ seamlessly handle multi-sample groupings:
   metadata.
 - **The `TESSERA_data` Container:** The main preprocessing function,
   [`prep_data()`](https://floricaconstantine.github.io/TESSERA/reference/prep_data.md),
-  compiles these inputs into a structured, optimized list object. For
-  lattice models, it pre-computes matrix eigenvalues and neighborhood
-  weights once across the entire tissue layout, caching these static
-  matrices so they do not have to be re-calculated during gene-by-gene
-  iteration.
+  compiles these inputs into a structured list object. For lattice
+  models, it pre-computes matrix eigenvalues and neighborhood weights
+  once across the entire tissue layout, caching these static matrices so
+  they do not have to be re-calculated during gene-by-gene iteration.
 
 ### Core Functions at a Glance
 
@@ -345,7 +343,7 @@ p
 
 ![](TESSERA_files/figure-html/plot_num_cells_samp-1.png)
 
-We examine the number of cells per cell type across all cells and see
+We examine the number of cells per cell type across all samples and see
 that it varies widely.
 
 ``` r
@@ -409,7 +407,7 @@ SummarizedExperiment::colData(spe) <- cbind(SummarizedExperiment::colData(spe),
 
 To focus our analysis on the most informative features (here, genes), we
 sort the genes by raw count variance. In a typical workflow, you might
-subset the data object to the top $`N`$ genes (e.g., the top 3,000 or
+subset the data object to the top $`G`$ genes (e.g., the top 3,000 or
 5,000 genes) before fitting the model.
 
 ``` r
@@ -907,7 +905,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 
     > Ending early
 
-    > Time 1.81655573050181
+    > Time 1.83237038850784
 
 ``` r
 
@@ -915,7 +913,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 print(TESSERA_out$time)
 ```
 
-    > Time difference of 1.816556 mins
+    > Time difference of 1.83237 mins
 
 Once the algorithm has converged, the output object provides a
 comprehensive summary of the performance in the `performanceSummary`
@@ -1601,7 +1599,7 @@ devtools::session_info()
     >  collate  C.UTF-8
     >  ctype    C.UTF-8
     >  tz       UTC
-    >  date     2026-08-22
+    >  date     2026-08-24
     >  pandoc   3.8.3 @ /opt/hostedtoolcache/pandoc/3.8.3/x64/ (via rmarkdown)
     >  quarto   NA
     > 
@@ -1716,7 +1714,7 @@ devtools::session_info()
     >  stringr                1.6.0       [90m2025-11-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  SummarizedExperiment * 1.42.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  systemfonts            1.3.2       [90m2026-03-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  TESSERA              * 0.99.1      [90m2026-08-22 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
+    >  TESSERA              * 0.99.1      [90m2026-08-24 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
     >  textshaping            1.0.5       [90m2026-03-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  tibble                 3.3.1       [90m2026-01-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  tidyselect             1.2.1       [90m2024-03-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
