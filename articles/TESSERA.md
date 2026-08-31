@@ -153,10 +153,7 @@ alongside the sample-specific spatial covariance parameters.
 
 With the Generalized Linear Mixed Model (GLMM) successfully fitted to
 the expression data, we can move from parameter estimation to
-statistical inference. This section details how `TESSERA` evaluates
-differential expression by first formulating biological questions as
-testable hypotheses, and then deriving robust $`p`$-values using
-data-driven empirical null distributions.
+statistical inference.
 
 #### Linear Contrasts for Differential Expression
 
