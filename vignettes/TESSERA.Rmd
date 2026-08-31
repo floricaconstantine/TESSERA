@@ -110,7 +110,6 @@ In the subsequent CM steps, this expectation is sequentially maximized by updati
 ## Hypothesis Testing and Empirical Null Distributions
 
 With the Generalized Linear Mixed Model (GLMM) successfully fitted to the expression data, we can move from parameter estimation to statistical inference. 
-This section details how `TESSERA` evaluates differential expression by first formulating biological questions as testable hypotheses, and then deriving robust $p$-values using data-driven empirical null distributions.
 
 ### Linear Contrasts for Differential Expression
 Once the fixed effects $\boldsymbol{\beta}$ are estimated, scientific questions are formulated as linear contrasts:
