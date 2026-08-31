@@ -3,7 +3,7 @@ pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
   TESSERA: TESSERA.html
-last_built: 2026-08-31T08:08Z
+last_built: 2026-08-31T08:28Z
 urls:
   reference: https://floricaconstantine.github.io/TESSERA/reference
   article: https://floricaconstantine.github.io/TESSERA/articles
