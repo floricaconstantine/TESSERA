@@ -202,6 +202,94 @@ summarize_TESSERA <- function(TESSERAData_obj, TESSERAOutput_obj) {
 #'
 #' @returns A dataframe of Wald t-statistics. Square these to get F-statistics.
 #'
+#' @export
+#'
+#' @examples
+#' # Locate the saved model results in inst/extdata
+#' rds_path <- system.file("extdata", "example_TESSERA_out_Leroux.rds", package = "TESSERA")
+#' # Load the results object
+#' TESSERA_out_Leroux <- readRDS(rds_path)
+#'
+#' # Run the Wald test
+#' calc_Wald_statistics(TESSERAOutput_obj = TESSERA_out_Leroux,
+#'                  contrast_mat = matrix(c(1, 0, 0), nrow = 1))
+calc_Wald_statistics <- function(TESSERAOutput_obj, contrast_mat) {
+  beta_hat   <- TESSERAOutput_obj$beta_hat
+  beta_names <- names(beta_hat)
+  stopifnot(ncol(contrast_mat) == length(beta_hat))
+  
+  # Metadata
+  fit_model <- TESSERAOutput_obj$run_settings$model_type
+  if ("spNNGP" != fit_model) {
+    kernel_type <- NA
+  } else {
+    if ("spNNGP" == fit_model) {
+      kernel_type <- TESSERAOutput_obj$run_settings$cov_type
+      if (is.null(kernel_type)) kernel_type <- NA
+    } else {
+      if (is.null(fit_model)) {
+        fit_model <- NA
+        kernel_type <- NA
+      }
+    }
+  }
+  gene <- TESSERAOutput_obj$run_settings$gene_name
+  if (is.null(gene)) gene <- NA
+  
+  V_hat <- invert_precision_matrix(TESSERAOutput_obj$beta_neghessian)
+  n_contrasts <- nrow(contrast_mat)
+  
+  # Pre-allocate output vectors
+  contrast_val     <- numeric(n_contrasts)
+  contrast_se      <- numeric(n_contrasts)
+  wald_stat_t      <- numeric(n_contrasts)
+  contrast_string  <- character(n_contrasts)
+  contrast_indices <- character(n_contrasts)
+  
+  for (c_idx in seq_len(n_contrasts)) {
+    subset_idx <- which(contrast_mat[c_idx, ] != 0)
+    R <- contrast_mat[c_idx, ]
+    
+    # Exact original arithmetic
+    Rbeta   <- sum(R * beta_hat)
+    RVR_inv <- sqrt(as.numeric(R %*% V_hat %*% R))
+    
+    contrast_val[c_idx]     <- Rbeta
+    contrast_se[c_idx]      <- RVR_inv
+    wald_stat_t[c_idx]      <- Rbeta / RVR_inv
+    contrast_string[c_idx]  <- paste(R, beta_names[subset_idx], sep = "*", collapse = "+")
+    contrast_indices[c_idx] <- paste(subset_idx, collapse = "_")
+  }
+  
+  wald_contrast_df <- data.frame(
+    gene = gene,
+    fit_model = fit_model,
+    kernel_type = kernel_type,
+    contrast_string = contrast_string,
+    contrast_indices = contrast_indices,
+    contrast_val = contrast_val,
+    contrast_se = contrast_se,
+    wald_stat_t = wald_stat_t,
+    row.names = rownames(contrast_mat),
+    stringsAsFactors = FALSE
+  )
+  
+  return(wald_contrast_df)
+}
+
+
+#' Given the output of the TESSERA algorithms and a contrast matrix, compute
+#'  Wald T-statistics.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param TESSERAOutput_obj Output of the TESSERA algorithms.
+#' @param contrast_mat Matrix with contrasts of the estimated coeficients.
+#'  Rows are contrasts, columns correspond to columns in beta_hat (covariates).
+#'  beta_hat is the vector of estimated coefficients, stored in TESSERAOutput_obj.
+#'
+#' @returns A dataframe of Wald t-statistics. Square these to get F-statistics.
+#'
 #' @importFrom dplyr bind_rows
 #'
 #' @export
@@ -215,7 +303,7 @@ summarize_TESSERA <- function(TESSERAData_obj, TESSERAOutput_obj) {
 #' # Run the Wald test
 #' calc_Wald_statistics(TESSERAOutput_obj = TESSERA_out_Leroux,
 #'                  contrast_mat = matrix(c(1, 0, 0), nrow = 1))
-calc_Wald_statistics <- function (TESSERAOutput_obj, contrast_mat) {
+calc_Wald_statistics_old <- function (TESSERAOutput_obj, contrast_mat) {
   # Extract coefficients and negative hessian and check dimensions
   beta_hat <- TESSERAOutput_obj$beta_hat
   beta_names <- names(beta_hat)
@@ -331,12 +419,115 @@ invert_precision_matrix <- function(A) {
 #' @returns Vector of c(scale, shift).
 #'
 #' @importFrom optimx optimx
-#' @importFrom stats dchisq pchisq quantile median
+#' @importFrom stats dchisq pchisq quantile median var
 #' @export
 #'
 #' @examples
 #' fit_scaled_noncentral_chi2(5 * stats::rchisq(1000, 1, ncp=10), 20)
 fit_scaled_noncentral_chi2 <- function(wald_stats, wald_thresh) {
+  # Data Cleaning
+  wald_stats <- wald_stats[is.finite(wald_stats)]
+  wald_stats <- wald_stats[wald_stats < wald_thresh]
+  
+  if (length(wald_stats) < 10) {
+    warning("Insufficient data points below threshold.")
+    return(c(scaling = NA, shift = NA))
+  }
+  
+  # --- SPEEDUP ---
+  # Pre-clean the vector once rather than on every objective evaluation.
+  # We use a copy so the MoM initialization remains mathematically identical.
+  wald_stats_clean <- wald_stats
+  wald_stats_clean[wald_stats_clean <= 0] <- 1e-8
+  
+  # Truncated Negative Log-Likelihood (Objective Function)
+  # Signature kept exactly the same to preserve optimx KKT behavior
+  trunc_nll <- function(params, x, thresh) {
+    scale <- params[1]
+    ncp   <- params[2]
+    
+    # x is now already cleaned before being passed in
+    dens <- stats::dchisq(x / scale,
+                          df = 1,
+                          ncp = ncp,
+                          log = TRUE) - log(scale)
+    
+    log_F_thresh <- stats::pchisq(thresh / scale,
+                                  df = 1,
+                                  ncp = ncp,
+                                  log.p = TRUE)
+    
+    val <- -(sum(dens) - length(x) * log_F_thresh)
+    
+    return(if (is.finite(val)) val else 1e10)
+  }
+  
+  # Method of Moments (MoM) Initialization (Using original data)
+  v_w <- stats::var(wald_stats)
+  m_w <- mean(wald_stats)
+  
+  term <- sqrt(max(0, 2.0 * m_w^2 - v_w))
+  mom_scaling <- (2 * m_w - sqrt(2.0) * term) / 2.0
+  mom_shift   <- (sqrt(2.0) * term) / (2.0 * max(1e-5, mom_scaling))
+  
+  # Define Bounds and Starting Values
+  upper_scale <- stats::quantile(wald_stats, 0.9) * (3.0 / 2.7)
+  upper_ncp   <- min(10, stats::median(wald_stats))
+  
+  lower_bounds <- c(0.01, 0)
+  upper_bounds <- c(max(2, upper_scale), max(2, upper_ncp))
+  
+  start_params <- c(
+    scaling = pmin(pmax(mom_scaling, lower_bounds[1]), upper_bounds[1]),
+    shift   = pmin(pmax(mom_shift, lower_bounds[2]), upper_bounds[2])
+  )
+  
+  # Optimization via optimx (bobyqa)
+  fit_result <- tryCatch({
+    optimx::optimx(
+      par     = start_params,
+      fn      = trunc_nll,
+      lower   = lower_bounds,
+      upper   = upper_bounds,
+      method  = "bobyqa",
+      x       = wald_stats_clean, # Pass the pre-cleaned data
+      thresh  = wald_thresh,
+      control = list(dowarn = FALSE)
+    )
+  }, error = function(e) {
+    warning("optimx (bobyqa) failed: ", e$message)
+    return(NULL)
+  })
+  
+  if (is.null(fit_result))
+    return(c(scaling = NA, shift = NA))
+  
+  # Extract results
+  res <- c(scaling = fit_result$scaling[1], shift = fit_result$shift[1])
+  
+  return(res)
+}
+
+
+#' Fit a scaled non-central chi^2_1 distribution using BOBYQA
+#'
+#' @description
+#' Numerically maximizes the likelihood of a scaled non-central chi-square
+#' distribution (df=1) truncated above a specific threshold.
+#' The fit is conditional on the threshold.
+#'
+#' @param wald_stats Vector of Wald statistics (non-negative).
+#' @param wald_thresh Threshold below which data is included in the fit.
+#'
+#' @returns Vector of c(scale, shift).
+#'
+#' @importFrom optimx optimx
+#' @importFrom stats dchisq pchisq quantile median
+#' @export
+#'
+#' @examples
+#' fit_scaled_noncentral_chi2(5 * stats::rchisq(1000, 1, ncp=10), 20)
+fit_scaled_noncentral_chi2_old <- function(wald_stats, wald_thresh) {
   # Data Cleaning
   wald_stats <- wald_stats[is.finite(wald_stats)]
   wald_stats <- wald_stats[wald_stats < wald_thresh]
@@ -580,7 +771,148 @@ calc_scaled_noncentral_chi2_pvalues <- function(wald_stats, chi2_params) {
 #'
 #' # Select optimal threshold
 #' select_Wald_threshold(wald_vec, quantile_spacing = 0.05)
-select_Wald_threshold <- function (wald_stats,
+select_Wald_threshold <- function(wald_stats,
+                                  quantile_spacing = 0.01,
+                                  metric = "Raw_MSE") {
+  
+  # Clean and sort once upfront
+  wald_stats <- sort(wald_stats[is.finite(wald_stats)])
+  n_total <- length(wald_stats)
+  
+  if (n_total < 20) {
+    stop("Insufficient valid Wald statistics provided.")
+  }
+  
+  # Quantiles to use for threshold
+  quantile_list  <- seq(quantile_spacing, 1.0 - quantile_spacing, by = quantile_spacing)
+  threshold_grid <- stats::quantile(wald_stats, quantile_list, na.rm = TRUE, names = FALSE)
+  
+  fit_results_list <- vector("list", length(threshold_grid))
+  eps <- 1e-10
+  
+  # Sequential loop over candidate thresholds
+  for (t_idx in seq_along(threshold_grid)) {
+    wald_thresh <- threshold_grid[t_idx]
+    q_val       <- quantile_list[t_idx]
+    
+    # Fast O(1) prefix slice since wald_stats is already sorted
+    n_nulls <- sum(wald_stats < wald_thresh)
+    if (n_nulls < 10) next
+    wald_nulls <- wald_stats[seq_len(n_nulls)]
+    
+    # Fit distribution
+    chi2_fit <- fit_scaled_noncentral_chi2(wald_nulls, wald_thresh)
+    if (any(is.na(chi2_fit))) next
+    
+    # Compute p-values
+    # Monotonic property: wald_nulls is ascending -> pchisq(lower.tail=FALSE) is descending
+    wald_null_pvals <- stats::pchisq(
+      wald_nulls / chi2_fit[1],
+      df = 1,
+      ncp = chi2_fit[2],
+      lower.tail = FALSE
+    )
+    
+    # rev() is bitwise identical to sort() for descending values, but O(N) instead of O(N log N)
+    obs  <- rev(wald_null_pvals)
+    theo <- stats::ppoints(n_nulls)
+    
+    # Quantile error metrics
+    err <- abs(obs - theo)
+    obs_log  <- -log10(obs + eps)
+    theo_log <- -log10(theo + eps)
+    err_log  <- abs(obs_log - theo_log)
+    
+    # Direct pre-allocated row construction (avoids dynamic column indexing)
+    fit_results_list[[t_idx]] <- data.frame(
+      threshold = wald_thresh,
+      scale     = as.numeric(chi2_fit[1]),
+      shift     = as.numeric(chi2_fit[2]),
+      n_obs     = n_nulls,
+      Raw_MSE   = mean(err^2),
+      Raw_MAE   = mean(err),
+      Raw_MedAE = stats::median(err),
+      Raw_MaxAE = max(err),
+      Log_MSE   = mean(err_log^2),
+      Log_MAE   = mean(err_log),
+      Log_MedAE = stats::median(err_log),
+      Log_MaxAE = max(err_log),
+      quantile  = q_val,
+      stringsAsFactors = FALSE
+    )
+  }
+  
+  # Combine the list into one dataframe
+  fit_results_df <- dplyr::bind_rows(fit_results_list)
+  
+  if (nrow(fit_results_df) == 0) {
+    stop("Empirical null threshold selection failed across all candidate quantiles.")
+  }
+  
+  # Find which threshold minimizes the metric
+  min_idx <- which.min(fit_results_df[[metric]])
+  
+  return(
+    list(
+      threshold   = fit_results_df$threshold[min_idx],
+      chi2_params = c(scale = fit_results_df$scale[min_idx],
+                      shift = fit_results_df$shift[min_idx]),
+      threshold_results = fit_results_df
+    )
+  )
+} 
+
+
+#' Optimal threshold selection for empirical null estimation
+#'
+#' In generalized linear mixed models (GLMMs) and the TESSERA framework,
+#' theoretical null distributions for Wald statistics are often unreliable
+#' due to finite-sample biases and E-step approximations. This function
+#' estimates an empirical null distribution—modeled as a scaled,
+#' non-central \eqn{\chi^2_1} distribution—by identifying an optimal threshold
+#' below which statistics likely originate from the null.
+#'
+#' The estimation procedure sweeps over a range of candidate thresholds. For
+#' each threshold, it estimates parameters such that the resulting p-values
+#' best approximate a \eqn{Uniform(0, 1)} distribution. The optimal threshold is
+#' selected by minimizing a chosen error metric (e.g., MSE) between the
+#' observed p-value quantiles and theoretical uniform quantiles.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param wald_stats A numeric vector of Wald statistics (non-negative).
+#'   Note: t-statistics should be squared to obtain F-statistics (or 1-df \eqn{\chi^2}
+#'   equivalent) before input.
+#' @param quantile_spacing Numeric value defining the search resolution for
+#'   the threshold. Defaults to 0.01 (searching 0.01, 0.02, ..., 0.99 quantiles).
+#' @param metric Character string specifying the selection metric.
+#'   Options include "Raw_" or "Log_" prefixed to "MSE", "MAE", "MedAE",
+#'   or "MaxAE". These correspond to Mean Squared Error, Mean Absolute Error,
+#'   Median Absolute Error, and Maximum Absolute Error (L-infinity), respectively.
+#'
+#' @return A list containing the following components:
+#' \itemize{
+#'   \item \strong{threshold}: The selected optimal Wald statistic threshold.
+#'   \item \strong{chi2params}: A vector containing the estimated shift (non-centrality)
+#'     and scale parameters for the empirical null.
+#'   \item \strong{threshold_results}: A data frame summarizing metrics and
+#'     fitted parameters across all evaluated threshold quantiles.
+#' }
+#'
+#' @importFrom stats pchisq ppoints quantile
+#' @importFrom dplyr bind_rows
+#'
+#' @export
+#'
+#' @examples
+#' # Simulate null and non-null Wald statistics
+#' null_stats <- 5 * stats::rchisq(2000, df = 1, ncp = 0.5)
+#' alt_stats <- 200 + 5 * stats::rchisq(500, df = 1, ncp = 10)
+#' wald_vec <- c(null_stats, alt_stats)
+#'
+#' # Select optimal threshold
+#' select_Wald_threshold(wald_vec, quantile_spacing = 0.05)
+select_Wald_threshold_old <- function (wald_stats,
                                    quantile_spacing = 0.01,
                                    metric = "Raw_MSE") {
   # Function to get errors and fits at a given threshold value
