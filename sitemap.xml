@@ -20,10 +20,14 @@
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/Q_matrix_CAR.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/Q_matrix_Leroux.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/Q_matrix_SAR.html</loc></url>
+<url><loc>https://floricaconstantine.github.io/TESSERA/reference/TESSERA-package.html</loc></url>
+<url><loc>https://floricaconstantine.github.io/TESSERA/reference/TESSERAData.html</loc></url>
+<url><loc>https://floricaconstantine.github.io/TESSERA/reference/TESSERAOutput.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/TESSERA_lattice.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/TESSERA_spNNGP.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_pvalue_from_threshold.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_statistics.html</loc></url>
+<url><loc>https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_statistics_old.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/calc_moran.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/calc_scaled_noncentral_chi2_pvalues.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/check_inputs_TESSERA.html</loc></url>
@@ -34,6 +38,7 @@
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/example_raw_data.rds.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/expected_loglike.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/fit_scaled_noncentral_chi2.html</loc></url>
+<url><loc>https://floricaconstantine.github.io/TESSERA/reference/fit_scaled_noncentral_chi2_old.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/generate_data_one_area.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/generate_data_one_area_spNNGP.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/index.html</loc></url>
@@ -57,6 +62,7 @@
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/sample_Poisson_lattice.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/sample_Poisson_spNNGP.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/select_Wald_threshold.html</loc></url>
+<url><loc>https://floricaconstantine.github.io/TESSERA/reference/select_Wald_threshold_old.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/sparse_dist.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/sparse_dist_LT.html</loc></url>
 <url><loc>https://floricaconstantine.github.io/TESSERA/reference/summarize_TESSERA.html</loc></url>

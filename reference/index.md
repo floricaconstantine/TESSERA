@@ -55,6 +55,12 @@
   : Compute the unscaled precision matrix in a Leroux model.
 - [`Q_matrix_SAR()`](https://floricaconstantine.github.io/TESSERA/reference/Q_matrix_SAR.md)
   : Compute the unscaled precision matrix in a SAR model.
+- [`TESSERAData`](https://floricaconstantine.github.io/TESSERA/reference/TESSERAData.md)
+  [`TESSERAData-class`](https://floricaconstantine.github.io/TESSERA/reference/TESSERAData.md)
+  : The TESSERAData Class
+- [`TESSERAOutput`](https://floricaconstantine.github.io/TESSERA/reference/TESSERAOutput.md)
+  [`TESSERAOutput-class`](https://floricaconstantine.github.io/TESSERA/reference/TESSERAOutput.md)
+  : The TESSERAOutput Class
 - [`TESSERA_lattice()`](https://floricaconstantine.github.io/TESSERA/reference/TESSERA_lattice.md)
   : Fit Multi-Sample Poisson Spatial GLMM via ECM Algorithm
 - [`TESSERA_spNNGP()`](https://floricaconstantine.github.io/TESSERA/reference/TESSERA_spNNGP.md)
@@ -62,6 +68,9 @@
 - [`calc_Wald_pvalue_from_threshold()`](https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_pvalue_from_threshold.md)
   : Given Wald statistics, compute p-values.
 - [`calc_Wald_statistics()`](https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_statistics.md)
+  : Given the output of the TESSERA algorithms and a contrast matrix,
+  compute Wald T-statistics.
+- [`calc_Wald_statistics_old()`](https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_statistics_old.md)
   : Given the output of the TESSERA algorithms and a contrast matrix,
   compute Wald T-statistics.
 - [`calc_moran()`](https://floricaconstantine.github.io/TESSERA/reference/calc_moran.md)
@@ -85,6 +94,8 @@
 - [`expected_loglike()`](https://floricaconstantine.github.io/TESSERA/reference/expected_loglike.md)
   : Compute the expected log likelihood.
 - [`fit_scaled_noncentral_chi2()`](https://floricaconstantine.github.io/TESSERA/reference/fit_scaled_noncentral_chi2.md)
+  : Fit a scaled non-central chi^2_1 distribution using BOBYQA
+- [`fit_scaled_noncentral_chi2_old()`](https://floricaconstantine.github.io/TESSERA/reference/fit_scaled_noncentral_chi2_old.md)
   : Fit a scaled non-central chi^2_1 distribution using BOBYQA
 - [`generate_data_one_area()`](https://floricaconstantine.github.io/TESSERA/reference/generate_data_one_area.md)
   : Simulate spatial count data for a single area
@@ -134,6 +145,8 @@
 - [`sample_Poisson_spNNGP()`](https://floricaconstantine.github.io/TESSERA/reference/sample_Poisson_spNNGP.md)
   : Simulate spatial counts from a known spNNGP structure
 - [`select_Wald_threshold()`](https://floricaconstantine.github.io/TESSERA/reference/select_Wald_threshold.md)
+  : Optimal threshold selection for empirical null estimation
+- [`select_Wald_threshold_old()`](https://floricaconstantine.github.io/TESSERA/reference/select_Wald_threshold_old.md)
   : Optimal threshold selection for empirical null estimation
 - [`sparse_dist()`](https://floricaconstantine.github.io/TESSERA/reference/sparse_dist.md)
   : Get k nearest neighbors/distances given coordinates. Taken from:

@@ -10,7 +10,11 @@ threshold below which statistics likely originate from the null.
 ## Usage
 
 ``` r
-select_Wald_threshold(wald_stats, quantile_spacing = 0.01, metric = "Raw_MSE")
+select_Wald_threshold_old(
+  wald_stats,
+  quantile_spacing = 0.01,
+  metric = "Raw_MSE"
+)
 ```
 
 ## Arguments
