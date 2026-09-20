@@ -1032,8 +1032,8 @@ TESSERA_all <- get_my_data("TESSERA_model_results.rds")
 The `performance_df` data frame provides a sample-wise breakdown of
 model performance across the entire dataset. This object follows the
 same structure as the `performanceSummary` data frame described in the
-beginning of the [Run `TESSERA`](#run-tessera) section but contains rows
-for all gene-sample pairs.
+beginning of the [Running the ECM Algorithm](#run-tessera) section but
+contains rows for all gene-sample pairs.
 
 ``` r
 
@@ -1048,12 +1048,11 @@ However, `TESSERA` is computationally intensive if run on hundreds or
 thousands of genes as is typical for genomic data, so it is best to
 parallelize this process on a high-performance computing (HPC) cluster.
 
-The following code block illustrates the exact parameterization used to
-generate our aggregated results used for the remainder of this vignette.
-To process the full set of 3,000 genes, this model-fitting procedure was
-executed for each `gene_idx` (1 to 3,000) as independent batch jobs on a
-high-performance computing (HPC) cluster with the below
-parameterization.
+The following code block illustrates the exact parameterization for
+generating the aggregated results used for the remainder of this
+vignette. To process the full set of 3,000 genes, this model-fitting
+procedure was executed for each `gene_idx` (1 to 3,000) as independent
+batch jobs on an HPC cluster with the below parameterization.
 
 ``` r
 
@@ -1150,7 +1149,7 @@ cat("Parallel processing of", length(gene_names), "genes took:",
 After fitting models to hundreds or thousands of genes, we aim to
 identify which among them are differentially expressed. We define
 differential expression as a statistically significant difference
-between the entries of the fixed-effect vector, $`\boldsymbol{\beta}`$,
+between the entries of the fixed effect vector, $`\boldsymbol{\beta}`$,
 that correspond to distinct experimental groups (e.g., Control vs. DKD
 within the *VSMC* cell type).
 
@@ -1193,11 +1192,11 @@ head(wald_df, 2)
 
 ### Creating Contrasts
 
-Often, hypothesis testing is accomplished by testing contrasts of an
-estimated fixed-effects vector. The rows of the contrast matrix
-correspond to different contrasts, and the columns correspond to the
-entries of the fixed-effects vector. We assume that each contrast is
-tested separately and is of the form:
+Often, hypothesis testing is accomplished by testing contrasts of a
+vector of fixed effects. The rows of the contrast matrix correspond to
+different contrasts, and the columns correspond to the entries of the
+fixed effects vector. We assume that each contrast is tested separately
+and is of the form:
 ``` math
 \sum_{k = 1}^p c_k \beta_k = 0,
 ```
@@ -1219,8 +1218,8 @@ contrasts of interest are
 ``` math
 \frac{1}{3}\left(\beta_{c_1, \textit{Control}} + \beta_{c_1, \textit{DKD}} + \beta_{c_1, \textit{HKD}}\right) - \frac{1}{3}\left(\beta_{c_2, \textit{Control}} + \beta_{c_2, \textit{DKD}} + \beta_{c_2, \textit{HKD}}\right).
 ```
-First, we extract the cell type levels from the SpatialExperiment object
-and generate all possible pairwise combinations.
+First, we extract the cell type levels from the `SpatialExperiment`
+object and generate all possible pairwise combinations.
 
 ``` r
 
@@ -1332,9 +1331,9 @@ covariate_names <- colnames(X_mat)
 ```
 
 We iterate through each cell type and, within each, loop through the
-condition pairs. This identifies the specific entries in the
-fixed-effect vector $`\boldsymbol{\beta}`$ that correspond to the
-intersection of that cell type and those conditions.
+condition pairs. This identifies the specific entries in the fixed
+effect vector $`\boldsymbol{\beta}`$ that correspond to the intersection
+of that cell type and those conditions.
 
 ``` r
 
@@ -1427,35 +1426,36 @@ head(wald_df, 2)
 
 ### Empirical Null Distribution Estimation
 
-For a generalized linear mixed model (GLMM), such as the one implemented
-in `TESSERA`, the null distribution of Wald test statistics is typically
-not known. With a sufficient number of samples (meaning, independent
+For a generalized linear mixed model, such as the one implemented in
+`TESSERA`, the null distribution of Wald test statistics is typically
+unknown. With a sufficient number of samples (meaning, independent
 experimental units, not individual cells), it will approach a normal
 distribution or a $`\chi_1^2`$ distribution (depending on if the
 statistics are squared). However, in the finite-sample regime, GLMMs are
-prone to bias in both the coefficients and their associated standard
-errors. Even with many samples, this bias can shift the null
+prone to bias in both the estimated coefficients and their associated
+standard errors. Even with many samples, this bias can shift the null
 distribution away from theoretical expectations, necessitating an
 empirical estimation approach.
 
-If we are testing hundreds or thousands of genes, there is a path
-forward: we can use Efron’s idea of estimating the null distribution
-directly from the data ([Efron 2004](#ref-efron2004large)). In our case,
-we believe that the square of the Wald statistics computed previously
-can be modeled as a scaled, non-central $`\chi_1^2`$ distribution. The
-functions below may be used to find optimal parameter estimates for this
-distribution. Essentially, we look for a threshold below which most of
-the statistics come from the null distribution; for these statistics,
-the $`p`$-values should look uniformly distributed on $`(0, 1)`$.
+If we are testing hypotheses for hundreds or thousands of genes, there
+is a path forward: we can use Efron’s idea of estimating the null
+distribution directly from the data ([Efron 2004](#ref-efron2004large)).
+In our case, we believe that the square of the Wald statistics computed
+previously can be modeled as a scaled, non-central $`\chi_1^2`$
+distribution. The functions below may be used to find optimal parameter
+estimates for this distribution. Essentially, we look for a threshold
+below which most of the statistics come from the null distribution; for
+these statistics, the $`p`$-values should look uniformly distributed on
+$`(0, 1)`$.
 
 In general, empirical null distribution estimation procedures rely on
-having sufficient statistics that come from the null distribution, as
-otherwise, there will not be enough data to reliably estimate a
-distribution, or the statistics used to estimate the distribution will
-not be from the null distribution. Moreover, having more than one
-contrast (of a similar nature, e.g., DE within a cell type) strengthens
-the procedure by providing more data and capturing a wider range of
-variability.
+having a sufficient number of statistics that come from the null
+distribution, as otherwise, there will not be enough data to reliably
+estimate a distribution, or the statistics used to estimate the
+distribution will not be from the null distribution. Moreover, having
+more than one contrast (of a similar nature, e.g., DE within a cell
+type) strengthens the procedure by providing more data and capturing a
+wider range of variability.
 
 The analysis in this section, and the resulting `wald_df`, focuses
 exclusively on the between-condition comparisons within each cell type.
@@ -1524,8 +1524,8 @@ in this case, between conditions within a cell type.
 #### `TESSERA` $`p`$-values
 
 We compute the $`p`$-values and apply the Benjamini-Hochberg (BH)
-adjustment over genes within each contrast to control the False
-Discovery Rate (FDR) at a level of 0.05.
+adjustment over genes within each contrast to control the false
+discovery rate (FDR) at a level of 0.05.
 
 ``` r
 
@@ -1571,7 +1571,7 @@ p
 #### `fdrtool` $`p`$-values
 
 Another empirical null distribution estimation procedure to obtain
-$`p`$-values is the False Non-Discovery Rate (FNDR) method from the
+$`p`$-values is the false non-discovery rate (FNDR) method from the
 *[fdrtool](https://CRAN.R-project.org/package=fdrtool)* package
 ([Strimmer 2008](#ref-strimmer2008fdrtool)). While both empirical null
 estimation procedures can be used to generate $`p`$-values, there are
