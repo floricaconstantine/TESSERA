@@ -420,7 +420,8 @@ kernel_sph <- function(d, sigma2, rho) {
 #' @param sp_dist Output of sparse_dist_LT function.
 #' @param nb_dist Precomputed list of Euclidean distance matrices for neighbors.
 #' @param cov_type String for covariance model type.
-#' @param cov_params Covariance/kernel parameters.
+#' @param cov_params Covariance/kernel parameters. Assuming gstat convenctions,
+#'  nugget (non-spatial), sill (spatial/scale), range, order (Matern).
 #'
 #' @returns A list with a sparse precision matrix Q, eigenvalues Dinv, and factor A.
 nngp_prec_mat <- function(sp_dist, nb_dist, cov_type, cov_params) {

@@ -50,6 +50,11 @@ together and ignoring differences in coordinates.
 }
 \note{
 Requires the BRISC library.
+
+BRISC uses a different convention than gstat for ordering and defining
+its spatial covariance parameters: gstat uses (nugget, sill, range, order),
+but BRISC uses (sill, nugget, 1 / range, order). This function does NOT change
+that, but we (internally) make adjustments where we call it.
 }
 \author{
 Florica J Constantine, florica AT berkeley.edu

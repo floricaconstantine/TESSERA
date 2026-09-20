@@ -14,7 +14,8 @@ nngp_prec_mat(sp_dist, nb_dist, cov_type, cov_params)
 
 \item{cov_type}{String for covariance model type.}
 
-\item{cov_params}{Covariance/kernel parameters.}
+\item{cov_params}{Covariance/kernel parameters. Assuming gstat convenctions,
+nugget (non-spatial), sill (spatial/scale), range, order (Matern).}
 }
 \value{
 A list with a sparse precision matrix Q, eigenvalues Dinv, and factor A.

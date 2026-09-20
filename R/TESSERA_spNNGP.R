@@ -429,13 +429,16 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     
     # Run (C)M-Step: Optimize
     for (opt_idx in 1:opt_iters) {
-      # Initialize with current values
+      # Initialize with current values (needed)
       if (1 == opt_idx) {
-        cov_param_tracker[area_idx, 1 + em_idx, ] <- cov_param_tracker[area_idx, em_idx, ]
         beta_tracker[, 1 + em_idx] <- beta_tracker[, em_idx]
       }
       
       for (area_idx in 1:n_areas) {
+        # Initialize with current values (just as a placeholder)
+        if (1 == opt_idx) {
+          cov_param_tracker[area_idx, 1 + em_idx, ] <- cov_param_tracker[area_idx, em_idx, ]
+        }
         # Optimize in covariance parameters
         if ("variogram" == cov_fit_method) {
           param_est <- M_step_variogram(

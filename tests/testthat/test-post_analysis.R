@@ -100,3 +100,78 @@ test_that("calc_Wald_pvalue_from_threshold computes p-values properly",
             expect_length(pvals, 17)
             expect_true(all(pvals >= 0 & pvals <= 1, na.rm = TRUE))
           })
+
+test_that("fit_empirical_null_fdrtool estimates empirical null parameters and p-values",
+          {
+            skip_if_not_installed("fdrtool")
+            
+            # Simulate a mixture of null and non-null Wald t-statistics
+            # fdrtool expects a reasonably sized sample to estimate the empirical null
+            null_stats <- rnorm(n = 500, mean = 0, sd = 1.2)
+            alt_stats  <- rnorm(n = 50, mean = 4, sd = 1.0)
+            wald_vec   <- c(null_stats, alt_stats)
+            
+            res <- fit_empirical_null_fdrtool(wald_vec)
+            
+            # Check return structure
+            expect_type(res, "list")
+            expect_named(res, c("wald_pval", "params", "fndr_out"))
+            
+            # Check p-values validity
+            expect_length(res$wald_pval, length(wald_vec))
+            expect_true(all(res$wald_pval >= 0 &
+                              res$wald_pval <= 1, na.rm = TRUE))
+            
+            # Check params dataframe structure
+            expect_s3_class(res$params, "data.frame")
+            expect_true("sd" %in% colnames(res$params))
+            expect_gt(res$params$sd[1], 0)
+          })
+
+test_that(
+  "calc_Wald_pvalue_from_fdrtool computes two-sided p-values consistent with fitted null",
+  {
+    skip_if_not_installed("fdrtool")
+    
+    wald_vec <- c(-3.0, -1.0, 0.0, 1.5, 2.5)
+    params_df <- data.frame(sd = 1.5)
+    
+    pvals <- calc_Wald_pvalue_from_fdrtool(wald_vec, params_df)
+    
+    expect_length(pvals, length(wald_vec))
+    expect_true(all(pvals >= 0 & pvals <= 1))
+    
+    # Check exact two-sided normal tail probability
+    expected_pvals <- 2.0 * stats::pnorm(abs(wald_vec),
+                                         mean = 0,
+                                         sd = 1.5,
+                                         lower.tail = FALSE)
+    expect_equal(pvals, expected_pvals, tolerance = 1e-8)
+    
+    # Symmetry check: abs(t) should produce identical p-values
+    expect_equal(
+      calc_Wald_pvalue_from_fdrtool(-2.0, params_df),
+      calc_Wald_pvalue_from_fdrtool(2.0, params_df)
+    )
+  }
+)
+
+test_that("calc_scaled_noncentral_chi2_pvalues computes unconditional p-values properly",
+          {
+            stats <- c(0.5, 2.0, 10.0, 50.0)
+            chi2_params <- c(scale = 2.5, shift = 1.0)
+            
+            pvals <- calc_scaled_noncentral_chi2_pvalues(stats, chi2_params)
+            
+            expect_length(pvals, length(stats))
+            expect_true(all(pvals >= 0 & pvals <= 1, na.rm = TRUE))
+            
+            # Mathematical verification against stats::pchisq
+            expected <- stats::pchisq(
+              stats / chi2_params[1],
+              df = 1,
+              ncp = chi2_params[2],
+              lower.tail = FALSE
+            )
+            expect_equal(pvals, expected, tolerance = 1e-8)
+          })

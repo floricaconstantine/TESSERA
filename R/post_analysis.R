@@ -3,6 +3,9 @@
 # Rcpp dependencies: calc_moran.cpp.
 
 
+### Summarize results
+
+
 #' Summarizes the results of the TESSERA algorithms for a single gene.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
@@ -190,6 +193,49 @@ summarize_TESSERA <- function(TESSERAData_obj, TESSERAOutput_obj) {
 }
 
 
+### Calculate Wald statistics
+
+
+#' Helper function for Wald stat covariances.
+#'
+#' Invert a precision matrix, handling failure cases.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param A Estimated precision matrix.
+#'
+#' @returns Inverse of A.
+#'
+#' @import Matrix
+#' @importFrom Matrix solve
+#' @importFrom pracma pinv
+invert_precision_matrix <- function(A) {
+  # Try basic inversion first
+  err_flag <- tryCatch({
+    Ainv <- Matrix::solve(A)
+    return(Ainv)
+  }, error = function(cond) {
+    warning("INVERSION OF Inv(V_hat) FAILED", "\n")
+    err_flag <- TRUE
+  })
+  # Then try pseudoinverse
+  if (err_flag) {
+    err_flag <- tryCatch({
+      Ainv <- pracma::pinv(as.matrix(A))
+      return(Ainv)
+    }, error = function(cond) {
+      warning("PSEUDOINVERSE OF Inv(V_hat) FAILED", "\n")
+      err_flag <- TRUE
+    })
+  }
+  if (err_flag) {
+    warning("Setting covariance to zero.", "\n")
+    Ainv <- 0 * A
+    return(Ainv)
+  }
+}
+
+
 #' Given the output of the TESSERA algorithms and a contrast matrix, compute
 #'  Wald T-statistics.
 #'
@@ -225,7 +271,8 @@ calc_Wald_statistics <- function(TESSERAOutput_obj, contrast_mat) {
   } else {
     if ("spNNGP" == fit_model) {
       kernel_type <- TESSERAOutput_obj$run_settings$cov_type
-      if (is.null(kernel_type)) kernel_type <- NA
+      if (is.null(kernel_type))
+        kernel_type <- NA
     } else {
       if (is.null(fit_model)) {
         fit_model <- NA
@@ -234,7 +281,8 @@ calc_Wald_statistics <- function(TESSERAOutput_obj, contrast_mat) {
     }
   }
   gene <- TESSERAOutput_obj$run_settings$gene_name
-  if (is.null(gene)) gene <- NA
+  if (is.null(gene))
+    gene <- NA
   
   V_hat <- invert_precision_matrix(TESSERAOutput_obj$beta_neghessian)
   n_contrasts <- nrow(contrast_mat)
@@ -278,132 +326,108 @@ calc_Wald_statistics <- function(TESSERAOutput_obj, contrast_mat) {
 }
 
 
-#' Given the output of the TESSERA algorithms and a contrast matrix, compute
-#'  Wald T-statistics.
+### Wald p-value distribution estimation and calculation: FDRTOOL
+
+
+#' Wrapper for Empirical null estimation and p-value computation
+#'
+#' In generalized linear mixed models (GLMMs) and the TESSERA framework,
+#' theoretical null distributions for Wald statistics are often unreliable
+#' due to finite-sample biases and E-step approximations. This function
+#' is a wrapper for the fdrtool fndr method, which assumes that the null is a
+#' centered normal distribution with some variance (estimated).
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param TESSERAOutput_obj Output of the TESSERA algorithms.
-#' @param contrast_mat Matrix with contrasts of the estimated coeficients.
-#'  Rows are contrasts, columns correspond to columns in beta_hat (covariates).
-#'  beta_hat is the vector of estimated coefficients, stored in TESSERAOutput_obj.
+#' @param wald_stats A numeric vector of Wald statistics.
+#'   Note: This function expects signed t-statistics, or, the un-squared statistics.
 #'
-#' @returns A dataframe of Wald t-statistics. Square these to get F-statistics.
+#' @return A list containing the following components:
+#' \itemize{
+#'   \item \strong{wald_pval}: The estimated (unadjusted) p-values.
+#'   \item \strong{params}: The estimated parameters of the empirical null distribution;
+#'      the $params output from `fdrtool::fdrtool`.
+#'   \item \strong{fndr_out}: The output object from `fdrtool::fdrtool`.
+#' }
 #'
-#' @importFrom dplyr bind_rows
+#' @importFrom stats pchisq ppoints quantile
+#' @importFrom fdrtool fdrtool
 #'
 #' @export
 #'
 #' @examples
-#' # Locate the saved model results in inst/extdata
-#' rds_path <- system.file("extdata", "example_TESSERA_out_Leroux.rds", package = "TESSERA")
-#' # Load the results object
-#' TESSERA_out_Leroux <- readRDS(rds_path)
+#' # Simulate null and non-null Wald statistics
+#' null_stats <- rnorm(n = 2000, mean = 0.1, sd = 4)
+#' alt_stats <- rnorm(n = 500, mean = 5, sd = 2)
+#' wald_vec <- c(null_stats, alt_stats)
 #'
-#' # Run the Wald test
-#' calc_Wald_statistics(TESSERAOutput_obj = TESSERA_out_Leroux,
-#'                  contrast_mat = matrix(c(1, 0, 0), nrow = 1))
-calc_Wald_statistics_old <- function (TESSERAOutput_obj, contrast_mat) {
-  # Extract coefficients and negative hessian and check dimensions
-  beta_hat <- TESSERAOutput_obj$beta_hat
-  beta_names <- names(beta_hat)
-  beta_hat_prec <- TESSERAOutput_obj$beta_neghessian
-  stopifnot(ncol(contrast_mat) == length(beta_hat))
+#' # Select optimal threshold
+#' fit_empirical_null_fdrtool(wald_vec)
+fit_empirical_null_fdrtool <- function(wald_stats) {
+  # Estimate p-values using fdrtool's FNDR method
+  fndr_out <- fdrtool::fdrtool(wald_stats, cutoff.method = "fndr", plot = FALSE)
   
-  # Some overarching metadata
-  fit_model <- TESSERAOutput_obj$run_settings$model_type
-  if ("spNNGP" != fit_model) {
-    kernel_type <- NA
-  } else {
-    if ("spNNGP" == fit_model) {
-      kernel_type <- TESSERAOutput_obj$run_settings$cov_type
-      if (is.null(kernel_type)) {
-        kernel_type <- NA
-      }
-    } else {
-      if (is.null(fit_model)) {
-        fit_model <- NA
-        kernel_type <- NA
-      }
-    }
-  }
-  gene <- TESSERAOutput_obj$run_settings$gene_name
-  if (is.null(gene)) {
-    gene <- NA
-  }
-  
-  V_hat <- invert_precision_matrix(TESSERAOutput_obj$beta_neghessian)
-  wald_contrast_df <- list()
-  for (c_idx in 1:nrow(contrast_mat)) {
-    # Find indices involved in contrast and subset
-    subset_idx <- which(contrast_mat[c_idx, ] != 0)
-    # R <- contrast_mat[c_idx, subset_idx]
-    R <- contrast_mat[c_idx, ]
-    # Compute contrast value
-    # Rbeta <- sum(R * beta_hat[subset_idx])
-    Rbeta <- sum(R * beta_hat)
-    
-    # Contrast SE
-    # V_hat <- invert_precision_matrix(TESSERAOutput_obj$beta_neghessian[subset_idx, subset_idx])
-    RVR_inv <- sqrt(as.numeric(R %*% V_hat %*% R))
-    
-    wald_contrast_df[[1 + length(wald_contrast_df)]] <-
-      data.frame(
-        gene = gene,
-        fit_model = fit_model,
-        kernel_type = kernel_type,
-        contrast_string = paste(R, beta_names[subset_idx], sep = "*", collapse = "+"),
-        contrast_indices = paste(subset_idx, collapse = "_"),
-        contrast_val = Rbeta,
-        contrast_se = RVR_inv,
-        wald_stat_t = Rbeta / RVR_inv
-      )
-  }
-  
-  wald_contrast_df <- dplyr::bind_rows(wald_contrast_df)
-  rownames(wald_contrast_df) <- rownames(contrast_mat)
-  return(wald_contrast_df)
+  return(list(
+    wald_pval = fndr_out$pval,
+    params = as.data.frame(fndr_out$param),
+    fndr_out = fndr_out
+  ))
 }
 
 
-#' Helper function for Wald stat covariances.
+#' Given Wald statistics, compute p-values.
 #'
-#' Invert a precision matrix, handling failure cases.
+#' In the TESSERA algorithm, and in generalized linear mixed models in general,
+#' the exact distribution of p-values for Wald statistics under the null hypothesis
+#' is unknown.
+#' We know that the standard errors are, for finite samples, likely biased
+#' downward (too small).
+#' Moreover, for finite samples, due to the approximations
+#' in the E-step of the fitting algorithm, there may be a small positive bias.
+#' Hence, we use the fdrtool fndr method, which assumes that the null is a
+#' centered normal distribution with some variance (estimated).
+#' This function assumes that `fit_empirical_null` has been run; that function also
+#' provides p-values, but, if you want to fit a distribution on one set of statistics
+#' and then evaluate p-values on another set of statistics using the fitted distribution,
+#' this function can be used.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param A Estimated precision matrix.
+#' @param wald_stats A numeric vector of Wald statistics.
+#'   Note: This function expects signed t-statistics, or, the un-squared statistics.
+#' @param params The dataframe of parameters from `fit_empirical_null` or from
+#'  `fdrtool::fdrtool`; has one row and a column called `sd`.
 #'
-#' @returns Inverse of A.
+#' @returns Vector of p-values (un-adjusted for multiple corrections).
 #'
-#' @import Matrix
-#' @importFrom Matrix solve
-#' @importFrom pracma pinv
-invert_precision_matrix <- function(A) {
-  # Try basic inversion first
-  err_flag <- tryCatch({
-    Ainv <- Matrix::solve(A)
-    return(Ainv)
-  }, error = function(cond) {
-    warning("INVERSION OF Inv(V_hat) FAILED", "\n")
-    err_flag <- TRUE
-  })
-  # Then try pseudoinverse
-  if (err_flag) {
-    err_flag <- tryCatch({
-      Ainv <- pracma::pinv(as.matrix(A))
-      return(Ainv)
-    }, error = function(cond) {
-      warning("PSEUDOINVERSE OF Inv(V_hat) FAILED", "\n")
-      err_flag <- TRUE
-    })
-  }
-  if (err_flag) {
-    warning("Setting covariance to zero.", "\n")
-    Ainv <- 0 * A
-    return(Ainv)
-  }
+#' @importFrom stats pnorm
+#' @export
+#'
+#' @examples
+#' # Simulate null and non-null Wald statistics
+#' null_stats <- rnorm(n = 2000, mean = 0.1, sd = 4)
+#' alt_stats <- rnorm(n = 500, mean = 5, sd = 2)
+#' wald_vec <- c(null_stats, alt_stats)
+#'
+#' # Fit
+#' emp_null <- fit_empirical_null_fdrtool(wald_vec)
+#' calc_Wald_pvalue_from_fdrtool(wald_vec, emp_null$params)
+calc_Wald_pvalue_from_fdrtool <- function(wald_stats, params) {
+  # Extract estimated standard deviation
+  est_sd <- as.numeric(params[which(colnames(params) == "sd")][1])
+  
+  # Calculate p-values
+  # Tail probability of normal distribution
+  return(2.0 * stats::pnorm(
+    abs(wald_stats),
+    mean = 0,
+    sd = est_sd,
+    lower.tail = FALSE
+  ))
 }
+
+
+### Alternative p-value estimation approach: scaled non-central chi_1^2
 
 
 #' Fit a scaled non-central chi^2_1 distribution using BOBYQA
@@ -459,7 +483,10 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, wald_thresh) {
     
     val <- -(sum(dens) - length(x) * log_F_thresh)
     
-    return(if (is.finite(val)) val else 1e10)
+    return(if (is.finite(val))
+      val
+      else
+        1e10)
   }
   
   # Method of Moments (MoM) Initialization (Using original data)
@@ -490,7 +517,8 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, wald_thresh) {
       lower   = lower_bounds,
       upper   = upper_bounds,
       method  = "bobyqa",
-      x       = wald_stats_clean, # Pass the pre-cleaned data
+      x       = wald_stats_clean,
+      # Pass the pre-cleaned data
       thresh  = wald_thresh,
       control = list(dowarn = FALSE)
     )
@@ -504,118 +532,6 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, wald_thresh) {
   
   # Extract results
   res <- c(scaling = fit_result$scaling[1], shift = fit_result$shift[1])
-  
-  return(res)
-}
-
-
-#' Fit a scaled non-central chi^2_1 distribution using BOBYQA
-#'
-#' @description
-#' Numerically maximizes the likelihood of a scaled non-central chi-square
-#' distribution (df=1) truncated above a specific threshold.
-#' The fit is conditional on the threshold.
-#'
-#' @param wald_stats Vector of Wald statistics (non-negative).
-#' @param wald_thresh Threshold below which data is included in the fit.
-#'
-#' @returns Vector of c(scale, shift).
-#'
-#' @importFrom optimx optimx
-#' @importFrom stats dchisq pchisq quantile median
-#' @export
-#'
-#' @examples
-#' fit_scaled_noncentral_chi2(5 * stats::rchisq(1000, 1, ncp=10), 20)
-fit_scaled_noncentral_chi2_old <- function(wald_stats, wald_thresh) {
-  # Data Cleaning
-  wald_stats <- wald_stats[is.finite(wald_stats)]
-  wald_stats <- wald_stats[wald_stats < wald_thresh]
-  
-  if (length(wald_stats) < 10) {
-    warning("Insufficient data points below threshold.")
-    return(c(scaling = NA, shift = NA))
-  }
-  
-  # Truncated Negative Log-Likelihood (Objective Function)
-  # optimx expects the first argument to be the parameter vector
-  trunc_nll <- function(params, x, thresh) {
-    scale <- params[1]
-    ncp   <- params[2]
-    
-    # Safety check for log calculations
-    x[x <= 0] <- 1e-8
-    
-    # Log-density: f(x; scale, ncp) = (1/scale) * f_chi2(x/scale; ncp)
-    # log(f) = log_chi2_dens - log(scale)
-    dens <- stats::dchisq(x / scale,
-                          df = 1,
-                          ncp = ncp,
-                          log = TRUE) - log(scale)
-    
-    # Truncation correction: log(P(X < thresh))
-    log_F_thresh <- stats::pchisq(thresh / scale,
-                                  df = 1,
-                                  ncp = ncp,
-                                  log.p = TRUE)
-    
-    # Negative log-likelihood
-    val <- -(sum(dens) - length(x) * log_F_thresh)
-    
-    return(if (is.finite(val))
-      val
-      else
-        1e10)
-  }
-  
-  # Method of Moments (MoM) Initialization
-  v_w <- stats::var(wald_stats)
-  m_w <- mean(wald_stats)
-  
-  # Your MoM logic
-  term <- sqrt(max(0, 2.0 * m_w^2 - v_w))
-  mom_scaling <- (2 * m_w - sqrt(2.0) * term) / 2.0
-  mom_shift   <- (sqrt(2.0) * term) / (2.0 * max(1e-5, mom_scaling))
-  
-  # Define Bounds and Starting Values
-  # Scale: 90% quantile of chi_1^2 is ~2.7.
-  # We estimate upper scale by comparing observed 90th percentile to theoretical.
-  upper_scale <- stats::quantile(wald_stats, 0.9) * (3.0 / 2.7)
-  upper_ncp   <- min(10, stats::median(wald_stats))
-  
-  lower_bounds <- c(0.01, 0)
-  upper_bounds <- c(max(2, upper_scale), max(2, upper_ncp))
-  
-  # Finalize Starting Parameters
-  # Ensure MoM estimates aren't outside the box constraints
-  start_params <- c(
-    scaling = pmin(pmax(mom_scaling, lower_bounds[1]), upper_bounds[1]),
-    shift   = pmin(pmax(mom_shift, lower_bounds[2]), upper_bounds[2])
-  )
-  
-  # Optimization via optimx (bobyqa)
-  fit_result <- tryCatch({
-    optimx::optimx(
-      par     = start_params,
-      fn      = trunc_nll,
-      lower   = lower_bounds,
-      upper   = upper_bounds,
-      method  = "bobyqa",
-      x       = wald_stats,
-      thresh  = wald_thresh,
-      control = list(dowarn = FALSE)
-    )
-  }, error = function(e) {
-    warning("optimx (bobyqa) failed: ", e$message)
-    return(NULL)
-  })
-  
-  if (is.null(fit_result))
-    return(c(scaling = NA, shift = NA))
-  
-  # Extract results
-  # optimx returns a data frame; we want the parameters from the first row
-  res <- c(scaling = fit_result$scaling[1], shift   = fit_result$shift[1])
   
   return(res)
 }
@@ -774,7 +690,6 @@ calc_scaled_noncentral_chi2_pvalues <- function(wald_stats, chi2_params) {
 select_Wald_threshold <- function(wald_stats,
                                   quantile_spacing = 0.01,
                                   metric = "Raw_MSE") {
-  
   # Clean and sort once upfront
   wald_stats <- sort(wald_stats[is.finite(wald_stats)])
   n_total <- length(wald_stats)
@@ -785,7 +700,10 @@ select_Wald_threshold <- function(wald_stats,
   
   # Quantiles to use for threshold
   quantile_list  <- seq(quantile_spacing, 1.0 - quantile_spacing, by = quantile_spacing)
-  threshold_grid <- stats::quantile(wald_stats, quantile_list, na.rm = TRUE, names = FALSE)
+  threshold_grid <- stats::quantile(wald_stats,
+                                    quantile_list,
+                                    na.rm = TRUE,
+                                    names = FALSE)
   
   fit_results_list <- vector("list", length(threshold_grid))
   eps <- 1e-10
@@ -797,12 +715,14 @@ select_Wald_threshold <- function(wald_stats,
     
     # Fast O(1) prefix slice since wald_stats is already sorted
     n_nulls <- sum(wald_stats < wald_thresh)
-    if (n_nulls < 10) next
+    if (n_nulls < 10)
+      next
     wald_nulls <- wald_stats[seq_len(n_nulls)]
     
     # Fit distribution
     chi2_fit <- fit_scaled_noncentral_chi2(wald_nulls, wald_thresh)
-    if (any(is.na(chi2_fit))) next
+    if (any(is.na(chi2_fit)))
+      next
     
     # Compute p-values
     # Monotonic property: wald_nulls is ascending -> pchisq(lower.tail=FALSE) is descending
@@ -855,12 +775,211 @@ select_Wald_threshold <- function(wald_stats,
   return(
     list(
       threshold   = fit_results_df$threshold[min_idx],
-      chi2_params = c(scale = fit_results_df$scale[min_idx],
-                      shift = fit_results_df$shift[min_idx]),
+      chi2_params = c(scale = fit_results_df$scale[min_idx], shift = fit_results_df$shift[min_idx]),
       threshold_results = fit_results_df
     )
   )
-} 
+}
+
+
+### OLD / DEFUNCT code
+
+
+#' Fit a scaled non-central chi^2_1 distribution using BOBYQA
+#'
+#' @description
+#' Numerically maximizes the likelihood of a scaled non-central chi-square
+#' distribution (df=1) truncated above a specific threshold.
+#' The fit is conditional on the threshold.
+#'
+#' @param wald_stats Vector of Wald statistics (non-negative).
+#' @param wald_thresh Threshold below which data is included in the fit.
+#'
+#' @returns Vector of c(scale, shift).
+#'
+#' @importFrom optimx optimx
+#' @importFrom stats dchisq pchisq quantile median
+#'
+#' @examples
+#' fit_scaled_noncentral_chi2(5 * stats::rchisq(1000, 1, ncp=10), 20)
+fit_scaled_noncentral_chi2_old <- function(wald_stats, wald_thresh) {
+  # Data Cleaning
+  wald_stats <- wald_stats[is.finite(wald_stats)]
+  wald_stats <- wald_stats[wald_stats < wald_thresh]
+  
+  if (length(wald_stats) < 10) {
+    warning("Insufficient data points below threshold.")
+    return(c(scaling = NA, shift = NA))
+  }
+  
+  # Truncated Negative Log-Likelihood (Objective Function)
+  # optimx expects the first argument to be the parameter vector
+  trunc_nll <- function(params, x, thresh) {
+    scale <- params[1]
+    ncp   <- params[2]
+    
+    # Safety check for log calculations
+    x[x <= 0] <- 1e-8
+    
+    # Log-density: f(x; scale, ncp) = (1/scale) * f_chi2(x/scale; ncp)
+    # log(f) = log_chi2_dens - log(scale)
+    dens <- stats::dchisq(x / scale,
+                          df = 1,
+                          ncp = ncp,
+                          log = TRUE) - log(scale)
+    
+    # Truncation correction: log(P(X < thresh))
+    log_F_thresh <- stats::pchisq(thresh / scale,
+                                  df = 1,
+                                  ncp = ncp,
+                                  log.p = TRUE)
+    
+    # Negative log-likelihood
+    val <- -(sum(dens) - length(x) * log_F_thresh)
+    
+    return(if (is.finite(val))
+      val
+      else
+        1e10)
+  }
+  
+  # Method of Moments (MoM) Initialization
+  v_w <- stats::var(wald_stats)
+  m_w <- mean(wald_stats)
+  
+  # Your MoM logic
+  term <- sqrt(max(0, 2.0 * m_w^2 - v_w))
+  mom_scaling <- (2 * m_w - sqrt(2.0) * term) / 2.0
+  mom_shift   <- (sqrt(2.0) * term) / (2.0 * max(1e-5, mom_scaling))
+  
+  # Define Bounds and Starting Values
+  # Scale: 90% quantile of chi_1^2 is ~2.7.
+  # We estimate upper scale by comparing observed 90th percentile to theoretical.
+  upper_scale <- stats::quantile(wald_stats, 0.9) * (3.0 / 2.7)
+  upper_ncp   <- min(10, stats::median(wald_stats))
+  
+  lower_bounds <- c(0.01, 0)
+  upper_bounds <- c(max(2, upper_scale), max(2, upper_ncp))
+  
+  # Finalize Starting Parameters
+  # Ensure MoM estimates aren't outside the box constraints
+  start_params <- c(
+    scaling = pmin(pmax(mom_scaling, lower_bounds[1]), upper_bounds[1]),
+    shift   = pmin(pmax(mom_shift, lower_bounds[2]), upper_bounds[2])
+  )
+  
+  # Optimization via optimx (bobyqa)
+  fit_result <- tryCatch({
+    optimx::optimx(
+      par     = start_params,
+      fn      = trunc_nll,
+      lower   = lower_bounds,
+      upper   = upper_bounds,
+      method  = "bobyqa",
+      x       = wald_stats,
+      thresh  = wald_thresh,
+      control = list(dowarn = FALSE)
+    )
+  }, error = function(e) {
+    warning("optimx (bobyqa) failed: ", e$message)
+    return(NULL)
+  })
+  
+  if (is.null(fit_result))
+    return(c(scaling = NA, shift = NA))
+  
+  # Extract results
+  # optimx returns a data frame; we want the parameters from the first row
+  res <- c(scaling = fit_result$scaling[1], shift   = fit_result$shift[1])
+  
+  return(res)
+}
+
+
+#' Given the output of the TESSERA algorithms and a contrast matrix, compute
+#'  Wald T-statistics.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param TESSERAOutput_obj Output of the TESSERA algorithms.
+#' @param contrast_mat Matrix with contrasts of the estimated coeficients.
+#'  Rows are contrasts, columns correspond to columns in beta_hat (covariates).
+#'  beta_hat is the vector of estimated coefficients, stored in TESSERAOutput_obj.
+#'
+#' @returns A dataframe of Wald t-statistics. Square these to get F-statistics.
+#'
+#' @importFrom dplyr bind_rows
+#'
+#' @examples
+#' # Locate the saved model results in inst/extdata
+#' rds_path <- system.file("extdata", "example_TESSERA_out_Leroux.rds", package = "TESSERA")
+#' # Load the results object
+#' TESSERA_out_Leroux <- readRDS(rds_path)
+#'
+#' # Run the Wald test
+#' calc_Wald_statistics(TESSERAOutput_obj = TESSERA_out_Leroux,
+#'                  contrast_mat = matrix(c(1, 0, 0), nrow = 1))
+calc_Wald_statistics_old <- function (TESSERAOutput_obj, contrast_mat) {
+  # Extract coefficients and negative hessian and check dimensions
+  beta_hat <- TESSERAOutput_obj$beta_hat
+  beta_names <- names(beta_hat)
+  beta_hat_prec <- TESSERAOutput_obj$beta_neghessian
+  stopifnot(ncol(contrast_mat) == length(beta_hat))
+  
+  # Some overarching metadata
+  fit_model <- TESSERAOutput_obj$run_settings$model_type
+  if ("spNNGP" != fit_model) {
+    kernel_type <- NA
+  } else {
+    if ("spNNGP" == fit_model) {
+      kernel_type <- TESSERAOutput_obj$run_settings$cov_type
+      if (is.null(kernel_type)) {
+        kernel_type <- NA
+      }
+    } else {
+      if (is.null(fit_model)) {
+        fit_model <- NA
+        kernel_type <- NA
+      }
+    }
+  }
+  gene <- TESSERAOutput_obj$run_settings$gene_name
+  if (is.null(gene)) {
+    gene <- NA
+  }
+  
+  V_hat <- invert_precision_matrix(TESSERAOutput_obj$beta_neghessian)
+  wald_contrast_df <- list()
+  for (c_idx in 1:nrow(contrast_mat)) {
+    # Find indices involved in contrast and subset
+    subset_idx <- which(contrast_mat[c_idx, ] != 0)
+    # R <- contrast_mat[c_idx, subset_idx]
+    R <- contrast_mat[c_idx, ]
+    # Compute contrast value
+    # Rbeta <- sum(R * beta_hat[subset_idx])
+    Rbeta <- sum(R * beta_hat)
+    
+    # Contrast SE
+    # V_hat <- invert_precision_matrix(TESSERAOutput_obj$beta_neghessian[subset_idx, subset_idx])
+    RVR_inv <- sqrt(as.numeric(R %*% V_hat %*% R))
+    
+    wald_contrast_df[[1 + length(wald_contrast_df)]] <-
+      data.frame(
+        gene = gene,
+        fit_model = fit_model,
+        kernel_type = kernel_type,
+        contrast_string = paste(R, beta_names[subset_idx], sep = "*", collapse = "+"),
+        contrast_indices = paste(subset_idx, collapse = "_"),
+        contrast_val = Rbeta,
+        contrast_se = RVR_inv,
+        wald_stat_t = Rbeta / RVR_inv
+      )
+  }
+  
+  wald_contrast_df <- dplyr::bind_rows(wald_contrast_df)
+  rownames(wald_contrast_df) <- rownames(contrast_mat)
+  return(wald_contrast_df)
+}
 
 
 #' Optimal threshold selection for empirical null estimation
@@ -902,8 +1021,6 @@ select_Wald_threshold <- function(wald_stats,
 #' @importFrom stats pchisq ppoints quantile
 #' @importFrom dplyr bind_rows
 #'
-#' @export
-#'
 #' @examples
 #' # Simulate null and non-null Wald statistics
 #' null_stats <- 5 * stats::rchisq(2000, df = 1, ncp = 0.5)
@@ -913,8 +1030,8 @@ select_Wald_threshold <- function(wald_stats,
 #' # Select optimal threshold
 #' select_Wald_threshold(wald_vec, quantile_spacing = 0.05)
 select_Wald_threshold_old <- function (wald_stats,
-                                   quantile_spacing = 0.01,
-                                   metric = "Raw_MSE") {
+                                       quantile_spacing = 0.01,
+                                       metric = "Raw_MSE") {
   # Function to get errors and fits at a given threshold value
   wrapper_function <- function(wald_thresh, wald_data) {
     # Subset to statistics under threshold

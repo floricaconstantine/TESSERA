@@ -62,7 +62,7 @@ M_step_tau2 <- function(trace_scalars,
 
 #' M-step optimization for beta (covariate coefficients).
 #' Part of the M-Step in the EM algorithm.
-#' 
+#'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
 #' @param eta_list List of estimated means of eta.
@@ -81,7 +81,10 @@ M_step_tau2 <- function(trace_scalars,
 #'
 #' @importFrom Matrix solve crossprod
 #' @importFrom MASS ginv
-M_step_beta <- function(eta_list, Q_list, tau2_list, X_list,
+M_step_beta <- function(eta_list,
+                        Q_list,
+                        tau2_list,
+                        X_list,
                         model_type = "spNNGP",
                         gamma_list = NULL,
                         XtDX_list = NULL,
@@ -89,7 +92,6 @@ M_step_beta <- function(eta_list, Q_list, tau2_list, X_list,
                         XtWZX_list = NULL,
                         XtX_list = NULL,
                         XtDWIX_list = NULL) {
-  
   n_areas <- length(eta_list)
   p <- ncol(X_list[[1]])
   
@@ -97,20 +99,20 @@ M_step_beta <- function(eta_list, Q_list, tau2_list, X_list,
   zeta_vec <- matrix(0, nrow = p, ncol = 1)
   
   for (idx in 1:n_areas) {
-    # 1. Vector part: X^T Q eta 
+    # 1. Vector part: X^T Q eta
     # Dynamic, but incredibly fast O(Np) operation
     Q_inv_tau2 <- Q_list[[idx]] / tau2_list[[idx]]
     XtQ <- Matrix::crossprod(X_list[[idx]], Q_inv_tau2)
     zeta_vec <- zeta_vec + as.numeric(XtQ %*% eta_list[[idx]])
     
-    # 2. Matrix part: X^T Q X 
+    # 2. Matrix part: X^T Q X
     # Assembled from precomputed matrices for Lattice, dynamic for spNNGP
     if (model_type == "CAR") {
       B_area <- (XtDX_list[[idx]] - gamma_list[idx] * XtWX_list[[idx]]) / tau2_list[[idx]]
       B <- B + B_area
       
     } else if (model_type == "SAR") {
-      B_area <- (XtDX_list[[idx]] - 2 * gamma_list[idx] * XtWX_list[[idx]] + 
+      B_area <- (XtDX_list[[idx]] - 2 * gamma_list[idx] * XtWX_list[[idx]] +
                    (gamma_list[idx]^2) * XtWZX_list[[idx]]) / tau2_list[[idx]]
       B <- B + B_area
       
@@ -718,16 +720,34 @@ M_step_BRISC <- function(eta_hat,
       transform_z = FALSE # Don't log values
     )
     
+    # Initialize a new vector for gstat convention: c(Nugget, Sill, Range, [Smoothness])
+    out_params <- numeric(length(b_out$Theta))
+    
+    # Check if total variance is near zero using BRISC's native indices (1=Sill, 2=Nugget)
     if (b_out$Theta[1] + b_out$Theta[2] < close_to_zero_const) {
       warning("Variances are low/unstable; FAILSAFE--Everything is non-spatial")
-      b_out$Theta[1] <- max(close_to_zero_const, stats::var(phi_hat))
-      b_out$Theta[2] <- max(close_to_zero_const, b_out$Theta[2])
+      
+      # gstat order: Index 1 = Nugget, Index 2 = Sill, Index 3 = Range
+      out_params[1] <- max(close_to_zero_const, b_out$Theta[2])
+      out_params[2] <- max(close_to_zero_const, stats::var(phi_hat))
       
       # Use maximum distance as a proxy for the range
       # Speedup: Vectorized diff(range()) instead of apply()
-      b_out$Theta[3] <- sqrt(diff(range(coords[, 1]))^2 + diff(range(coords[, 2]))^2)
+      out_params[3] <- sqrt(diff(range(coords[, 1]))^2 + diff(range(coords[, 2]))^2)
+      
+    } else {
+      # Map BRISC output to gstat convention
+      out_params[1] <- b_out$Theta[2]       # Nugget (BRISC tau.sq)
+      out_params[2] <- b_out$Theta[1]       # Sill (BRISC sigma.sq)
+      out_params[3] <- 1.0 / b_out$Theta[3] # Range (1 / BRISC phi)
     }
-    return(as.vector(b_out$Theta))
+    
+    # If a 4th parameter exists (Smoothness / nu for Matern), pass it through
+    if (length(b_out$Theta) == 4) {
+      out_params[4] <- b_out$Theta[4]
+    }
+    
+    return(out_params)
   }, error = function(cond) {
     warning("BRISC FAILED; WILL DEFAULT TO A FAILSAFE")
     err_flag <- TRUE
@@ -768,6 +788,10 @@ M_step_BRISC <- function(eta_hat,
 #'    function ran for.
 #'
 #' @note Requires the BRISC library.
+#' @note BRISC uses a different convention than gstat for ordering and defining
+#'  its spatial covariance parameters: gstat uses (nugget, sill, range, order),
+#'  but BRISC uses (sill, nugget, 1 / range, order). This function does NOT change
+#'  that, but we (internally) make adjustments where we call it.
 #'
 #' @importFrom BRISC BRISC_estimation
 BRISC_wrapper <- function(z_list,

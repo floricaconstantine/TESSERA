@@ -2,13 +2,13 @@
 
 export(TESSERA_lattice)
 export(TESSERA_spNNGP)
+export(calc_Wald_pvalue_from_fdrtool)
 export(calc_Wald_pvalue_from_threshold)
 export(calc_Wald_statistics)
-export(calc_Wald_statistics_old)
 export(calc_moran)
 export(calc_scaled_noncentral_chi2_pvalues)
+export(fit_empirical_null_fdrtool)
 export(fit_scaled_noncentral_chi2)
-export(fit_scaled_noncentral_chi2_old)
 export(generate_data_one_area)
 export(generate_data_one_area_spNNGP)
 export(moran_I_nb)
@@ -18,60 +18,77 @@ export(prep_synth_data)
 export(sample_Poisson_lattice)
 export(sample_Poisson_spNNGP)
 export(select_Wald_threshold)
-export(select_Wald_threshold_old)
 export(summarize_TESSERA)
 import(Matrix)
 import(ggplot2)
 import(gstat)
 importFrom(BRISC,BRISC_estimation)
 importFrom(MASS,ginv)
-importFrom(Matrix,Diagonal)
-importFrom(Matrix,Matrix)
-importFrom(Matrix,chol)
-importFrom(Matrix,crossprod)
-importFrom(Matrix,diag)
-importFrom(Matrix,rankMatrix)
-importFrom(Matrix,rowSums)
-importFrom(Matrix,solve)
-importFrom(Matrix,sparseMatrix)
-importFrom(Matrix,t)
-importFrom(Rcpp,evalCpp)
-importFrom(Rcpp,sourceCpp)
+importFrom(Matrix,
+  Diagonal,
+  Matrix,
+  chol,
+  crossprod,
+  diag,
+  rankMatrix,
+  rowSums,
+  solve,
+  sparseMatrix,
+  t
+)
+importFrom(Rcpp,
+  evalCpp,
+  sourceCpp
+)
 importFrom(Rfast,colVars)
 importFrom(dplyr,bind_rows)
-importFrom(gstat,fit.variogram)
-importFrom(gstat,variogram)
-importFrom(gstat,vgm)
-importFrom(methods,as)
-importFrom(methods,selectMethod)
-importFrom(methods,setGeneric)
-importFrom(methods,setMethod)
+importFrom(fdrtool,fdrtool)
+importFrom(gstat,
+  fit.variogram,
+  variogram,
+  vgm
+)
+importFrom(methods,
+  as,
+  selectMethod,
+  setGeneric,
+  setMethod
+)
 importFrom(optimx,optimx)
-importFrom(pracma,fzero)
-importFrom(pracma,newtonRaphson)
-importFrom(pracma,pinv)
+importFrom(pracma,
+  fzero,
+  newtonRaphson,
+  pinv
+)
 importFrom(reshape2,melt)
-importFrom(sparseinv,Takahashi_Davis)
-importFrom(sparseinv,cholPermute)
-importFrom(spatstat.geom,nndist)
-importFrom(spatstat.geom,nnwhich)
-importFrom(stats,arima.sim)
-importFrom(stats,coef)
-importFrom(stats,cor)
-importFrom(stats,dchisq)
-importFrom(stats,dist)
-importFrom(stats,dpois)
-importFrom(stats,median)
-importFrom(stats,model.matrix)
-importFrom(stats,pchisq)
-importFrom(stats,poisson)
-importFrom(stats,ppoints)
-importFrom(stats,predict)
-importFrom(stats,quantile)
-importFrom(stats,rnorm)
-importFrom(stats,rpois)
-importFrom(stats,runif)
-importFrom(stats,uniroot)
-importFrom(stats,var)
+importFrom(sparseinv,
+  Takahashi_Davis,
+  cholPermute
+)
+importFrom(spatstat.geom,
+  nndist,
+  nnwhich
+)
+importFrom(stats,
+  arima.sim,
+  coef,
+  cor,
+  dchisq,
+  dist,
+  dpois,
+  median,
+  model.matrix,
+  pchisq,
+  pnorm,
+  poisson,
+  ppoints,
+  predict,
+  quantile,
+  rnorm,
+  rpois,
+  runif,
+  uniroot,
+  var
+)
 importFrom(tibble,add_column)
 useDynLib(TESSERA)
