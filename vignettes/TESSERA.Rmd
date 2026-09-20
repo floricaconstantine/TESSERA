@@ -37,8 +37,8 @@ For more details on the underlying methodology, please see our `TESSERA` methodo
 ## Limitations of Existing Methods
 
 Traditional spatial statistical methods often rely on the assumption of a single, continuous coordinate plane. 
-When applied to multi-sample studies, these frameworks typically break down because they cannot naturally bridge independent sample coordinates or accommodate experimental design hierarchies (e.g., nested technical or biological replicates across treatment groups). 
-Investigators are frequently forced to either analyze samples in complete isolation—losing statistical power—or treat observations as spatially independent, which violates core assumptions and dramatically inflates False Discovery Rates (FDR).
+When applied to multi-sample studies, these frameworks typically break down because they cannot naturally bridge sample-specific coordinate systems and covariance structures or accommodate experimental design hierarchies (e.g., nested technical or biological replicates across treatment groups). 
+Investigators are frequently forced to either analyze samples in complete isolation---losing statistical power---or treat observations as spatially independent, which violates core assumptions and dramatically inflates Type I error rates such as the false discovery rate (FDR).
 
 # Method
 
