@@ -62,16 +62,16 @@ For each sample $`i`$, the spatial random effects follow:
 where $`\boldsymbol{\Sigma}_i`$ is a sample-specific covariance matrix.
 This parameterization accounts for within-sample spatial autocorrelation
 while permitting different samples to have their own unique, independent
-spatial covariance structures.
+spatial coordinate systems and covariance structures.
 
 A defining feature of `TESSERA` is its ability to estimate a **single
 set of fixed effects**, $`\boldsymbol{\beta}`$, across the entire
 dataset, even while permitting each individual sample to have its own
-independent spatial covariance structure. This provides a rigorous
-foundation for addressing differential expression across experimental
-conditions–such as comparing diseased vs. healthy tissue–while
-simultaneously accounting for the spatial autocorrelation inherent
-within each sample.
+independent spatial coordinate system and covariance structure. This
+provides a rigorous foundation for addressing differential expression
+across experimental conditions—such as comparing diseased vs. healthy
+tissue—while simultaneously accounting for the spatial autocorrelation
+inherent within each sample.
 
 In the case of spatial transcriptomics, the GLMM is fit separately for
 each gene.
@@ -84,10 +84,10 @@ experimental conditions. The design matrix $`\boldsymbol{X}`$ can be
 formulated to support complex designs. Some examples of possible
 covariates are:
 
-- **Cell-Type-by-Condition Interactions:** Interaction terms between
+- **Cell-Type-by-Condition Interactions:** Interaction effects between
   cell types and conditions allow baseline expression to be estimated
   separately for every cell-type-condition combination.
-- **Sample-Level Variation:** Nested sample identifiers control for
+- **Sample-Level Variation:** Nested sample effects control for
   sample-specific baseline variation across conditions.
 - **Cell- and Sample-Level Covariates:** Additional covariates,
   including patient demographics, disease stage, or cell-level
@@ -105,7 +105,7 @@ categorized by how they handle spatial dependencies.
 
 #### Lattice Models
 
-These models are designed for data where spatial relationships are
+Lattice models are designed for data where spatial relationships are
 defined via measurement-to-measurement adjacency matrices. Supported
 structures include:
 
@@ -136,8 +136,8 @@ the dataset under consideration:
   vs. non-spatial variance.
 - **Irregularly-sampled data**: For data where measurements do not
   follow a strict grid and adjacency of measurements cannot be
-  determined, the spNNGP model with either the Matern or Exponential
-  kernel is recommended.
+  determined, the spNNGP model, with either the Matern or Exponential
+  kernel, is recommended.
 
 ### Model Fitting via the ECM Algorithm
 
@@ -146,32 +146,33 @@ Expectation-Conditional-Maximization (ECM) algorithm, treating the
 spatial random effects $`\boldsymbol{\phi}_i`$ as latent variables. In
 the E-step, the algorithm evaluates the expected complete-data
 log-likelihood given the observed counts and current parameter
-estimates. In the subsequent CM steps, this expectation is sequentially
+estimates. In the subsequent CM-steps, this expectation is sequentially
 maximized by updating the shared fixed effects $`\boldsymbol{\beta}`$
 alongside the sample-specific spatial covariance parameters.
 
 ### Hypothesis Testing and Empirical Null Distributions
 
-With the Generalized Linear Mixed Model (GLMM) successfully fitted to
-the expression data, we can move from parameter estimation to
-statistical inference.
+With the generalized linear mixed model successfully fitted to the
+expression data, we can move from parameter estimation to statistical
+hypothesis testing.
 
 #### Linear Contrasts for Differential Expression
 
 Once the fixed effects $`\boldsymbol{\beta}`$ are estimated, scientific
-questions are formulated as linear contrasts:
+questions can be formulated in terms of tests of hypotheses for linear
+contrasts:
 ``` math
-H_0: \boldsymbol{c}^\top \boldsymbol{\beta} = 0 \quad \text{versus} \quad H_1: \boldsymbol{c}^\top \boldsymbol{\beta} \neq 0,
+H_0: \boldsymbol{c}^\top \boldsymbol{\beta} = 0 \quad \text{vs.} \quad H_1: \boldsymbol{c}^\top \boldsymbol{\beta} \neq 0,
 ```
 where $`\boldsymbol{c}`$ is a user-defined contrast vector. This
-supports a wide variety of differential expression tests, such as:
+supports a wide variety of differential expression questions, such as:
 
-- **Within-Cell-Type DE Between Conditions:** Testing condition
+- **Within-Cell-Type, Between-Conditions DE:** Testing condition
   differences within a specific cell type (e.g.,
   $`\beta_{\text{VSMC, DKD}} - \beta_{\text{VSMC, Control}} = 0`$).
 - **Between-Cell-Type DE:** Comparing expression profiles between
   distinct cell types, either within a specific condition or averaged
-  across groups.
+  across conditions.
 
 #### Empirical Null Distribution
 
@@ -185,20 +186,21 @@ $`p`$-values for differential expression.
 
 ## Package Design
 
-`TESSERA` isolates data engineering from model fitting. For most
-standard workflows, the user only needs to interact with a few
+`TESSERA` isolates data engineering from model fitting and inference.
+For most standard workflows, the user only needs to interact with a few
 high-level functions and a unified data container.
 
 ### Object Classes and Data Flow
 
 The package revolves around a specialized class structure designed to
-seamlessly handle multi-sample groupings:
+seamlessly handle multi-sample groupings and integrate with other
+packages in the Bioconductor ecosystem:
 
 - **Input Integration:** `TESSERA` acts as a downstream companion to the
   Bioconductor ecosystem. It natively ingests `SpatialExperiment`
-  objects, automatically unpacking coordinates, counts, and spatial
-  metadata.
-- **The `TESSERA_data` Container:** The main preprocessing function,
+  objects, automatically unpacking spatial coordinates, counts, and
+  spatial metadata.
+- **The `TESSERA_data` Container:** The main pre-processing function,
   [`prep_data()`](https://floricaconstantine.github.io/TESSERA/reference/prep_data.md),
   compiles these inputs into a structured list object. For lattice
   models, it pre-computes matrix eigenvalues and neighborhood weights
@@ -208,13 +210,13 @@ seamlessly handle multi-sample groupings:
 ### Core Functions at a Glance
 
 The table below outlines the primary functions encountered in a typical
-analysis pipeline, moving from exploratory adata nalysis to downstream
+analysis pipeline, moving from exploratory data analysis to downstream
 statistical inference.
 
 | Function | Step | Purpose | Primary Inputs | Primary Outputs |
 |:---|:---|:---|:---|:---|
 | [`prep_data()`](https://floricaconstantine.github.io/TESSERA/reference/prep_data.md) | **Data Prep** | Assembles inputs and pre-computes eigenvalues of spatial matrices. | Data matrix or `SpatialExperiment` object, design matrix, model type | `TESSERA_data` object |
-| [`TESSERA_lattice()`](https://floricaconstantine.github.io/TESSERA/reference/TESSERA_lattice.md) / [`TESSERA_spNNGP()`](https://floricaconstantine.github.io/TESSERA/reference/TESSERA_spNNGP.md) | **Fitting** | Fits the overdispersed GLMM model for a single gene. | `TESSERA_data`, gene name, optimization specs | Fitted model list object (`TESSERA_out`) |
+| [`TESSERA_lattice()`](https://floricaconstantine.github.io/TESSERA/reference/TESSERA_lattice.md) / [`TESSERA_spNNGP()`](https://floricaconstantine.github.io/TESSERA/reference/TESSERA_spNNGP.md) | **Fitting** | Fits the overdispersed GLMM model for a single gene. | `TESSERA_data`, gene name, optimization specs | `TESSERA_out` object, a list with the model fitting output |
 | [`calc_Wald_statistics()`](https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_statistics.md) | **Inference** | Conducts Wald tests for a user-defined contrast matrix. | `TESSERA_out`, contrast matrix | Data frame of test statistics |
 | [`select_Wald_threshold()`](https://floricaconstantine.github.io/TESSERA/reference/select_Wald_threshold.md) | **Inference** | Sweeps over statistics to fit the empirical null distribution. | Vector of Wald statistics | Empirical null parameter list |
 | [`calc_scaled_noncentral_chi2_pvalues()`](https://floricaconstantine.github.io/TESSERA/reference/calc_scaled_noncentral_chi2_pvalues.md) | **Inference** | Computes empirical $`p`$-values using the fitted empirical null distribution. | Vector of Wald statistics, empirical null parameters | Vector of empirical $`p`$-values |
@@ -223,7 +225,7 @@ statistical inference.
 
 Install the latest release version of `TESSERA` from
 [Bioconductor](https://bioconductor.org/packages/TESSERA) using the
-following code:
+following commands:
 
 ``` r
 
@@ -242,7 +244,7 @@ if (!require("remotes", quietly = TRUE))
 remotes::install_github("floricaconstantine/TESSERA", dependencies = TRUE)
 ```
 
-### Packages to run vignette
+### Packages to Run Vignette
 
 Note that `TESSERA` utilizes the `Imports` namespace specification for
 its dependencies rather than `Depends`. This means that while all
@@ -283,7 +285,7 @@ library(fdrtool)
 library(ggplot2)
 ```
 
-## Data Input & Exploration
+## Data Input and Exploration
 
 ### Input Data Object
 
@@ -293,7 +295,7 @@ object, input data may be provided as a numeric count matrix, a numeric
 matrix of spatial coordinates, and an accompanying metadata data frame.
 
 For detailed specifications on these formats, please refer to the
-[Pre-processing Data with `prep_data`](#prep-data) section.
+[Pre-processing Data with `prep_data`](#prep-data) section below.
 
 ### Load and Inspect Data
 
@@ -450,7 +452,7 @@ For compatibility with standard visualization tools, we append the
 spatial coordinates directly to the metadata.
 
 **Note**: It is essential for the row names of the coordinates in a
-‘SpatialExperiment’ object to match the row names of the metadata and
+`SpatialExperiment` object to match the row names of the metadata and
 the column names of the count matrix; it is not necessary to add the
 coordinates to the metadata, but it is necessary for the row names to
 match.
@@ -638,8 +640,8 @@ for (i in seq_len(nrow(sample_mapping))) {
 }
 ```
 
-We drop zero columns. This removes any columns that represent
-combinations of factors not present in the data.
+We remove zero columns that represent combinations of factors not
+present in the data.
 
 ``` r
 
@@ -662,7 +664,7 @@ We examine the dimensions of the resulting design matrix, where the rows
 represent the observations and the columns represent the parameters,
 $`\boldsymbol{\beta}`$, to be estimated. It serves as a quick check to
 ensure the number of model coefficients matches the sum of the numbers
-of cell type/condition combinations and nested samples.
+of cell type-condition combinations and nested samples.
 
 ``` r
 
@@ -674,7 +676,7 @@ dim(X_mat)
 
 The columns of the final design matrix $`X`$ represent the specific
 parameters, $`\boldsymbol{\beta}`$, to be estimated, with each column
-name corresponding to a unique cell type, group, or nested sample
+name corresponding to a unique cell type, condition, or nested sample
 effect.
 
 ``` r
@@ -701,24 +703,24 @@ The `prep_data` function acts as a wrapper that converts the input data
 into the structured format `TESSERA` expects. Data can be provided as
 either a `SpatialExperiment` object or as raw matrices and data frames.
 
-##### 1. Data Input (Choose One)
+##### Data Input (Choose One)
 
 | Argument | Description |
 |:---|:---|
 | `x` | A `SpatialExperiment` object. If provided, counts, metadata, and coordinates are extracted automatically. |
 | **OR** |  |
-| `x` | A variables $`\times`$ measurements (e.g., genes $`\times`$ cells) count matrix. Rownames must be variable names. Colnames must be measurement IDs |
+| `x` | A variables $`\times`$ measurements (e.g., genes $`\times`$ cells) count matrix. Rownames must be variable names. Colnames must be measurement IDs. |
 | `meta_data` | Data frame of covariates where `rownames(meta_data)` matches `colnames(count_matrix)`. |
 | `coord_data` | Coordinates for observations. Required for `spNNGP` or when computing adjacency from scratch. |
 
-##### 2. Statistical Design (Choose One)
+##### Statistical Design (Choose One)
 
 | Argument | Description |
 |:---|:---|
 | `design_formula` | A standard R formula object (e.g., `~ 0 + Group:celltype`). |
 | `design_mat` | A pre-constructed design matrix. Zero columns will be dropped automatically. |
 
-##### 3. Spatial and Model Configuration
+##### Spatial and Model Configuration
 
 | Argument | Description |
 |:---|:---|
@@ -778,8 +780,8 @@ differ in how they define and infer spatial covariance.
 ##### Lattice Models (Leroux, CAR, SAR)
 
 Lattice models define spatial covariance based on a
-measurement-measurement adjacency matrix (i.e., identifying which cells
-are physically adjacent).
+measurement-to-measurement adjacency matrix (i.e., identifying which
+cells are physically adjacent).
 
 - **Model Varieties:**
   - **Leroux** is our preferred default; it decomposes variance into
@@ -793,13 +795,13 @@ are physically adjacent).
   faster.
 - **Memory Note:** The pre-computation step computes eigenvalues for an
   $`n \times n`$ matrix (where $`n`$ is the number of cells per sample).
-  For $`n < 3000`$, this typically uses $`< 1`$ GB of RAM.
+  For $`n < 3,000`$, this typically uses $`< 1`$ GB of RAM.
 
-##### Sparse Nearest-Neighbor Gaussian Process (spNNGP) Models
+##### Sparse Nearest-Neighbor Gaussian Process Models
 
-spNNGP models define spatial covariance as a function of pairwise
-distances between cells using a kernel function (e.g., Matern,
-Exponential, Gaussian, or Spherical).
+Sparse nearest-neighbor Gaussian process (spNNGP) models define spatial
+covariance as a function of pairwise distances between cells using a
+kernel function (e.g., Matern, Exponential, Gaussian, or Spherical).
 
 - **The “Sparse” Advantage:** The “sparse nearest-neighbor” improvement
   over a traditional Gaussian process is an approximation that enables
@@ -809,7 +811,7 @@ Exponential, Gaussian, or Spherical).
   matrices or eigenvalue pre-computation, making the initial preparation
   faster.
 - **Computational Trade-off:** However, the inference process is more
-  intensive and may be slower than lattice models, especially when
+  intensive and may be slower than for lattice models, especially when
   processing thousands of genes.
 
 #### Defining Adjacency Matrix for Lattice Models
@@ -882,29 +884,28 @@ covariance structure (e.g., “Leroux”).
 `TESSERA` uses an Expectation-Conditional-Maximization (ECM) algorithm
 to estimate model parameters, structured into an outer and inner loop.
 Each outer iteration (a full ECM cycle) executes an E-step, followed by
-an inner loop performing one or more Conditional-Maximization (CM)
-steps. While the default settings are robust for most spatial
-transcriptomics datasets, the convergence behavior can be fine-tuned
-using the following settings:
+an inner loop performing one or more CM-steps. While the default
+settings are robust for most spatial transcriptomics datasets, the
+convergence behavior can be fine-tuned using the following settings:
 
 - **Iteration Limits (outer loop):** `em_iters` sets the maximum number
-  of allowed ECM cycles. `em_min_iters` enforces a minimum number of
-  cycles, ensuring the algorithm moves away from initial values and
+  of allowed ECM iterations. `em_min_iters` enforces a minimum number of
+  iterations, ensuring the algorithm moves away from initial values and
   avoids stopping prematurely on flat regions of the parameter space.
 
 - **Convergence Tolerance (outer loop):** `em_tol` sets the numerical
   stopping threshold, and `em_stopping` defines the convergence metric
   used (typically the relative change in log-likelihood). The algorithm
-  terminates when the change between successive full ECM cycles falls
-  below this tolerance.
+  terminates when the change between successive full ECM iterations
+  falls below this tolerance.
 
 - **Parameter Updates per E-Step (inner loop):** `opt_iters` controls
-  the number of internal Conditional-Maximization (CM) steps performed
-  per E-step. Increasing this value performs additional parameter
-  updates within each full ECM cycle. Because CM steps are
-  computationally much cheaper than E-steps, performing more CM steps
-  increases the per-cycle runtime but reduces the total number of full
-  ECM cycles needed for convergence.
+  the number of internal CM-steps performed per E-step. Increasing this
+  value performs additional parameter updates within each full ECM
+  iteration. Because CM-steps are computationally much cheaper than
+  E-steps, performing more CM-steps increases the per-cycle runtime but
+  reduces the total number of full ECM iterations needed for
+  convergence.
 
 Fitting the `TESSERA` model takes under 30 seconds for a single gene on
 an M4 MacBook with 64 GB of RAM. We will load a pre-computed result
@@ -1040,7 +1041,7 @@ for all gene-sample pairs.
 performance_df <- TESSERA_all$perf_df
 ```
 
-##### Parallelize via HPC Cluster
+#### Parallelize via HPC Cluster
 
 `TESSERA` can be run in parallel (or serial) to fit to multiple genes.
 However, `TESSERA` is computationally intensive if run on hundreds or
@@ -1090,7 +1091,7 @@ TESSERA_out <- TESSERA::TESSERA_lattice(
 print(TESSERA_out$time)
 ```
 
-##### Parallelize via `futures` Package
+#### Parallelize via `futures` Package
 
 The following code (not run) shows an example of how to use the
 `futures` package to parallelize `TESSERA` on 50 genes.
