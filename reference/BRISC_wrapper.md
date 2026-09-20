@@ -66,6 +66,12 @@ ran for.
 
 Requires the BRISC library.
 
+BRISC uses a different convention than gstat for ordering and defining
+its spatial covariance parameters: gstat uses (nugget, sill, range,
+order), but BRISC uses (sill, nugget, 1 / range, order). This function
+does NOT change that, but we (internally) make adjustments where we call
+it.
+
 ## Author
 
 Florica J Constantine, florica AT berkeley.edu

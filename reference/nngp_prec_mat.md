@@ -25,7 +25,8 @@ nngp_prec_mat(sp_dist, nb_dist, cov_type, cov_params)
 
 - cov_params:
 
-  Covariance/kernel parameters.
+  Covariance/kernel parameters. Assuming gstat convenctions, nugget
+  (non-spatial), sill (spatial/scale), range, order (Matern).
 
 ## Value
 

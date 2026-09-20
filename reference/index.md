@@ -65,6 +65,8 @@
   : Fit Multi-Sample Poisson Spatial GLMM via ECM Algorithm
 - [`TESSERA_spNNGP()`](https://floricaconstantine.github.io/TESSERA/reference/TESSERA_spNNGP.md)
   : Fit Multi-Sample Poisson Spatial GLMM via spNNGP
+- [`calc_Wald_pvalue_from_fdrtool()`](https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_pvalue_from_fdrtool.md)
+  : Given Wald statistics, compute p-values.
 - [`calc_Wald_pvalue_from_threshold()`](https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_pvalue_from_threshold.md)
   : Given Wald statistics, compute p-values.
 - [`calc_Wald_statistics()`](https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_statistics.md)
@@ -93,6 +95,8 @@
   : Raw Synthetic Spatial Data
 - [`expected_loglike()`](https://floricaconstantine.github.io/TESSERA/reference/expected_loglike.md)
   : Compute the expected log likelihood.
+- [`fit_empirical_null_fdrtool()`](https://floricaconstantine.github.io/TESSERA/reference/fit_empirical_null_fdrtool.md)
+  : Wrapper for Empirical null estimation and p-value computation
 - [`fit_scaled_noncentral_chi2()`](https://floricaconstantine.github.io/TESSERA/reference/fit_scaled_noncentral_chi2.md)
   : Fit a scaled non-central chi^2_1 distribution using BOBYQA
 - [`fit_scaled_noncentral_chi2_old()`](https://floricaconstantine.github.io/TESSERA/reference/fit_scaled_noncentral_chi2_old.md)

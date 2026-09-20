@@ -105,6 +105,10 @@ function ran for.</p>
     <div class="section level2">
     <h2 id="note">Note<a class="anchor" aria-label="anchor" href="#note"></a></h2>
     <p>Requires the BRISC library.</p>
+<p>BRISC uses a different convention than gstat for ordering and defining
+its spatial covariance parameters: gstat uses (nugget, sill, range, order),
+but BRISC uses (sill, nugget, 1 / range, order). This function does NOT change
+that, but we (internally) make adjustments where we call it.</p>
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
