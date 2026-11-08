@@ -174,10 +174,11 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
   # --- Precompute Static Structures Outside the EM Loop ---
   # 1. Static Neighbor Distance Matrices (in C++)
   # 2. Moran's I Coordinate Constants (W, S1, S2, ei)
-  # 3. E-step etahat static term1: (z + 0.5)*log((z + 0.5)/N) - 0.5
+  # 3. E-step etahat static term1 and 0.5 + z
   nb_dist_list <- vector("list", n_areas)
   moran_precomp_list <- vector("list", n_areas)
   etahat_term1_list <- vector("list", n_areas)
+  z_half_list <- vector("list", n_areas)
   
   for (area_idx in 1:n_areas) {
     coords_area <- as.matrix(TESSERAData_obj$coords_list[[area_idx]])
@@ -188,8 +189,9 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     # Precompute coordinate-only spatial constants for Moran's I
     moran_precomp_list[[area_idx]] <- precomp_moran(coords_area[, 1], coords_area[, 2])
     
-    # Precompute static term1 for E_step_etahat
-    t1_tmp <- z_list[[area_idx]] + 0.5
+    # Precompute 0.5 + z and static term1 for E_step_etahat
+    t1_tmp <- as.numeric(z_list[[area_idx]] + 0.5)
+    z_half_list[[area_idx]] <- t1_tmp
     etahat_term1_list[[area_idx]] <- t1_tmp * log(t1_tmp / TESSERAData_obj$library_size_list[[area_idx]]) - 0.5
   }
   # ---------------------------------------------
@@ -348,17 +350,29 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     eta_hat_list <- list()
     
     for (area_idx in 1:n_areas) {
-      Vinv <- (Q_hat_list[[area_idx]] / 1.0) + Matrix::Diagonal(dim(Q_hat_list[[area_idx]])[1], 0.5 + z_list[[area_idx]])
+      Vinv <- build_Vinv_cpp(Q_hat_list[[area_idx]], 1.0, z_half_list[[area_idx]])
       
-      # Compute and store permutation pattern for later
+      # Compute Cholesky factorization once per E-step (and cache permutation P on iter 1)
       if (1 == em_idx) {
-        V_chol_perm_list[[area_idx]] <- sparseinv::cholPermute(Vinv)
+        chol_current <- sparseinv::cholPermute(Vinv)
+        V_chol_perm_list[[area_idx]] <- list(P = chol_current$P)
+      } else {
+        P_mat <- V_chol_perm_list[[area_idx]]$P
+        chol_current <- list(Qpermchol = Matrix::t(Matrix::chol(
+          Matrix::forceSymmetric(Matrix::t(P_mat) %*% Vinv %*% P_mat)
+        )),
+        P = P_mat)
       }
       
-      # Compute Vhat for the CURRENT area only
-      Vhat_current <- E_step_Vhat(Vinv, V_chol_perm_list[[area_idx]]$P)
+      # Compute Vhat reusing chol_current$Qpermchol (avoids 2nd cholPermute inside Takahashi_Davis)
+      Vhat_current <- E_step_Vhat(
+        Vinv,
+        P = chol_current$P,
+        cholQp = chol_current$Qpermchol,
+        return_dgC = TRUE
+      )
       
-      # Get the mean (using precomputed term1)
+      # Get the mean reusing chol_current (solves via triangular L, eliminating sparse LU)
       eta_hat_list[[area_idx]] <- E_step_etahat(
         Vinv,
         Q_hat_list[[area_idx]],
@@ -367,8 +381,10 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         TESSERAData_obj$X_list[[area_idx]],
         z_list[[area_idx]],
         TESSERAData_obj$library_size_list[[area_idx]],
-        term1_precomp = etahat_term1_list[[area_idx]]
+        term1_precomp = etahat_term1_list[[area_idx]],
+        chol_perm = chol_current
       )
+      rm(chol_current)
       
       # Get a few more things out of the E-step: theta and predictions
       theta_hat <- as.numeric(E_step_thetahat(Vhat_current, eta_hat_list[[area_idx]]))
@@ -432,6 +448,18 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         beta_tracker[, 1 + em_idx] <- beta_tracker[, em_idx]
       }
       
+      # Only build the sparse matrix Q on the final inner CM step (opt_idx == opt_iters);
+      # on earlier inner steps, compute X^T Q eta and X^T Q X directly in C++.
+      is_last_opt <- (opt_idx == opt_iters)
+      XtQX_step_list <- if (!is_last_opt)
+        vector("list", n_areas)
+      else
+        NULL
+      XtQeta_step_list <- if (!is_last_opt)
+        vector("list", n_areas)
+      else
+        NULL
+      
       for (area_idx in 1:n_areas) {
         # Initialize with current values (just as a placeholder)
         if (1 == opt_idx) {
@@ -453,7 +481,8 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
             TESSERAData_obj$X_list[[area_idx]],
             TESSERAData_obj$coords_list[[area_idx]],
             cov_type,
-            nngp_k
+            nngp_k,
+            prev_params = NULL # cov_param_tracker[area_idx, 1 + em_idx, ]
           )
         } else {
           stop("Invalid cov_fit_method: 'BRISC' or 'variogram'")
@@ -461,14 +490,25 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         
         cov_param_tracker[area_idx, 1 + em_idx, 1:length(param_est)] <- param_est
         
-        # Update precision matrix Q and associated quantities (via C++)
-        param_est <- nngp_prec_mat(sp_dist_list[[area_idx]],
-                                   nb_dist_list[[area_idx]],
-                                   cov_type,
-                                   cov_param_tracker[area_idx, 1 + em_idx, ])
-        Q_hat_list[[area_idx]] <- param_est$Q
-        Dinv_list[[area_idx]] <- param_est$Dinv
-        A_hat_list[[area_idx]] <- param_est$A
+        # Update precision matrix Q (on final opt_idx) or direct beta cross-products (on opt_idx < opt_iters)
+        prec_out <- nngp_prec_mat(
+          sp_dist_list[[area_idx]],
+          nb_dist_list[[area_idx]],
+          cov_type,
+          cov_param_tracker[area_idx, 1 + em_idx, ],
+          build_Q = is_last_opt,
+          X = TESSERAData_obj$X_list[[area_idx]],
+          eta = eta_hat_list[[area_idx]]
+        )
+        if (is_last_opt) {
+          Q_hat_list[[area_idx]] <- prec_out$Q
+          Dinv_list[[area_idx]] <- prec_out$Dinv
+          A_hat_list[[area_idx]] <- prec_out$A
+        } else {
+          Dinv_list[[area_idx]] <- prec_out$Dinv
+          XtQX_step_list[[area_idx]] <- prec_out$XtQX
+          XtQeta_step_list[[area_idx]] <- prec_out$XtQeta
+        }
       }
       # Optimize in beta
       beta_tracker[, 1 + em_idx] <- M_step_beta(
@@ -477,9 +517,12 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         tau2_list = rep(1, n_areas),
         # tau^2
         X_list = TESSERAData_obj$X_list,
-        model_type = "spNNGP"
+        model_type = "spNNGP",
+        XtQX_list = XtQX_step_list,
+        XtQeta_list = XtQeta_step_list
       )
     }
+    
     
     if (verbose || (0 == (em_idx %% 100))) {
       message("beta ", paste(beta_tracker[, 1 + em_idx], collapse = " "), "\n")

@@ -39,7 +39,7 @@ normalize <- function(x) {
 #'   spatial correlation.
 #' @returns SD Standard deviation of Moran's I.
 #'
-#' @export
+#' @export 
 #' 
 #' @examples
 #' calc_moran(rpois(1000, 1), runif(1000), runif(1000))
@@ -51,7 +51,8 @@ calc_moran <- function(x, c1, c2) {
 #'
 #' Since W, S1, S2, and EI depend solely on the spatial coordinates (c1, c2)
 #' and not on the residual vector x, precomputing them once per area avoids
-#' redundant work across EM iterations while preserving exact output.
+#' redundant work across EM iterations while preserving exact output. Exploits
+#' symmetry of Euclidean distances (j > i) to halve distance evaluations.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
@@ -60,7 +61,6 @@ calc_moran <- function(x, c1, c2) {
 #'
 #' @returns NumericVector of length 4: c(W, S1, S2, ei).
 #'
-#' @export
 precomp_moran <- function(c1, c2) {
     .Call('_TESSERA_precomp_moran', PACKAGE = 'TESSERA', c1, c2)
 }
@@ -68,7 +68,8 @@ precomp_moran <- function(c1, c2) {
 #' Fast computation of Moran's I using precomputed coordinate constants.
 #'
 #' Returns the exact same c(I, ei, sd) vector as calc_moran, using the
-#' precomputed W, S1, S2, and ei from precomp_moran.
+#' precomputed W, S1, S2, and ei from precomp_moran and an upper-triangular
+#' pass over pairs (i < j).
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
@@ -78,10 +79,64 @@ precomp_moran <- function(c1, c2) {
 #' @param moran_consts NumericVector of length 4 from precomp_moran: c(W, S1, S2, ei).
 #'
 #' @returns NumericVector of length 3: c(I, ei, sd).
-#'
-#' @export
+#' 
 calc_moran_precomp <- function(x, c1, c2, moran_consts) {
     .Call('_TESSERA_calc_moran_precomp', PACKAGE = 'TESSERA', x, c1, c2, moran_consts)
+}
+
+#' Batch Computation of Moran's I Across Multiple Vectors on Shared Coordinates.
+#'
+#' Computes the Moran's I statistic (first element of calc_moran) for all M
+#' columns of X_mat in a single upper-triangular pass over (c1, c2). Used by
+#' summarize_TESSERA to compute all 8 summary Moran's I metrics simultaneously.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param X_mat NumericMatrix of dimension (N x M), where each column is a
+#'   measurement vector on the same N spatial locations.
+#' @param c1 NumericVector of x-coordinates (length N).
+#' @param c2 NumericVector of y-coordinates (length N).
+#'
+#' @returns NumericVector of length M containing Moran's I for each column.
+#'
+calc_moran_batch_cpp <- function(X_mat, c1, c2) {
+    .Call('_TESSERA_calc_moran_batch_cpp', PACKAGE = 'TESSERA', X_mat, c1, c2)
+}
+
+#' Fast C++ Upper-Triangular Nearest Neighbor Distance Matrix.
+#'
+#' Computes the k nearest neighbors and Euclidean distances for each point i
+#' among points with higher index (i + 1) .. n, matching sparse_dist in R.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @note Applies to a single area.
+#'
+#' @param coords NumericMatrix of (x, y) coordinates (n x 2).
+#' @param k Integer number of nearest neighbors.
+#'
+#' @returns NumericMatrix of dimension (2*k) x (n - 1), where rows 1..k contain
+#'   Euclidean distances and rows (k + 1)..(2*k) contain 1-based neighbor indices.
+sparse_dist_cpp <- function(coords, k) {
+    .Call('_TESSERA_sparse_dist_cpp', PACKAGE = 'TESSERA', coords, k)
+}
+
+#' Fast C++ Lower-Triangular Nearest Neighbor Distance Matrix.
+#'
+#' Computes the k nearest neighbors and Euclidean distances for each point i
+#' among points with lower index 1 .. (i - 1), matching sparse_dist_LT in R.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @note Applies to a single area.
+#'
+#' @param coords NumericMatrix of (x, y) coordinates (n x 2).
+#' @param k Integer number of nearest neighbors.
+#'
+#' @returns NumericMatrix of dimension (2*k) x (n - 1), where rows 1..k contain
+#'   Euclidean distances and rows (k + 1)..(2*k) contain 1-based neighbor indices.
+sparse_dist_LT_cpp <- function(coords, k) {
+    .Call('_TESSERA_sparse_dist_LT_cpp', PACKAGE = 'TESSERA', coords, k)
 }
 
 #' Precompute Static Euclidean Distance Matrices for Neighbors in C++.
@@ -98,14 +153,14 @@ calc_moran_precomp <- function(x, c1, c2, moran_consts) {
 #'
 #' @returns A List of length ncol(sp_dist), where each element is the
 #'   symmetric Euclidean distance matrix among the valid neighbors of spot idx.
-#'
 build_nb_dist_cpp <- function(coords, sp_dist, nngp_k) {
     .Call('_TESSERA_build_nb_dist_cpp', PACKAGE = 'TESSERA', coords, sp_dist, nngp_k)
 }
 
 #' Compute Sparse NNGP Precision Factors (A triplets and Dinv) in C++.
 #'
-#' Performs the per-location covariance kernel evaluations and linear
+#' Performs the per-location covariance kernel evaluations (exploiting symmetry
+#' of the neighbor distance matrix to halve Bessel/exponential calls) and linear
 #' system solves (LU decomposition with partial pivoting, matching base::solve)
 #' for nngp_prec_mat.
 #'
@@ -126,9 +181,35 @@ build_nb_dist_cpp <- function(coords, sp_dist, nngp_k) {
 #'   \item \strong{A_val}: Non-zero values for sparse matrix A.
 #'   \item \strong{Dinv}: Vector of diagonal precision values D^\{-1\}.
 #' }
-#'
 nngp_prec_triplets_cpp <- function(sp_dist, nb_dist, cov_type, cov_params) {
     .Call('_TESSERA_nngp_prec_triplets_cpp', PACKAGE = 'TESSERA', sp_dist, nb_dist, cov_type, cov_params)
+}
+
+#' Compute X^T Q eta and X^T Q X Directly from NNGP Factors (A, Dinv) Without Forming Q.
+#'
+#' Since Q = (I - A)^T D^\{-1\} (I - A), we compute tilde_X = (I - A) X and
+#' tilde_eta = (I - A) eta in O(nnz(A) * p) time, and then form
+#' XtQeta = tilde_X^T D^\{-1\} tilde_eta and XtQX = tilde_X^T D^\{-1\} tilde_X.
+#' This avoids building the sparse matrix Q during inner CM steps (opt_idx < opt_iters).
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @note Applies to a single area.
+#'
+#' @param A_row IntegerVector of 1-based row indices of A.
+#' @param A_col NumericVector of 1-based column indices of A.
+#' @param A_val NumericVector of non-zero values of A.
+#' @param Dinv NumericVector of diagonal values of D^\{-1\} (length N).
+#' @param X NumericMatrix of covariates (N x p).
+#' @param eta NumericVector of random effect expectations (length N).
+#'
+#' @returns A List with:
+#' \itemize{
+#'   \item \strong{XtQeta}: NumericVector of length p equal to X^T Q eta.
+#'   \item \strong{XtQX}: NumericMatrix of dimension (p x p) equal to X^T Q X.
+#' }
+nngp_beta_terms_cpp <- function(A_row, A_col, A_val, Dinv, X, eta) {
+    .Call('_TESSERA_nngp_beta_terms_cpp', PACKAGE = 'TESSERA', A_row, A_col, A_val, Dinv, X, eta)
 }
 
 #' Fast Trace of Product of Two Sparse CSC Matrices Tr(Q * Vhat).
@@ -146,8 +227,58 @@ nngp_prec_triplets_cpp <- function(sp_dist, nb_dist, cov_type, cov_params) {
 #' @param V_x Non-zero values (@x slot) of dgCMatrix Vhat.
 #'
 #' @returns Scalar trace value sum_\{i,j\} Q_\{i,j\} V_\{i,j\}.
-#'
 fast_trace_quad_cpp <- function(Q_i, Q_p, Q_x, V_i, V_p, V_x) {
     .Call('_TESSERA_fast_trace_quad_cpp', PACKAGE = 'TESSERA', Q_i, Q_p, Q_x, V_i, V_p, V_x)
+}
+
+#' Pre-align Static Sparse Matrices onto a Shared CSC Template for Lattice Q Updates.
+#'
+#' Merges the sparsity patterns of 2 or 3 static dgCMatrix objects (such as
+#' (D, W) for CAR, (I, D - W) for Leroux, or (D, W, W D^\{-1\} W) for SAR),
+#' ensuring all diagonal entries are structurally present, and returns a
+#' template dgCMatrix along with aligned numeric @x vectors for O(nnz) updates.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param mats List of 2 or 3 dgCMatrix objects of identical dimension (N x N).
+#'
+#' @returns A List with:
+#' \itemize{
+#'   \item \strong{tmpl}: Template dgCMatrix with merged @i and @p slots.
+#'   \item \strong{x_list}: List of NumericVectors aligned to tmpl@i and tmpl@p.
+#' }
+prep_Q_lattice_cpp <- function(mats) {
+    .Call('_TESSERA_prep_Q_lattice_cpp', PACKAGE = 'TESSERA', mats)
+}
+
+#' Fast C++ Evaluation of Lattice Precision Matrix Q from Pre-aligned CSC Vectors.
+#'
+#' Computes Q = sum_m coeffs\[m\] * mats\[m\] in a single O(nnz) loop and returns
+#' a dgCMatrix sharing @i, @p, @Dim, and @Dimnames with the precomputed template.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param precomp List returned by prep_Q_lattice_cpp.
+#' @param coeffs NumericVector of scalar coefficients (length 2 or 3).
+#'
+#' @returns Updated precision matrix Q as a dgCMatrix.
+eval_Q_lattice_cpp <- function(precomp, coeffs) {
+    .Call('_TESSERA_eval_Q_lattice_cpp', PACKAGE = 'TESSERA', precomp, coeffs)
+}
+
+#' Fast C++ Construction of E-Step Precision Matrix Vinv = Q / tau2 + diag(diag_add).
+#'
+#' Scales the non-zero entries of dgCMatrix Q by inv_tau2 and adds diag_add\[j\]
+#' to each diagonal entry (j, j) without S4 Diagonal() coercions or sparse '+'.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param Q_dgC S4 dgCMatrix precision matrix Q (with all diagonal entries present).
+#' @param inv_tau2 Scalar 1.0 / tau2.
+#' @param diag_add NumericVector of diagonal increments (0.5 + z).
+#'
+#' @returns S4 dgCMatrix Vinv sharing @i, @p, @Dim, and @Dimnames with Q_dgC.
+build_Vinv_cpp <- function(Q_dgC, inv_tau2, diag_add) {
+    .Call('_TESSERA_build_Vinv_cpp', PACKAGE = 'TESSERA', Q_dgC, inv_tau2, diag_add)
 }
 

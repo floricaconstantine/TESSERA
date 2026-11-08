@@ -12,7 +12,8 @@ BRISC_wrapper(
   cov_type = "Exp",
   transform_z = TRUE,
   z_offset = 0.5,
-  verbose = FALSE
+  verbose = FALSE,
+  prev_params = NULL
 )
 }
 \arguments{
@@ -39,6 +40,10 @@ z_list.}
 log(z + z_offset).}
 
 \item{verbose}{Whether to print output as BRISC runs.}
+
+\item{prev_params}{Optional numeric vector of previous covariance parameters
+in gstat convention: c(nugget, sill, range, [smoothness]). When supplied,
+maps to BRISC's (sigma.sq, tau.sq, phi, nu) starting values.}
 }
 \value{
 The output list from BRISC, plus a time field for how long the

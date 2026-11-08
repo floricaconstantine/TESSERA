@@ -6,12 +6,19 @@
 Part of the E-Step in the EM algorithm.
 Follows Clayton and Kaldor (1987) for the Poisson-Gaussian model.}
 \usage{
-E_step_Vhat(Vinv, P = NULL)
+E_step_Vhat(Vinv, P = NULL, cholQp = NULL, return_dgC = FALSE)
 }
 \arguments{
 \item{Vinv}{Precomputed Precision matrix.}
 
 \item{P}{Cholesky Permutation (precomputed).}
+
+\item{cholQp}{Optional precomputed lower-triangular Cholesky factor of
+\code{t(P) \%*\% Vinv \%*\% P} from \code{sparseinv::cholPermute}.}
+
+\item{return_dgC}{Logical: If \code{TRUE}, returns the sparse inverse subset
+directly as a \code{dgCMatrix} without coercing to \code{symmetricMatrix}.
+Defaults to \code{FALSE} for backward compatibility.}
 }
 \value{
 Estimated covariance matrix (sparse subset).

@@ -2,8 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{sparse_dist_LT}
 \alias{sparse_dist_LT}
-\title{Get k nearest neighbors/distances given coordinates.
-Modified from: https://stackoverflow.com/questions/5560218/computing-sparse-pairwise-distance-matrix-in-r}
+\title{Get k nearest neighbors/distances given coordinates.}
 \usage{
 sparse_dist_LT(coords, k)
 }
@@ -14,10 +13,24 @@ sparse_dist_LT(coords, k)
 }
 \value{
 2 k x n points matrix.
-First k rows are distances, last k are indices of nearest neighbors.
-Only Lower Triangular part is formed.
+Top k rows: Euclidean distances to nearest neighbors.
+Bottom k rows: Indices of nearest neighbors.
+Each column corresponds to a point.
 }
 \description{
-Get k nearest neighbors/distances given coordinates.
-Modified from: https://stackoverflow.com/questions/5560218/computing-sparse-pairwise-distance-matrix-in-r
+For each point, we only look at points with a lower index.
+E.g., for point 10, we only look at points 1, 2, ..., 9.
+We do not look at the first point (since there are no lower-index points).
+So the output has one fewer column than the number of points.
+If there are fewer than k points with lower index, we fill the remaining
+entries with NA.
+}
+\note{
+Applies to a single area.
+}
+\examples{
+sparse_dist_LT(matrix(1:4, ncol=2), 1)
+}
+\author{
+Florica J Constantine, florica AT berkeley.edu
 }

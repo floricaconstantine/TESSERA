@@ -1,9 +1,9 @@
-## Model-specific functions, e.g., precision matrices.
+## Functions specific to the models/distributions used.
 # Dependencies in file: Matrix.
 
-## Precision matrix functions.
+## Covariance matrices
 
-#' Compute the unscaled precision matrix in a CAR model.
+#' Compute unscaled precision matrix for CAR model.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
@@ -11,15 +11,20 @@
 #'
 #' @param W Neighbor/adjacency matrix (symmetric, binary).
 #' @param D Degree matrix (diagonal, values are row-sums of W).
-#' @param gamma_val Correlation parameter.
-#' @param precomp Optional precomputed matrices (unused for CAR).
+#' @param gamma_hat Spatial correlation parameter.
+#' @param precomp Optional precomputed list from \code{prep_Q_lattice_cpp}.
 #'
-#' @returns Unscaled precision matrix.
-Q_matrix_CAR <- function(W, D, gamma_val, precomp = NULL) {
-  return(D - gamma_val * W)
+#' @returns Unscaled precision matrix Q.
+Q_matrix_CAR <- function(W, D, gamma_hat, precomp = NULL) {
+  if (!is.null(precomp) &&
+      is.list(precomp) && !is.null(precomp$tmpl)) {
+    return(eval_Q_lattice_cpp(precomp, c(1.0, -gamma_hat)))
+  }
+  # Q = D - gamma W
+  return(D - gamma_hat * W)
 }
 
-#' Compute the unscaled precision matrix in a SAR model.
+#' Compute unscaled precision matrix for SAR model.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
@@ -27,26 +32,35 @@ Q_matrix_CAR <- function(W, D, gamma_val, precomp = NULL) {
 #'
 #' @param W Neighbor/adjacency matrix (symmetric, binary).
 #' @param D Degree matrix (diagonal, values are row-sums of W).
-#' @param gamma_val Correlation parameter.
-#' @param precomp Precomputed W D^\{-1\} W matrix.
+#' @param gamma_hat Spatial correlation parameter.
+#' @param precomp Optional precomputed list from \code{prep_Q_lattice_cpp}
+#'  or precomputed matrix \code{W \%*\% D^{-1} \%*\% W}.
 #'
-#' @returns Unscaled precision matrix.
+#' @returns Unscaled precision matrix Q.
 #'
 #' @note Requires the Matrix library.
 #'
 #' @import Matrix
 #' @importFrom Matrix Diagonal
 #' @importFrom Matrix diag
-Q_matrix_SAR <- function(W, D, gamma_val, precomp = NULL) {
-  if (is.null(precomp)) {
-    D_inv <- Matrix::Diagonal(n = dim(W)[1], x = 1 / Matrix::diag(D))
-    precomp <- W %*% D_inv %*% W
+Q_matrix_SAR <- function(W, D, gamma_hat, precomp = NULL) {
+  if (!is.null(precomp) &&
+      is.list(precomp) && !is.null(precomp$tmpl)) {
+    return(eval_Q_lattice_cpp(precomp, c(1.0, -2.0 * gamma_hat, gamma_hat^2)))
   }
-  # Q = D - 2*gamma*W + gamma^2 * W D^{-1} W
-  return(D - (2 * gamma_val * W) + ((gamma_val^2) * precomp))
+  if (is.null(precomp)) {
+    # Fallback if called outside the main EM loop
+    D_inv <- Matrix::Diagonal(dim(W)[1], 1 / Matrix::diag(D))
+    WZW <- W %*% (D_inv %*% W)
+  } else {
+    WZW <- precomp
+  }
+  
+  # Q = D - 2 gamma W + gamma^2 W D^{-1} W
+  return(D - (2.0 * gamma_hat) * W + (gamma_hat^2) * WZW)
 }
 
-#' Compute the unscaled precision matrix in a Leroux model.
+#' Compute unscaled precision matrix for Leroux model.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
@@ -54,21 +68,30 @@ Q_matrix_SAR <- function(W, D, gamma_val, precomp = NULL) {
 #'
 #' @param W Neighbor/adjacency matrix (symmetric, binary).
 #' @param D Degree matrix (diagonal, values are row-sums of W).
-#' @param gamma_val Correlation parameter.
-#' @param precomp Precomputed list containing D_minus_W and id_mat.
+#' @param gamma_hat Spatial correlation parameter.
+#' @param precomp Optional precomputed list from \code{prep_Q_lattice_cpp}
+#'  or list containing \code{id_mat} and \code{D_minus_W}.
 #'
-#' @returns Unscaled precision matrix.
+#' @returns Unscaled precision matrix Q.
 #'
 #' @note Requires the Matrix library.
 #'
 #' @import Matrix
-Q_matrix_Leroux <- function(W, D, gamma_val, precomp = NULL) {
-  if (is.null(precomp)) {
-    precomp <- list(D_minus_W = D - W,
-                    id_mat = Matrix::Diagonal(n = dim(W)[1], 1))
+#' @importFrom Matrix Diagonal
+Q_matrix_Leroux <- function(W, D, gamma_hat, precomp = NULL) {
+  if (!is.null(precomp) &&
+      is.list(precomp) && !is.null(precomp$tmpl)) {
+    return(eval_Q_lattice_cpp(precomp, c(1.0 - gamma_hat, gamma_hat)))
   }
-  # gamma (D - W) + (1 - gamma) I
-  return((gamma_val * precomp$D_minus_W) + ((1 - gamma_val) * precomp$id_mat))
+  if (is.null(precomp)) {
+    # Fallback if called outside the main EM loop
+    id_mat <- Matrix::Diagonal(dim(W)[1], 1)
+    D_minus_W <- D - W
+    return((1.0 - gamma_hat) * id_mat + gamma_hat * D_minus_W)
+  } else {
+    # Q = (1 - gamma) I + gamma (D - W)
+    return((1.0 - gamma_hat) * precomp$id_mat + gamma_hat * precomp$D_minus_W)
+  }
 }
 
 
@@ -134,16 +157,21 @@ neg_hessian_tau2 <- function(Vhat, eta_hat, Q, tau2_hat, beta_hat, X) {
   # term1: crossprod(Q %*% vector_term, vector_term) is already efficient
   term1 <- as.numeric(crossprod(Q %*% vector_term, vector_term))
   
-  # term2: Trace[Q V]
-  # We extract the row/column indices of the non-zero elements of Q
-  # This avoids ever looking at the dense off-diagonal elements of Vhat
-  # Old: Q_sparse <- methods::as(Q, "dgCMatrix")
-  Q_sparse <- methods::as(methods::as(Q, "generalMatrix"), "CsparseMatrix")
-  idx_Q <- cbind(Q_sparse@i + 1L, rep(1:ncol(Q_sparse), diff(Q_sparse@p)))
-  
-  # We only compute Vhat[i, j] for non-zero Q[i, j]
-  # Vhat is symmetric, so Vhat[i, j] == Vhat[j, i]
-  term2 <- sum(Q_sparse@x * Vhat[idx_Q])
+  # term2: Trace[Q V] via C++ CSC two-pointer scan
+  Q_sparse <- if (inherits(Q, "dgCMatrix"))
+    Q
+  else
+    methods::as(methods::as(Q, "generalMatrix"), "CsparseMatrix")
+  V_sparse <- if (inherits(Vhat, "dgCMatrix"))
+    Vhat
+  else
+    methods::as(methods::as(Vhat, "generalMatrix"), "CsparseMatrix")
+  term2 <- fast_trace_quad_cpp(Q_sparse@i,
+                               Q_sparse@p,
+                               Q_sparse@x,
+                               V_sparse@i,
+                               V_sparse@p,
+                               V_sparse@x)
   
   return((term1 + term2) / (tau2_hat^3) - (0.5 * nrow(X)) / (tau2_hat^2))
 }
@@ -218,15 +246,21 @@ neg_hessian_gamma_SAR <- function(Vhat,
   zeta2 <- as.numeric(crossprod(W %*% vector_term, Z %*% vector_term))
   
   # Tr[W Z V]
-  # Create sparse matrix WZ to avoid dense matrix allocations
-  # Old: WZ_sparse <- methods::as(W %*% Z, "dgCMatrix")
-  WZ_sparse <- methods::as(methods::as(W %*% Z, "generalMatrix"), "CsparseMatrix")
-  
-  # Extract row/col indices of non-zero elements
-  idx_WZ <- cbind(WZ_sparse@i + 1L, rep(1:ncol(WZ_sparse), diff(WZ_sparse@p)))
-  
-  # Sum the element-wise product. Since Vhat is symmetric, Vhat[i, j] == Vhat[j, i]
-  zeta4 <- sum(WZ_sparse@x * Vhat[idx_WZ])
+  WZ <- W %*% Z
+  WZ_sparse <- if (inherits(WZ, "dgCMatrix"))
+    WZ
+  else
+    methods::as(methods::as(WZ, "generalMatrix"), "CsparseMatrix")
+  V_sparse  <- if (inherits(Vhat, "dgCMatrix"))
+    Vhat
+  else
+    methods::as(methods::as(Vhat, "generalMatrix"), "CsparseMatrix")
+  zeta4 <- fast_trace_quad_cpp(WZ_sparse@i,
+                               WZ_sparse@p,
+                               WZ_sparse@x,
+                               V_sparse@i,
+                               V_sparse@p,
+                               V_sparse@x)
   
   return(eig_term + (zeta2 + zeta4) / tau2)
 }
@@ -300,10 +334,15 @@ expected_loglike <- function(Vhat,
   term3 <- (-0.5 / tau2) * term3
   
   # Trace[Q V]
-  # Convert both Q and Vhat to general CSC (dgCMatrix) and compute the trace
-  # in C++ via a linear two-pointer scan over their CSC slots
-  Q_sparse <- methods::as(methods::as(Q, "generalMatrix"), "CsparseMatrix")
-  V_sparse <- methods::as(methods::as(Vhat, "generalMatrix"), "CsparseMatrix")
+  # Avoid S4 .M2C coercion if Q and Vhat are already dgCMatrix
+  Q_sparse <- if (inherits(Q, "dgCMatrix"))
+    Q
+  else
+    methods::as(methods::as(Q, "generalMatrix"), "CsparseMatrix")
+  V_sparse <- if (inherits(Vhat, "dgCMatrix"))
+    Vhat
+  else
+    methods::as(methods::as(Vhat, "generalMatrix"), "CsparseMatrix")
   tr_QV <- fast_trace_quad_cpp(Q_sparse@i,
                                Q_sparse@p,
                                Q_sparse@x,
@@ -431,15 +470,49 @@ kernel_sph <- function(d, sigma2, rho) {
 #' @param cov_type String for covariance model type.
 #' @param cov_params Covariance/kernel parameters. Assuming gstat conventions,
 #'  nugget (non-spatial), sill (spatial/scale), range, order (Matern).
+#' @param build_Q Logical: If \code{TRUE} (default), constructs the sparse
+#'  precision matrix \code{Q = (I - A)^T D^{-1} (I - A)} and sparse factor \code{A}.
+#'  If \code{FALSE}, skips building \code{Q} and \code{A} and instead computes
+#'  \code{XtQeta} and \code{XtQX} directly in C++ from \code{X} and \code{eta}.
+#' @param X Optional covariate matrix (N x p) used when \code{build_Q = FALSE}.
+#' @param eta Optional random effect vector (length N) used when \code{build_Q = FALSE}.
 #'
-#' @returns A list with a sparse precision matrix Q, eigenvalues Dinv, and factor A.
+#' @returns A list with a sparse precision matrix Q, eigenvalues Dinv, and factor A
+#'  (plus \code{XtQeta} and \code{XtQX} when \code{build_Q = FALSE}).
 #'
 #' @import Matrix
-nngp_prec_mat <- function(sp_dist, nb_dist, cov_type, cov_params) {
+nngp_prec_mat <- function(sp_dist,
+                          nb_dist,
+                          cov_type,
+                          cov_params,
+                          build_Q = TRUE,
+                          X = NULL,
+                          eta = NULL) {
   n_cols <- ncol(sp_dist)
   
-  # Compute triplet vectors (A_row, A_col, A_val) and Dinv in C++ via LAPACK dgesv
+  # Compute triplet vectors (A_row, A_col, A_val) and Dinv in C++
   cpp_out <- nngp_prec_triplets_cpp(sp_dist, nb_dist, cov_type, cov_params)
+  Dinv_val <- cpp_out$Dinv
+  
+  # Fast path for inner CM iterations (opt_idx < opt_iters):
+  # Compute X^T Q eta and X^T Q X directly from (I - A) without forming sparse Q
+  if (!build_Q && !is.null(X) && !is.null(eta)) {
+    beta_terms <- nngp_beta_terms_cpp(cpp_out$A_row,
+                                      cpp_out$A_col,
+                                      cpp_out$A_val,
+                                      Dinv_val,
+                                      X,
+                                      eta)
+    return(
+      list(
+        Q = NULL,
+        Dinv = Dinv_val,
+        A = NULL,
+        XtQeta = beta_terms$XtQeta,
+        XtQX = beta_terms$XtQX
+      )
+    )
+  }
   
   A_mat <- Matrix::sparseMatrix(
     i = cpp_out$A_row,
@@ -449,7 +522,6 @@ nngp_prec_mat <- function(sp_dist, nb_dist, cov_type, cov_params) {
     triangular = TRUE
   )
   
-  Dinv_val <- cpp_out$Dinv
   id_mat <- Matrix::Diagonal(dim(A_mat)[1], 1)
   I_minus_A <- id_mat - A_mat
   Q <- Matrix::crossprod(I_minus_A, Matrix::Diagonal(length(Dinv_val), Dinv_val) %*% I_minus_A)

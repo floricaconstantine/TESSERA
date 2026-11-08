@@ -6,7 +6,15 @@
 Part of the M-Step in the EM algorithm.
 ONLY APPLIES TO THE GAUSSIAN PROCESS MODEL.}
 \usage{
-M_step_BRISC(eta_hat, beta_hat, X, coords, cov_type = "Exp", k = 15)
+M_step_BRISC(
+  eta_hat,
+  beta_hat,
+  X,
+  coords,
+  cov_type = "Exp",
+  k = 15,
+  prev_params = NULL
+)
 }
 \arguments{
 \item{eta_hat}{Estimated mean of eta.}
@@ -21,6 +29,10 @@ M_step_BRISC(eta_hat, beta_hat, X, coords, cov_type = "Exp", k = 15)
 "Exp", "Sph", "Gau", and "Mat" are supported.}
 
 \item{k}{Number of neighbors.}
+
+\item{prev_params}{Optional numeric vector of previous covariance parameters
+in gstat convention: c(nugget, sill, range, [smoothness]). Used to warm-start
+BRISC optimization across EM/CM iterations.}
 }
 \value{
 A vector of fitted parameters.

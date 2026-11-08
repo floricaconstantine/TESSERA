@@ -74,6 +74,43 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// calc_moran_batch_cpp
+NumericVector calc_moran_batch_cpp(NumericMatrix X_mat, NumericVector c1, NumericVector c2);
+RcppExport SEXP _TESSERA_calc_moran_batch_cpp(SEXP X_matSEXP, SEXP c1SEXP, SEXP c2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type X_mat(X_matSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type c1(c1SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type c2(c2SEXP);
+    rcpp_result_gen = Rcpp::wrap(calc_moran_batch_cpp(X_mat, c1, c2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sparse_dist_cpp
+NumericMatrix sparse_dist_cpp(NumericMatrix coords, int k);
+RcppExport SEXP _TESSERA_sparse_dist_cpp(SEXP coordsSEXP, SEXP kSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    rcpp_result_gen = Rcpp::wrap(sparse_dist_cpp(coords, k));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sparse_dist_LT_cpp
+NumericMatrix sparse_dist_LT_cpp(NumericMatrix coords, int k);
+RcppExport SEXP _TESSERA_sparse_dist_LT_cpp(SEXP coordsSEXP, SEXP kSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    rcpp_result_gen = Rcpp::wrap(sparse_dist_LT_cpp(coords, k));
+    return rcpp_result_gen;
+END_RCPP
+}
 // build_nb_dist_cpp
 List build_nb_dist_cpp(NumericMatrix coords, NumericMatrix sp_dist, int nngp_k);
 RcppExport SEXP _TESSERA_build_nb_dist_cpp(SEXP coordsSEXP, SEXP sp_distSEXP, SEXP nngp_kSEXP) {
@@ -101,6 +138,22 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// nngp_beta_terms_cpp
+List nngp_beta_terms_cpp(const IntegerVector& A_row, const NumericVector& A_col, const NumericVector& A_val, const NumericVector& Dinv, const NumericMatrix& X, const NumericVector& eta);
+RcppExport SEXP _TESSERA_nngp_beta_terms_cpp(SEXP A_rowSEXP, SEXP A_colSEXP, SEXP A_valSEXP, SEXP DinvSEXP, SEXP XSEXP, SEXP etaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const IntegerVector& >::type A_row(A_rowSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type A_col(A_colSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type A_val(A_valSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type Dinv(DinvSEXP);
+    Rcpp::traits::input_parameter< const NumericMatrix& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type eta(etaSEXP);
+    rcpp_result_gen = Rcpp::wrap(nngp_beta_terms_cpp(A_row, A_col, A_val, Dinv, X, eta));
+    return rcpp_result_gen;
+END_RCPP
+}
 // fast_trace_quad_cpp
 double fast_trace_quad_cpp(const IntegerVector& Q_i, const IntegerVector& Q_p, const NumericVector& Q_x, const IntegerVector& V_i, const IntegerVector& V_p, const NumericVector& V_x);
 RcppExport SEXP _TESSERA_fast_trace_quad_cpp(SEXP Q_iSEXP, SEXP Q_pSEXP, SEXP Q_xSEXP, SEXP V_iSEXP, SEXP V_pSEXP, SEXP V_xSEXP) {
@@ -117,6 +170,42 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// prep_Q_lattice_cpp
+List prep_Q_lattice_cpp(List mats);
+RcppExport SEXP _TESSERA_prep_Q_lattice_cpp(SEXP matsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type mats(matsSEXP);
+    rcpp_result_gen = Rcpp::wrap(prep_Q_lattice_cpp(mats));
+    return rcpp_result_gen;
+END_RCPP
+}
+// eval_Q_lattice_cpp
+S4 eval_Q_lattice_cpp(List precomp, NumericVector coeffs);
+RcppExport SEXP _TESSERA_eval_Q_lattice_cpp(SEXP precompSEXP, SEXP coeffsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type precomp(precompSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type coeffs(coeffsSEXP);
+    rcpp_result_gen = Rcpp::wrap(eval_Q_lattice_cpp(precomp, coeffs));
+    return rcpp_result_gen;
+END_RCPP
+}
+// build_Vinv_cpp
+S4 build_Vinv_cpp(S4 Q_dgC, double inv_tau2, NumericVector diag_add);
+RcppExport SEXP _TESSERA_build_Vinv_cpp(SEXP Q_dgCSEXP, SEXP inv_tau2SEXP, SEXP diag_addSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< S4 >::type Q_dgC(Q_dgCSEXP);
+    Rcpp::traits::input_parameter< double >::type inv_tau2(inv_tau2SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type diag_add(diag_addSEXP);
+    rcpp_result_gen = Rcpp::wrap(build_Vinv_cpp(Q_dgC, inv_tau2, diag_add));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_TESSERA_distanceCalculate", (DL_FUNC) &_TESSERA_distanceCalculate, 4},
@@ -124,9 +213,16 @@ static const R_CallMethodDef CallEntries[] = {
     {"_TESSERA_calc_moran", (DL_FUNC) &_TESSERA_calc_moran, 3},
     {"_TESSERA_precomp_moran", (DL_FUNC) &_TESSERA_precomp_moran, 2},
     {"_TESSERA_calc_moran_precomp", (DL_FUNC) &_TESSERA_calc_moran_precomp, 4},
+    {"_TESSERA_calc_moran_batch_cpp", (DL_FUNC) &_TESSERA_calc_moran_batch_cpp, 3},
+    {"_TESSERA_sparse_dist_cpp", (DL_FUNC) &_TESSERA_sparse_dist_cpp, 2},
+    {"_TESSERA_sparse_dist_LT_cpp", (DL_FUNC) &_TESSERA_sparse_dist_LT_cpp, 2},
     {"_TESSERA_build_nb_dist_cpp", (DL_FUNC) &_TESSERA_build_nb_dist_cpp, 3},
     {"_TESSERA_nngp_prec_triplets_cpp", (DL_FUNC) &_TESSERA_nngp_prec_triplets_cpp, 4},
+    {"_TESSERA_nngp_beta_terms_cpp", (DL_FUNC) &_TESSERA_nngp_beta_terms_cpp, 6},
     {"_TESSERA_fast_trace_quad_cpp", (DL_FUNC) &_TESSERA_fast_trace_quad_cpp, 6},
+    {"_TESSERA_prep_Q_lattice_cpp", (DL_FUNC) &_TESSERA_prep_Q_lattice_cpp, 1},
+    {"_TESSERA_eval_Q_lattice_cpp", (DL_FUNC) &_TESSERA_eval_Q_lattice_cpp, 2},
+    {"_TESSERA_build_Vinv_cpp", (DL_FUNC) &_TESSERA_build_Vinv_cpp, 3},
     {NULL, NULL, 0}
 };
 

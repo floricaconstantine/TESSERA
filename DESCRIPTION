@@ -32,7 +32,6 @@ Imports:
   Rfast,
   ggplot2,
   BRISC, 
-  MASS,
   fdrtool
 Suggests: 
   testthat (>= 3.0.0),
@@ -42,6 +41,7 @@ Suggests:
   BiocStyle,
   MatrixGenerics,
   sparseMatrixStats,
+  MASS,
   SpatialExperiment,
   SingleCellExperiment,
   SummarizedExperiment,

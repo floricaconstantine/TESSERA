@@ -81,3 +81,21 @@ test_that("precomp_moran and calc_moran_precomp match calc_moran exactly",
             res_const_fast <- suppressWarnings(calc_moran_precomp(rep(3, n), c1, c2, consts))
             expect_true(is.nan(res_const_fast[1]))
           })
+
+test_that("calc_moran_batch_cpp matches individual calc_moran calls across columns",
+          {
+            n <- 25
+            c1 <- runif(n)
+            c2 <- runif(n)
+            X_mat <- matrix(rnorm(n * 8), nrow = n, ncol = 8)
+            # Include a constant column to verify NaN handling matches calc_moran
+            X_mat[, 8] <- 5.0
+            
+            batch_res <- suppressWarnings(calc_moran_batch_cpp(X_mat, c1, c2))
+            indiv_res <- vapply(1:8, function(m) {
+              suppressWarnings(calc_moran(X_mat[, m], c1, c2)[1])
+            }, numeric(1))
+            
+            expect_equal(batch_res[1:7], indiv_res[1:7], tolerance = 1e-14)
+            expect_true(is.nan(batch_res[8]))
+          })

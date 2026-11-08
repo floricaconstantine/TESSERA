@@ -103,20 +103,20 @@ summarize_TESSERA <- function(TESSERAData_obj, TESSERAOutput_obj) {
       is.null(TESSERAData_obj$coords_list[[s_idx]][, 1]) ||
       is.null(TESSERAData_obj$coords_list[[s_idx]][, 2])
     )) {
-      c1_vec <- TESSERAData_obj$coords_list[[s_idx]][, 1]
-      c2_vec <- TESSERAData_obj$coords_list[[s_idx]][, 2]
-      moran_consts <- precomp_moran(c1_vec, c2_vec)
-      
-      MI_vec <- c(
-        calc_moran_precomp(counts, c1_vec, c2_vec, moran_consts)[1],
-        calc_moran_precomp(preds, c1_vec, c2_vec, moran_consts)[1],
-        calc_moran_precomp(resids, c1_vec, c2_vec, moran_consts)[1],
-        calc_moran_precomp(phis, c1_vec, c2_vec, moran_consts)[1],
-        calc_moran_precomp(etas, c1_vec, c2_vec, moran_consts)[1],
-        calc_moran_precomp(Xbs, c1_vec, c2_vec, moran_consts)[1],
-        calc_moran_precomp(thetas, c1_vec, c2_vec, moran_consts)[1],
-        calc_moran_precomp(library_sizes, c1_vec, c2_vec, moran_consts)[1]
+      # Compute all 8 Moran's I metrics in a single C++ upper-triangular pass
+      MI_mat <- cbind(
+        as.numeric(counts),
+        as.numeric(preds),
+        as.numeric(resids),
+        as.numeric(phis),
+        as.numeric(etas),
+        as.numeric(Xbs),
+        as.numeric(thetas),
+        as.numeric(library_sizes)
       )
+      MI_vec <- calc_moran_batch_cpp(MI_mat,
+                                     TESSERAData_obj$coords_list[[s_idx]][, 1],
+                                     TESSERAData_obj$coords_list[[s_idx]][, 2])
     }
     
     inner_MSE_df[[s_idx]] <- data.frame(

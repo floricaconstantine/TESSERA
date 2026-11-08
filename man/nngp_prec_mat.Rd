@@ -4,7 +4,15 @@
 \alias{nngp_prec_mat}
 \title{Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix.}
 \usage{
-nngp_prec_mat(sp_dist, nb_dist, cov_type, cov_params)
+nngp_prec_mat(
+  sp_dist,
+  nb_dist,
+  cov_type,
+  cov_params,
+  build_Q = TRUE,
+  X = NULL,
+  eta = NULL
+)
 }
 \arguments{
 \item{sp_dist}{Output of sparse_dist_LT function.}
@@ -15,9 +23,19 @@ nngp_prec_mat(sp_dist, nb_dist, cov_type, cov_params)
 
 \item{cov_params}{Covariance/kernel parameters. Assuming gstat conventions,
 nugget (non-spatial), sill (spatial/scale), range, order (Matern).}
+
+\item{build_Q}{Logical: If \code{TRUE} (default), constructs the sparse
+precision matrix \code{Q = (I - A)^T D^{-1} (I - A)} and sparse factor \code{A}.
+If \code{FALSE}, skips building \code{Q} and \code{A} and instead computes
+\code{XtQeta} and \code{XtQX} directly in C++ from \code{X} and \code{eta}.}
+
+\item{X}{Optional covariate matrix (N x p) used when \code{build_Q = FALSE}.}
+
+\item{eta}{Optional random effect vector (length N) used when \code{build_Q = FALSE}.}
 }
 \value{
-A list with a sparse precision matrix Q, eigenvalues Dinv, and factor A.
+A list with a sparse precision matrix Q, eigenvalues Dinv, and factor A
+(plus \code{XtQeta} and \code{XtQX} when \code{build_Q = FALSE}).
 }
 \description{
 Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix.

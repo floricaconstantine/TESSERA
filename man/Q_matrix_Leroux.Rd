@@ -2,24 +2,25 @@
 % Please edit documentation in R/models.R
 \name{Q_matrix_Leroux}
 \alias{Q_matrix_Leroux}
-\title{Compute the unscaled precision matrix in a Leroux model.}
+\title{Compute unscaled precision matrix for Leroux model.}
 \usage{
-Q_matrix_Leroux(W, D, gamma_val, precomp = NULL)
+Q_matrix_Leroux(W, D, gamma_hat, precomp = NULL)
 }
 \arguments{
 \item{W}{Neighbor/adjacency matrix (symmetric, binary).}
 
 \item{D}{Degree matrix (diagonal, values are row-sums of W).}
 
-\item{gamma_val}{Correlation parameter.}
+\item{gamma_hat}{Spatial correlation parameter.}
 
-\item{precomp}{Precomputed list containing D_minus_W and id_mat.}
+\item{precomp}{Optional precomputed list from \code{prep_Q_lattice_cpp}
+or list containing \code{id_mat} and \code{D_minus_W}.}
 }
 \value{
-Unscaled precision matrix.
+Unscaled precision matrix Q.
 }
 \description{
-Compute the unscaled precision matrix in a Leroux model.
+Compute unscaled precision matrix for Leroux model.
 }
 \note{
 Applies to a single area.

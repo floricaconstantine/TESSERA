@@ -2,7 +2,7 @@
 % Please edit documentation in R/M_step.R
 \name{M_step_beta}
 \alias{M_step_beta}
-\title{M-step optimization for beta (covariate coefficients).
+\title{Maximize the expected likelihood in beta, holding other variables constant.
 Part of the M-Step in the EM algorithm.}
 \usage{
 M_step_beta(
@@ -10,44 +10,57 @@ M_step_beta(
   Q_list,
   tau2_list,
   X_list,
-  model_type = "spNNGP",
+  model_type = "Leroux",
   gamma_list = NULL,
   XtDX_list = NULL,
   XtWX_list = NULL,
   XtWZX_list = NULL,
   XtX_list = NULL,
-  XtDWIX_list = NULL
+  XtDWIX_list = NULL,
+  XtQX_list = NULL,
+  XtQeta_list = NULL
 )
 }
 \arguments{
-\item{eta_list}{List of estimated means of eta.}
+\item{eta_list}{List of estimated means of eta across all areas.}
 
-\item{Q_list}{List of unscaled precision matrices.}
+\item{Q_list}{List of unscaled precision matrices across all areas.}
 
-\item{tau2_list}{List of precision/covariance matrix scalings.}
+\item{tau2_list}{Vector of precision matrix scaling parameters tau^2 across all areas.}
 
-\item{X_list}{List of covariate matrices.}
+\item{X_list}{List of covariate matrices across all areas.}
 
-\item{model_type}{"CAR", "SAR", "Leroux", or "spNNGP".}
+\item{model_type}{Character string specifying "CAR", "SAR", "Leroux", or "spNNGP".}
 
-\item{gamma_list}{List of current gamma estimates (required for lattice).}
+\item{gamma_list}{Vector of current spatial correlation parameters gamma across all areas.}
 
-\item{XtDX_list}{Precomputed X^T D X (required for CAR/SAR).}
+\item{XtDX_list}{Optional list of precomputed X^T D X matrices (CAR/SAR).}
 
-\item{XtWX_list}{Precomputed X^T W X (required for CAR/SAR).}
+\item{XtWX_list}{Optional list of precomputed X^T W X matrices (CAR/SAR).}
 
-\item{XtWZX_list}{Precomputed X^T W Z X (required for SAR).}
+\item{XtWZX_list}{Optional list of precomputed X^T W Z X matrices (SAR).}
 
-\item{XtX_list}{Precomputed X^T X (required for Leroux).}
+\item{XtX_list}{Optional list of precomputed X^T X matrices (Leroux).}
 
-\item{XtDWIX_list}{Precomputed X^T (D - W - I) X (required for Leroux).}
+\item{XtDWIX_list}{Optional list of precomputed X^T (D - W - I) X matrices (Leroux).}
+
+\item{XtQX_list}{Optional list of precomputed X^T Q X matrices (spNNGP inner CM steps).}
+
+\item{XtQeta_list}{Optional list of precomputed X^T Q eta vectors (spNNGP inner CM steps).}
 }
 \value{
-Estimated beta vector.
+Maximum likelihood estimate of covariate effects beta.
 }
 \description{
-M-step optimization for beta (covariate coefficients).
+Maximize the expected likelihood in beta, holding other variables constant.
 Part of the M-Step in the EM algorithm.
+}
+\note{
+Applies across all areas.
+
+Requires the Matrix library.
+
+Requires the pracma library.
 }
 \author{
 Florica J Constantine, florica AT berkeley.edu

@@ -6,7 +6,17 @@
 Part of the E-Step in the EM algorithm.
 Follows Clayton and Kaldor (1987) for the Poisson-Gaussian model.}
 \usage{
-E_step_etahat(Vinv, Q, tau2, beta_hat, X, z, N, term1_precomp = NULL)
+E_step_etahat(
+  Vinv,
+  Q,
+  tau2,
+  beta_hat,
+  X,
+  z,
+  N,
+  term1_precomp = NULL,
+  chol_perm = NULL
+)
 }
 \arguments{
 \item{Vinv}{Precomputed Precision matrix.}
@@ -24,6 +34,11 @@ E_step_etahat(Vinv, Q, tau2, beta_hat, X, z, N, term1_precomp = NULL)
 \item{N}{Library size or expected counts.}
 
 \item{term1_precomp}{Optional precomputed vector (z + 0.5)*log((z + 0.5)/N) - 0.5.}
+
+\item{chol_perm}{Optional list containing \code{Qpermchol} (lower-triangular
+Cholesky factor L) and \code{P} (permutation matrix) from
+\code{sparseinv::cholPermute(Vinv)} to solve via triangular substitution
+without re-factorizing \code{Vinv}.}
 }
 \value{
 Estimated mean of eta.

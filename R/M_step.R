@@ -60,88 +60,127 @@ M_step_tau2 <- function(trace_scalars,
 }
 
 
-#' M-step optimization for beta (covariate coefficients).
+#' Maximize the expected likelihood in beta, holding other variables constant.
 #' Part of the M-Step in the EM algorithm.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
-#' @param eta_list List of estimated means of eta.
-#' @param Q_list List of unscaled precision matrices.
-#' @param tau2_list List of precision/covariance matrix scalings.
-#' @param X_list List of covariate matrices.
-#' @param model_type "CAR", "SAR", "Leroux", or "spNNGP".
-#' @param gamma_list List of current gamma estimates (required for lattice).
-#' @param XtDX_list Precomputed X^T D X (required for CAR/SAR).
-#' @param XtWX_list Precomputed X^T W X (required for CAR/SAR).
-#' @param XtWZX_list Precomputed X^T W Z X (required for SAR).
-#' @param XtX_list Precomputed X^T X (required for Leroux).
-#' @param XtDWIX_list Precomputed X^T (D - W - I) X (required for Leroux).
+#' @note Applies across all areas.
 #'
-#' @returns Estimated beta vector.
+#' @param eta_list List of estimated means of eta across all areas.
+#' @param Q_list List of unscaled precision matrices across all areas.
+#' @param tau2_list Vector of precision matrix scaling parameters tau^2 across all areas.
+#' @param X_list List of covariate matrices across all areas.
+#' @param model_type Character string specifying "CAR", "SAR", "Leroux", or "spNNGP".
+#' @param gamma_list Vector of current spatial correlation parameters gamma across all areas.
+#' @param XtDX_list Optional list of precomputed X^T D X matrices (CAR/SAR).
+#' @param XtWX_list Optional list of precomputed X^T W X matrices (CAR/SAR).
+#' @param XtWZX_list Optional list of precomputed X^T W Z X matrices (SAR).
+#' @param XtX_list Optional list of precomputed X^T X matrices (Leroux).
+#' @param XtDWIX_list Optional list of precomputed X^T (D - W - I) X matrices (Leroux).
+#' @param XtQX_list Optional list of precomputed X^T Q X matrices (spNNGP inner CM steps).
+#' @param XtQeta_list Optional list of precomputed X^T Q eta vectors (spNNGP inner CM steps).
 #'
-#' @importFrom Matrix solve crossprod
-#' @importFrom MASS ginv
+#' @returns Maximum likelihood estimate of covariate effects beta.
+#'
+#' @note Requires the Matrix library.
+#' @note Requires the pracma library.
+#'
+#' @import Matrix
+#' @importFrom Matrix crossprod
+#' @importFrom pracma pinv
 M_step_beta <- function(eta_list,
                         Q_list,
                         tau2_list,
                         X_list,
-                        model_type = "spNNGP",
+                        model_type = "Leroux",
                         gamma_list = NULL,
                         XtDX_list = NULL,
                         XtWX_list = NULL,
                         XtWZX_list = NULL,
                         XtX_list = NULL,
-                        XtDWIX_list = NULL) {
-  n_areas <- length(eta_list)
+                        XtDWIX_list = NULL,
+                        XtQX_list = NULL,
+                        XtQeta_list = NULL) {
+  # Get number of covariates
   p <- ncol(X_list[[1]])
+  # Will store sums of matrices/vectors across areas
+  B_mat <- matrix(0, nrow = p, ncol = p)
+  zeta_val <- rep(0, p)
   
-  B <- matrix(0, nrow = p, ncol = p)
-  zeta_vec <- matrix(0, nrow = p, ncol = 1)
-  
-  for (idx in 1:n_areas) {
-    # 1. Vector part: X^T Q eta
-    # Dynamic, but incredibly fast O(Np) operation
-    Q_inv_tau2 <- Q_list[[idx]] / tau2_list[[idx]]
-    XtQ <- Matrix::crossprod(X_list[[idx]], Q_inv_tau2)
-    zeta_vec <- zeta_vec + as.numeric(XtQ %*% eta_list[[idx]])
+  # Iterate over areas
+  for (idx in 1:length(eta_list)) {
+    X <- X_list[[idx]]
+    eta <- eta_list[[idx]]
+    tau2 <- tau2_list[idx]
+    Q <- Q_list[[idx]]
+    gamma <- gamma_list[idx]
     
-    # 2. Matrix part: X^T Q X
-    # Assembled from precomputed matrices for Lattice, dynamic for spNNGP
-    if (model_type == "CAR") {
-      B_area <- (XtDX_list[[idx]] - gamma_list[idx] * XtWX_list[[idx]]) / tau2_list[[idx]]
-      B <- B + B_area
+    # Fast path for spNNGP when X^T Q eta and X^T Q X were computed directly in C++
+    if (model_type == "spNNGP" && !is.null(XtQX_list) && !is.null(XtQeta_list)) {
+      zeta_val <- zeta_val + (XtQeta_list[[idx]] / tau2)
+      B_mat <- B_mat + (XtQX_list[[idx]] / tau2)
+      next
+    }
+    
+    # 1. Compute RHS: X^T Q eta / tau^2
+    # Optimized to avoid forming dense intermediate products; Q %*% eta is O(N)
+    zeta_val <- zeta_val + (Matrix::crossprod(X, Q %*% eta)) / tau2
+    
+    # 2. Compute LHS: X^T Q X / tau^2
+    # Utilizing precomputed static matrices if provided for the specific lattice model
+    if (model_type == "CAR" &&
+        !is.null(XtDX_list) && !is.null(XtWX_list)) {
+      # Q = D - gamma * W
+      XtQX <- XtDX_list[[idx]] - gamma * XtWX_list[[idx]]
+      B_mat <- B_mat + (XtQX / tau2)
       
-    } else if (model_type == "SAR") {
-      B_area <- (XtDX_list[[idx]] - 2 * gamma_list[idx] * XtWX_list[[idx]] +
-                   (gamma_list[idx]^2) * XtWZX_list[[idx]]) / tau2_list[[idx]]
-      B <- B + B_area
+    } else if (model_type == "SAR" &&
+               !is.null(XtDX_list) &&
+               !is.null(XtWX_list) && !is.null(XtWZX_list)) {
+      # Q = D - 2*gamma*W + gamma^2 * W * D^{-1} * W
+      XtQX <- XtDX_list[[idx]] - (2.0 * gamma) * XtWX_list[[idx]] + (gamma^2) * XtWZX_list[[idx]]
+      B_mat <- B_mat + (XtQX / tau2)
       
-    } else if (model_type == "Leroux") {
-      B_area <- (gamma_list[idx] * XtDWIX_list[[idx]] + XtX_list[[idx]]) / tau2_list[[idx]]
-      B <- B + B_area
-      
-    } else if (model_type == "spNNGP") {
-      # Dynamic fallback for spatial covariance matrices
-      B <- B + as.matrix(XtQ %*% X_list[[idx]])
+    } else if (model_type == "Leroux" &&
+               !is.null(XtX_list) && !is.null(XtDWIX_list)) {
+      # Q = I + gamma * (D - W - I)
+      XtQX <- XtX_list[[idx]] + gamma * XtDWIX_list[[idx]]
+      B_mat <- B_mat + (XtQX / tau2)
       
     } else {
-      stop("Invalid model type in M_step_beta")
+      # Fallback for spNNGP (when Q is explicitly formed) or if lists are missing
+      B_mat <- B_mat + (Matrix::crossprod(X, Q %*% X)) / tau2
     }
   }
   
-  # Force back to base R to avoid S4 dispatch errors
-  B_mat <- as.matrix(B)
-  zeta_num <- as.numeric(zeta_vec)
+  # Ensure B_mat is a standard base matrix for fast inversion (p x p is small)
+  B_mat <- as.matrix(B_mat)
+  zeta_val <- as.numeric(zeta_val)
   
-  # beta = B^{-1} zeta with robust pseudo-inverse fallback
-  beta_hat <- tryCatch({
-    base::solve(B_mat, zeta_num)
+  # Try basic inversion first
+  err_flag <- FALSE
+  err_flag <- tryCatch({
+    beta_out <- solve(B_mat, zeta_val)
+    return(as.numeric(beta_out))
   }, error = function(cond) {
-    warning("M_step_beta: Matrix is computationally singular. Falling back to pseudo-inverse.")
-    as.numeric(MASS::ginv(B_mat) %*% zeta_num)
+    warning("INVERSION OF B FAILED")
+    err_flag <- TRUE
   })
   
-  return(as.numeric(beta_hat))
+  # Try pseudoinversion next
+  if (err_flag) {
+    err_flag <- tryCatch({
+      B_inv <- pracma::pinv(B_mat)
+      return(as.numeric(B_inv %*% zeta_val))
+    }, error = function(cond) {
+      warning("PSEUDOINVERSION OF B FAILED")
+      err_flag <- TRUE
+    })
+  }
+  if (err_flag) {
+    stop("ALL INVERSIONS OF B FAILED: CANNOT CONTINUE")
+  }
 }
 
 
@@ -682,6 +721,8 @@ M_step_variogram <- function(eta_hat, beta_hat, X, coords, cov_type = "Exp") {
 
 ## Sparse Nearest Neighbor Gaussian Non-Variogram
 
+## Sparse Nearest Neighbor Gaussian Non-Variogram
+
 #' Holding beta constant, use BRISC to find the spatial parameters of eta - X beta.
 #' Part of the M-Step in the EM algorithm.
 #' ONLY APPLIES TO THE GAUSSIAN PROCESS MODEL.
@@ -697,6 +738,9 @@ M_step_variogram <- function(eta_hat, beta_hat, X, coords, cov_type = "Exp") {
 #' @param cov_type String for covariance model type.
 #'  "Exp", "Sph", "Gau", and "Mat" are supported.
 #' @param k Number of neighbors.
+#' @param prev_params Optional numeric vector of previous covariance parameters
+#'  in gstat convention: c(nugget, sill, range, \[smoothness\]). Used to warm-start
+#'  BRISC optimization across EM/CM iterations.
 #'
 #' @returns A vector of fitted parameters.
 #'  Nugget variance (partial sill), Spatial variance (partial sill),
@@ -710,28 +754,48 @@ M_step_BRISC <- function(eta_hat,
                          X,
                          coords,
                          cov_type = "Exp",
-                         k = 15) {
+                         k = 15,
+                         prev_params = NULL) {
   close_to_zero_const <- max(min(1e-6, 1 / nrow(X)^2), 1e4 * .Machine$double.eps)
   
   # Get phi_hat = eta - X beta
   phi_hat <- as.numeric(eta_hat - X %*% beta_hat)
   
-  # Call BRISC
+  # Call BRISC (try warm-start first if prev_params supplied; fallback to cold-start)
   err_flag <- FALSE
   err_flag <- tryCatch({
-    b_out <- BRISC_wrapper(
-      z_list = list(z = phi_hat),
-      # Run on phi
-      X_list = NULL,
-      # No covariates
-      coords_list = list(c = coords),
-      # Coordinates
-      k = k,
-      # Number of neighbors
-      cov_type = cov_type,
-      # Covariance type
-      transform_z = FALSE # Don't log values
-    )
+    b_out <- tryCatch({
+      BRISC_wrapper(
+        z_list = list(z = phi_hat),
+        # Run on phi
+        X_list = NULL,
+        # No covariates
+        coords_list = list(c = coords),
+        # Coordinates
+        k = k,
+        # Number of neighbors
+        cov_type = cov_type,
+        # Covariance type
+        transform_z = FALSE,
+        # Don't log values
+        prev_params = prev_params
+      )
+    }, error = function(cond_warm) {
+      # If warm-start fails, retry with BRISC default cold-start before variogram fallback
+      if (!is.null(prev_params)) {
+        BRISC_wrapper(
+          z_list = list(z = phi_hat),
+          X_list = NULL,
+          coords_list = list(c = coords),
+          k = k,
+          cov_type = cov_type,
+          transform_z = FALSE,
+          prev_params = NULL
+        )
+      } else {
+        stop(cond_warm)
+      }
+    })
     
     # Initialize a new vector for gstat convention: c(Nugget, Sill, Range, [Smoothness])
     out_params <- numeric(length(b_out$Theta))
@@ -773,10 +837,10 @@ M_step_BRISC <- function(eta_hat,
   }
 }
 
-#'  Wrapper to fit sparse NN GP model via BRISC.
+#' Wrapper to fit sparse NN GP model via BRISC.
 #'
-#'  This function theoretically works for multiple areas by stacking everything
-#'  together and ignoring differences in coordinates.
+#' This function theoretically works for multiple areas by stacking everything
+#' together and ignoring differences in coordinates.
 #'
 #' @author Florica J Constantine, florica AT berkeley.edu
 #'
@@ -796,6 +860,9 @@ M_step_BRISC <- function(eta_hat,
 #' @param z_offset If transform_z, the counts z are transformed as
 #'    log(z + z_offset).
 #' @param verbose Whether to print output as BRISC runs.
+#' @param prev_params Optional numeric vector of previous covariance parameters
+#'    in gstat convention: c(nugget, sill, range, \[smoothness\]). When supplied,
+#'    maps to BRISC's (sigma.sq, tau.sq, phi, nu) starting values.
 #'
 #' @returns The output list from BRISC, plus a time field for how long the
 #'    function ran for.
@@ -814,7 +881,8 @@ BRISC_wrapper <- function(z_list,
                           cov_type = "Exp",
                           transform_z = TRUE,
                           z_offset = 0.5,
-                          verbose = FALSE) {
+                          verbose = FALSE,
+                          prev_params = NULL) {
   # Start clock
   t0_glm <- Sys.time()
   
@@ -842,11 +910,36 @@ BRISC_wrapper <- function(z_list,
     brisc_cov <- "gaussian"
   }
   
-  # Fit LM
+  # Default BRISC starting values
+  sigma_sq_init <- 1.0
+  tau_sq_init   <- 0.1
+  phi_init      <- 1.0
+  nu_init       <- 1.5
+  
+  # Override with warm-start values if valid previous gstat parameters exist:
+  # prev_params[1] = Nugget (tau.sq), prev_params[2] = Sill (sigma.sq),
+  # prev_params[3] = Range (1 / phi), prev_params[4] = Smoothness (nu)
+  if (!is.null(prev_params) && length(prev_params) >= 3 &&
+      all(is.finite(prev_params[1:3])) &&
+      all(prev_params[1:3] > 0)) {
+    tau_sq_init   <- max(1e-6, prev_params[1])
+    sigma_sq_init <- max(1e-6, prev_params[2])
+    phi_init      <- max(1e-6, 1.0 / prev_params[3])
+    if ("Mat" == cov_type && length(prev_params) >= 4 &&
+        is.finite(prev_params[4]) && prev_params[4] > 0) {
+      nu_init <- min(max(1e-3, prev_params[4]), 10.0)
+    }
+  }
+  
+  # Fit LM via BRISC (positional args 1-3 match coords, y, x)
   b_out <- BRISC::BRISC_estimation(
     coords,
     z_vec,
     X_mat,
+    sigma.sq = sigma_sq_init,
+    tau.sq = tau_sq_init,
+    phi = phi_init,
+    nu = nu_init,
     n.neighbors = k,
     cov.model = brisc_cov,
     verbose = verbose

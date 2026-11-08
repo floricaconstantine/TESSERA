@@ -2,24 +2,24 @@
 % Please edit documentation in R/models.R
 \name{Q_matrix_CAR}
 \alias{Q_matrix_CAR}
-\title{Compute the unscaled precision matrix in a CAR model.}
+\title{Compute unscaled precision matrix for CAR model.}
 \usage{
-Q_matrix_CAR(W, D, gamma_val, precomp = NULL)
+Q_matrix_CAR(W, D, gamma_hat, precomp = NULL)
 }
 \arguments{
 \item{W}{Neighbor/adjacency matrix (symmetric, binary).}
 
 \item{D}{Degree matrix (diagonal, values are row-sums of W).}
 
-\item{gamma_val}{Correlation parameter.}
+\item{gamma_hat}{Spatial correlation parameter.}
 
-\item{precomp}{Optional precomputed matrices (unused for CAR).}
+\item{precomp}{Optional precomputed list from \code{prep_Q_lattice_cpp}.}
 }
 \value{
-Unscaled precision matrix.
+Unscaled precision matrix Q.
 }
 \description{
-Compute the unscaled precision matrix in a CAR model.
+Compute unscaled precision matrix for CAR model.
 }
 \note{
 Applies to a single area.

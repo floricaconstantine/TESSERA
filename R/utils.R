@@ -82,57 +82,69 @@ variables_from_list <- function(lst, target_environ = parent.frame()) {
 }
 
 #' Get k nearest neighbors/distances given coordinates.
-#' Taken from: https://stackoverflow.com/questions/5560218/computing-sparse-pairwise-distance-matrix-in-r
+#'
+#' For each point, we only look at points with a higher index.
+#' E.g., for point 10, we only look at points 11, 12, ...
+#' We do not look at the last point (since there are no higher-index points).
+#' So the output has one fewer column than the number of points.
+#' If there are fewer than k points with higher index, we fill the remaining
+#' entries with NA.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @note Applies to a single area.
 #'
 #' @param coords (x, y) for points as rows.
 #' @param k Number of nearest neighbors.
 #'
 #' @returns 2 k x n points matrix.
-#'  First k rows are distances, last k are indices of nearest neighbors.
-#'  Only Upper Triangular part is formed.
+#'  Top k rows: Euclidean distances to nearest neighbors.
+#'  Bottom k rows: Indices of nearest neighbors.
+#'  Each column corresponds to a point.
+#' 
+#' @export
+#' 
+#' @examples
+#' sparse_dist(matrix(1:4, ncol=2), 1)
 sparse_dist <- function(coords, k) {
-  # Transpose coordinates so that columns are samples
-  coords <- t(coords)
-  # Number of samples
-  n <- ncol(coords)
-  
-  d <- vapply(seq_len(n - 1L), function(i) {
-    # Squared L2 distances to all points with higher indices
-    d <- colSums((coords[, seq(i + 1L, n), drop = FALSE] - coords[, i])^2)
-    # Sort distances and subset to top k
-    o <- sort.list(d, na.last = NA, method = "quick")[seq_len(k)]
-    # Return vector of distances (L2) and indices
-    c(sqrt(d[o]), o + i)
-  }, numeric(2 * k))
-  dimnames(d) <- list(c(paste('d', seq_len(k), sep = ''), paste('i', seq_len(k), sep =
-                                                                  '')), colnames(coords)[-n])
-  return(d)
+  coords_mat <- if (is.matrix(coords))
+    coords
+  else
+    as.matrix(coords)
+  storage.mode(coords_mat) <- "double"
+  return(sparse_dist_cpp(coords_mat, as.integer(k)))
 }
 
 #' Get k nearest neighbors/distances given coordinates.
-#' Modified from: https://stackoverflow.com/questions/5560218/computing-sparse-pairwise-distance-matrix-in-r
+#'
+#' For each point, we only look at points with a lower index.
+#' E.g., for point 10, we only look at points 1, 2, ..., 9.
+#' We do not look at the first point (since there are no lower-index points).
+#' So the output has one fewer column than the number of points.
+#' If there are fewer than k points with lower index, we fill the remaining
+#' entries with NA.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @note Applies to a single area.
 #'
 #' @param coords (x, y) for points as rows.
 #' @param k Number of nearest neighbors.
 #'
 #' @returns 2 k x n points matrix.
-#'  First k rows are distances, last k are indices of nearest neighbors.
-#'  Only Lower Triangular part is formed.
+#'  Top k rows: Euclidean distances to nearest neighbors.
+#'  Bottom k rows: Indices of nearest neighbors.
+#'  Each column corresponds to a point.
+#'  
+#' @export
+#' 
+#' @examples
+#' sparse_dist_LT(matrix(1:4, ncol=2), 1)
 sparse_dist_LT <- function(coords, k) {
-  # Transpose coordinates so that columns are samples
-  coords <- t(coords)
-  # Number of samples
-  n <- ncol(coords)
-  
-  d <- vapply(seq(2, n), function(i) {
-    # Squared L2 distances to all points with lower indices
-    d <- colSums((coords[, seq(1, i - 1), drop = FALSE] - coords[, i])^2)
-    # Sort distances and subset to top k
-    o <- sort.list(d, na.last = NA, method = "quick")[seq_len(k)]
-    # Return vector of distances (L2) and indices
-    c(sqrt(d[o]), o)
-  }, numeric(2 * k))
-  dimnames(d) <- list(c(paste('d', seq_len(k), sep = ''), paste('i', seq_len(k), sep =
-                                                                  '')), colnames(coords)[-n])
-  return(d)
+  coords_mat <- if (is.matrix(coords))
+    coords
+  else
+    as.matrix(coords)
+  storage.mode(coords_mat) <- "double"
+  return(sparse_dist_LT_cpp(coords_mat, as.integer(k)))
 }

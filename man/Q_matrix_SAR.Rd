@@ -2,24 +2,25 @@
 % Please edit documentation in R/models.R
 \name{Q_matrix_SAR}
 \alias{Q_matrix_SAR}
-\title{Compute the unscaled precision matrix in a SAR model.}
+\title{Compute unscaled precision matrix for SAR model.}
 \usage{
-Q_matrix_SAR(W, D, gamma_val, precomp = NULL)
+Q_matrix_SAR(W, D, gamma_hat, precomp = NULL)
 }
 \arguments{
 \item{W}{Neighbor/adjacency matrix (symmetric, binary).}
 
 \item{D}{Degree matrix (diagonal, values are row-sums of W).}
 
-\item{gamma_val}{Correlation parameter.}
+\item{gamma_hat}{Spatial correlation parameter.}
 
-\item{precomp}{Precomputed W D^\{-1\} W matrix.}
+\item{precomp}{Optional precomputed list from \code{prep_Q_lattice_cpp}
+or precomputed matrix \code{W \%*\% D^{-1} \%*\% W}.}
 }
 \value{
-Unscaled precision matrix.
+Unscaled precision matrix Q.
 }
 \description{
-Compute the unscaled precision matrix in a SAR model.
+Compute unscaled precision matrix for SAR model.
 }
 \note{
 Applies to a single area.
