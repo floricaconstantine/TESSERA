@@ -288,6 +288,7 @@ M_step_gamma_CAR <- function(trace_scalars,
 #' @param eig_vals Eigenvalues of Z = D^\{-1\} W.
 #' @param gamma_current Previous value of gamma.
 #'  Only needed for failure modes.
+#' @param Z_precomp Optional precomputed Z = D^\{-1\} W matrix.
 #'
 #' @returns Maximum likelihood estimate of correlation parameter gamma.
 #'  A list with gamma_hat (estimate) and grad_val (gradient).
@@ -310,20 +311,26 @@ M_step_gamma_SAR <- function(trace_scalars,
                              W,
                              D,
                              eig_vals,
-                             gamma_current = NULL) {
-  # D^{-1}
-  D_inv <- Matrix::Diagonal(dim(W)[1], 1 / Matrix::diag(D))
-  # Z = D^{-1} W
-  Z <- D_inv %*% W
+                             gamma_current = NULL,
+                             Z_precomp = NULL) {
+  if (is.null(Z_precomp)) {
+    # D^{-1}
+    D_inv <- Matrix::Diagonal(dim(W)[1], 1 / Matrix::diag(D))
+    # Z = D^{-1} W
+    Z <- D_inv %*% W
+  } else {
+    Z <- Z_precomp
+  }
   
   # eta - X beta
   vector_term <- eta_hat - (X %*% beta_hat)
   
   # (eta - X beta)^\top (2 W) (eta - X beta)
-  zeta1 <- 2.0 * as.numeric(crossprod(W %*% vector_term, vector_term))
+  Wg <- W %*% vector_term
+  zeta1 <- 2.0 * as.numeric(crossprod(Wg, vector_term))
   
   # (eta - X beta)^\top W Z (eta - X beta)
-  zeta2 <- as.numeric(crossprod(W %*% vector_term, Z %*% vector_term))
+  zeta2 <- as.numeric(crossprod(Wg, Z %*% vector_term))
   
   # Tr[W V]
   zeta3 <- trace_scalars$tr_WV
@@ -427,6 +434,7 @@ M_step_gamma_SAR <- function(trace_scalars,
 #' @param eig_vals Eigenvalues of Z = D - W.
 #' @param gamma_current Previous value of gamma.
 #'  Only needed for failure modes.
+#' @param DWI_precomp Optional precomputed D - W - I matrix.
 #'
 #' @returns Maximum likelihood estimate of correlation parameter gamma.
 #'  A list with gamma_hat (estimate) and grad_val (gradient).
@@ -447,11 +455,16 @@ M_step_gamma_Leroux <- function(trace_scalars,
                                 W,
                                 D,
                                 eig_vals,
-                                gamma_current = NULL) {
-  # Identity matrix
-  id_mat <- Matrix::Diagonal(dim(W)[1], 1)
-  # D - W - I
-  DWI <- D - W - id_mat
+                                gamma_current = NULL,
+                                DWI_precomp = NULL) {
+  if (is.null(DWI_precomp)) {
+    # Identity matrix
+    id_mat <- Matrix::Diagonal(dim(W)[1], 1)
+    # D - W - I
+    DWI <- D - W - id_mat
+  } else {
+    DWI <- DWI_precomp
+  }
   
   # eta - X beta
   vector_term <- eta_hat - (X %*% beta_hat)

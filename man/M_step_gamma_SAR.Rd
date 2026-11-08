@@ -15,7 +15,8 @@ M_step_gamma_SAR(
   W,
   D,
   eig_vals,
-  gamma_current = NULL
+  gamma_current = NULL,
+  Z_precomp = NULL
 )
 }
 \arguments{
@@ -37,6 +38,8 @@ M_step_gamma_SAR(
 
 \item{gamma_current}{Previous value of gamma.
 Only needed for failure modes.}
+
+\item{Z_precomp}{Optional precomputed Z = D^\{-1\} W matrix.}
 }
 \value{
 Maximum likelihood estimate of correlation parameter gamma.

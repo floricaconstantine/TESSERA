@@ -50,3 +50,34 @@ test_that("calc_moran handles constant vectors or small samples", {
   res_const <- suppressWarnings(calc_moran(rep(5, 5), runif(5), runif(5)))
   expect_true(is.nan(res_const[1]))
 })
+
+# --- precomp_moran & calc_moran_precomp ---
+
+test_that("precomp_moran and calc_moran_precomp match calc_moran exactly",
+          {
+            n <- 25
+            c1 <- runif(n)
+            c2 <- runif(n)
+            
+            consts <- precomp_moran(c1, c2)
+            
+            # Consts should be c(W, S1, S2, ei)
+            expect_length(consts, 4)
+            expect_gt(consts[1], 0) # W > 0
+            expect_gt(consts[2], 0) # S1 > 0
+            expect_gt(consts[3], 0) # S2 > 0
+            expect_equal(consts[4], -1 / (n - 1)) # ei
+            
+            # Across multiple measurement vectors on the same coordinates,
+            # calc_moran_precomp must match calc_moran to machine precision
+            for (iter in 1:3) {
+              x <- rnorm(n)
+              res_orig <- calc_moran(x, c1, c2)
+              res_fast <- calc_moran_precomp(x, c1, c2, consts)
+              expect_equal(res_fast, res_orig, tolerance = 1e-14)
+            }
+            
+            # Edge case: constant vector
+            res_const_fast <- suppressWarnings(calc_moran_precomp(rep(3, n), c1, c2, consts))
+            expect_true(is.nan(res_const_fast[1]))
+          })

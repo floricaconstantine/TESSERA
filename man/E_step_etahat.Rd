@@ -6,7 +6,7 @@
 Part of the E-Step in the EM algorithm.
 Follows Clayton and Kaldor (1987) for the Poisson-Gaussian model.}
 \usage{
-E_step_etahat(Vinv, Q, tau2, beta_hat, X, z, N)
+E_step_etahat(Vinv, Q, tau2, beta_hat, X, z, N, term1_precomp = NULL)
 }
 \arguments{
 \item{Vinv}{Precomputed Precision matrix.}
@@ -22,6 +22,8 @@ E_step_etahat(Vinv, Q, tau2, beta_hat, X, z, N)
 \item{z}{Observed counts.}
 
 \item{N}{Library size or expected counts.}
+
+\item{term1_precomp}{Optional precomputed vector (z + 0.5)*log((z + 0.5)/N) - 0.5.}
 }
 \value{
 Estimated mean of eta.

@@ -2,7 +2,7 @@
 # Dependencies in file: Matrix.
 # Dependencies: Functions from utils.R, models.R, E_step.R, M_step.R.
 # Dependences from functions in other files not listed: pracma, gstat.
-# Rcpp dependencies: calc_moran.cpp.
+# Rcpp dependencies: calc_moran.cpp, nngp_prec_mat.cpp.
 
 
 #' Fit Multi-Sample Poisson Spatial GLMM via ECM Algorithm
@@ -126,17 +126,6 @@ TESSERA_lattice <- function(TESSERAData_obj,
     stop("Invalid model_type")
   }
   
-  # gamma optimization function
-  if ("CAR" == model_type) {
-    gamma_M_fcn <- M_step_gamma_CAR
-  } else if ("SAR" == model_type) {
-    gamma_M_fcn <- M_step_gamma_SAR
-  } else if ("Leroux" == model_type) {
-    gamma_M_fcn <- M_step_gamma_Leroux
-  } else {
-    stop("Invalid model_type")
-  }
-  
   # Number of areas
   n_areas <- length(TESSERAData_obj$W_list)
   # Total number of points
@@ -167,7 +156,6 @@ TESSERA_lattice <- function(TESSERAData_obj,
     
     for (area_idx in 1:n_areas) {
       if (needs_CS) {
-        # Extract the diagonal of D (a vector)
         d_diag <- Matrix::diag(TESSERAData_obj$D_list[[area_idx]])
         d_inv_sqrt <- Matrix::Diagonal(x = 1 / sqrt(d_diag))
         S <- d_inv_sqrt %*% TESSERAData_obj$W_list[[area_idx]] %*% d_inv_sqrt
@@ -183,7 +171,6 @@ TESSERA_lattice <- function(TESSERAData_obj,
       }
     }
   } else {
-    # If they already exist, grab the correct set
     eig_val_list <- if (needs_L)
       TESSERAData_obj$eig_L_list
     else
@@ -315,20 +302,51 @@ TESSERA_lattice <- function(TESSERAData_obj,
   message("Initial tau2 ", paste(tau2_tracker[, 1], collapse = " "), "\n")
   
   # ==========================================
-  # --- NEW: Precompute Static Matrices for Q generation ---
-  Q_precomp_list <- list()
+  # --- Precompute Static Matrices for Q, Traces, Moran's I, and E-step ---
+  Q_precomp_list <- vector("list", n_areas)
+  W_dgC_list     <- vector("list", n_areas)
+  WZ_dgC_list    <- vector("list", n_areas)
+  Z_mat_list     <- vector("list", n_areas)
+  DWI_dgC_list   <- vector("list", n_areas)
+  D_diag_list    <- vector("list", n_areas)
+  moran_precomp_list <- vector("list", n_areas)
+  etahat_term1_list  <- vector("list", n_areas)
+  
   for (area_idx in 1:n_areas) {
     W_mat <- TESSERAData_obj$W_list[[area_idx]]
     D_mat <- TESSERAData_obj$D_list[[area_idx]]
+    D_diag_list[[area_idx]] <- Matrix::diag(D_mat)
     
-    if ("SAR" == model_type) {
-      D_inv <- Matrix::Diagonal(n = nrow(D_mat), x = 1 / Matrix::diag(D_mat))
-      Q_precomp_list[[area_idx]] <- W_mat %*% D_inv %*% W_mat
-    } else if ("Leroux" == model_type) {
-      Q_precomp_list[[area_idx]] <- list(D_minus_W = D_mat - W_mat,
-                                         id_mat = Matrix::Diagonal(nrow(W_mat), 1))
-    } else {
+    # Precompute E-step term1: (z + 0.5)*log((z + 0.5)/N) - 0.5
+    t1_tmp <- z_list[[area_idx]] + 0.5
+    etahat_term1_list[[area_idx]] <- t1_tmp * log(t1_tmp / TESSERAData_obj$library_size_list[[area_idx]]) - 0.5
+    
+    # Precompute Moran's I coordinate constants if coordinates are present
+    if (!is.null(TESSERAData_obj$coords_list) &&
+        !(
+          is.null(TESSERAData_obj$coords_list[[area_idx]][, 1]) ||
+          is.null(TESSERAData_obj$coords_list[[area_idx]][, 2])
+        )) {
+      moran_precomp_list[[area_idx]] <- precomp_moran(TESSERAData_obj$coords_list[[area_idx]][, 1],
+                                                      TESSERAData_obj$coords_list[[area_idx]][, 2])
+    }
+    
+    if ("CAR" == model_type) {
       Q_precomp_list[[area_idx]] <- NULL
+      W_dgC_list[[area_idx]] <- methods::as(methods::as(W_mat, "generalMatrix"), "CsparseMatrix")
+    } else if ("SAR" == model_type) {
+      D_inv <- Matrix::Diagonal(n = nrow(D_mat), x = 1 / D_diag_list[[area_idx]])
+      Z_mat_list[[area_idx]] <- D_inv %*% W_mat
+      Q_precomp_list[[area_idx]] <- W_mat %*% Z_mat_list[[area_idx]]
+      W_dgC_list[[area_idx]] <- methods::as(methods::as(W_mat, "generalMatrix"), "CsparseMatrix")
+      WZ_dgC_list[[area_idx]] <- methods::as(methods::as(Q_precomp_list[[area_idx]], "generalMatrix"),
+                                             "CsparseMatrix")
+    } else if ("Leroux" == model_type) {
+      id_mat <- Matrix::Diagonal(nrow(W_mat), 1)
+      D_minus_W <- D_mat - W_mat
+      Q_precomp_list[[area_idx]] <- list(D_minus_W = D_minus_W, id_mat = id_mat)
+      DWI_dgC_list[[area_idx]] <- methods::as(methods::as(D_minus_W - id_mat, "generalMatrix"),
+                                              "CsparseMatrix")
     }
   }
   # ---------------------------------------------
@@ -370,9 +388,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
       XtWX_list[[area_idx]] <- as.matrix(Matrix::crossprod(X_mat, W_mat %*% X_mat))
       
       if (model_type == "SAR") {
-        D_inv <- Matrix::Diagonal(n = nrow(D_mat),
-                                  x = 1 / Matrix::diag(D_mat))
-        WZW <- W_mat %*% D_inv %*% W_mat
+        WZW <- Q_precomp_list[[area_idx]]
         XtWZX_list[[area_idx]] <- as.matrix(Matrix::crossprod(X_mat, WZW %*% X_mat))
       }
     }
@@ -382,12 +398,8 @@ TESSERA_lattice <- function(TESSERAData_obj,
     
     for (area_idx in 1:n_areas) {
       X_mat <- TESSERAData_obj$X_list[[area_idx]]
-      W_mat <- TESSERAData_obj$W_list[[area_idx]]
-      D_mat <- TESSERAData_obj$D_list[[area_idx]]
-      I_mat <- Matrix::Diagonal(nrow(W_mat), 1)
-      
       XtX_list[[area_idx]] <- as.matrix(Matrix::crossprod(X_mat))
-      XtDWIX_list[[area_idx]] <- as.matrix(Matrix::crossprod(X_mat, (D_mat - W_mat - I_mat) %*% X_mat))
+      XtDWIX_list[[area_idx]] <- as.matrix(Matrix::crossprod(X_mat, DWI_dgC_list[[area_idx]] %*% X_mat))
     }
   }
   # ---------------------------------------------
@@ -433,7 +445,8 @@ TESSERA_lattice <- function(TESSERAData_obj,
         beta_tracker[, em_idx],
         TESSERAData_obj$X_list[[area_idx]],
         z_list[[area_idx]],
-        TESSERAData_obj$library_size_list[[area_idx]]
+        TESSERAData_obj$library_size_list[[area_idx]],
+        term1_precomp = etahat_term1_list[[area_idx]]
       )
       
       theta_hat <- as.numeric(E_step_thetahat(Vhat_current, eta_hat_list[[area_idx]]))
@@ -446,14 +459,12 @@ TESSERA_lattice <- function(TESSERAData_obj,
       R2_tracker[area_idx, em_idx] <- stats::cor(z_hat, z_list[[area_idx]])^2
       MSE_tracker[area_idx, em_idx] <- mean(abs(z_hat - z_list[[area_idx]])^2)
       
-      if (!(
-        is.null(TESSERAData_obj$coords_list[[area_idx]][, 1]) ||
-        is.null(TESSERAData_obj$coords_list[[area_idx]][, 2])
-      )) {
-        resid_moran[area_idx, em_idx, ] <- calc_moran(
+      if (!is.null(moran_precomp_list[[area_idx]])) {
+        resid_moran[area_idx, em_idx, ] <- calc_moran_precomp(
           z_hat - z_list[[area_idx]],
           TESSERAData_obj$coords_list[[area_idx]][, 1],
-          TESSERAData_obj$coords_list[[area_idx]][, 2]
+          TESSERAData_obj$coords_list[[area_idx]][, 2],
+          moran_precomp_list[[area_idx]]
         )
       }
       resid_moran_nb[area_idx, em_idx] <- moran_I_nb(z_hat - z_list[[area_idx]], TESSERAData_obj$W_list[[area_idx]])
@@ -481,39 +492,58 @@ TESSERA_lattice <- function(TESSERAData_obj,
         model_type
       )
       
-      W_mat <- TESSERAData_obj$W_list[[area_idx]]
-      D_mat <- TESSERAData_obj$D_list[[area_idx]]
+      # Fast C++ trace scalars using precomputed dgCMatrix structures
+      V_sparse <- methods::as(methods::as(Vhat_current, "generalMatrix"),
+                              "CsparseMatrix")
+      V_diag   <- Matrix::diag(Vhat_current)
       
       if ("CAR" == model_type) {
-        W_sparse <- methods::as(W_mat, "dgCMatrix")
-        idx_W <- cbind(W_sparse@i + 1L, rep(1:ncol(W_sparse), diff(W_sparse@p)))
-        
+        W_sp <- W_dgC_list[[area_idx]]
         trace_scalars_list[[area_idx]] <- list(
-          tr_DV = sum(Matrix::diag(D_mat) * Matrix::diag(Vhat_current)),
-          tr_WV = sum(W_sparse@x * Vhat_current[idx_W])
+          tr_DV = sum(D_diag_list[[area_idx]] * V_diag),
+          tr_WV = fast_trace_quad_cpp(
+            W_sp@i,
+            W_sp@p,
+            W_sp@x,
+            V_sparse@i,
+            V_sparse@p,
+            V_sparse@x
+          )
         )
-        
       } else if ("SAR" == model_type) {
-        W_sparse <- methods::as(W_mat, "dgCMatrix")
-        idx_W <- cbind(W_sparse@i + 1L, rep(1:ncol(W_sparse), diff(W_sparse@p)))
-        
-        D_inv <- Matrix::Diagonal(dim(W_mat)[1], 1 / Matrix::diag(D_mat))
-        WZ_sparse <- methods::as(W_mat %*% (D_inv %*% W_mat), "dgCMatrix")
-        idx_WZ <- cbind(WZ_sparse@i + 1L, rep(1:ncol(WZ_sparse), diff(WZ_sparse@p)))
-        
+        W_sp  <- W_dgC_list[[area_idx]]
+        WZ_sp <- WZ_dgC_list[[area_idx]]
         trace_scalars_list[[area_idx]] <- list(
-          tr_DV = sum(Matrix::diag(D_mat) * Matrix::diag(Vhat_current)),
-          tr_WV = sum(W_sparse@x * Vhat_current[idx_W]),
-          tr_WZV = sum(WZ_sparse@x * Vhat_current[idx_WZ])
+          tr_DV  = sum(D_diag_list[[area_idx]] * V_diag),
+          tr_WV  = fast_trace_quad_cpp(
+            W_sp@i,
+            W_sp@p,
+            W_sp@x,
+            V_sparse@i,
+            V_sparse@p,
+            V_sparse@x
+          ),
+          tr_WZV = fast_trace_quad_cpp(
+            WZ_sp@i,
+            WZ_sp@p,
+            WZ_sp@x,
+            V_sparse@i,
+            V_sparse@p,
+            V_sparse@x
+          )
         )
-        
       } else if ("Leroux" == model_type) {
-        DWI_sparse <- methods::as(D_mat - W_mat - Matrix::Diagonal(dim(W_mat)[1], 1), "dgCMatrix")
-        idx_DWI <- cbind(DWI_sparse@i + 1L, rep(1:ncol(DWI_sparse), diff(DWI_sparse@p)))
-        
+        DWI_sp <- DWI_dgC_list[[area_idx]]
         trace_scalars_list[[area_idx]] <- list(
-          tr_V = sum(Matrix::diag(Vhat_current)),
-          tr_DWIV = sum(DWI_sparse@x * Vhat_current[idx_DWI])
+          tr_V    = sum(V_diag),
+          tr_DWIV = fast_trace_quad_cpp(
+            DWI_sp@i,
+            DWI_sp@p,
+            DWI_sp@x,
+            V_sparse@i,
+            V_sparse@p,
+            V_sparse@x
+          )
         )
       }
       
@@ -539,17 +569,45 @@ TESSERA_lattice <- function(TESSERAData_obj,
           TESSERAData_obj$X_list[[area_idx]]
         )
         
-        gamma_out <- gamma_M_fcn(
-          trace_scalars_list[[area_idx]],
-          eta_hat_list[[area_idx]],
-          tau2_tracker[area_idx, 1 + em_idx],
-          beta_tracker[, 1 + em_idx],
-          TESSERAData_obj$X_list[[area_idx]],
-          TESSERAData_obj$W_list[[area_idx]],
-          TESSERAData_obj$D_list[[area_idx]],
-          eig_val_list[[area_idx]],
-          gamma_tracker[area_idx, 1 + em_idx]
-        )
+        if ("CAR" == model_type) {
+          gamma_out <- M_step_gamma_CAR(
+            trace_scalars_list[[area_idx]],
+            eta_hat_list[[area_idx]],
+            tau2_tracker[area_idx, 1 + em_idx],
+            beta_tracker[, 1 + em_idx],
+            TESSERAData_obj$X_list[[area_idx]],
+            TESSERAData_obj$W_list[[area_idx]],
+            TESSERAData_obj$D_list[[area_idx]],
+            eig_val_list[[area_idx]],
+            gamma_tracker[area_idx, 1 + em_idx]
+          )
+        } else if ("SAR" == model_type) {
+          gamma_out <- M_step_gamma_SAR(
+            trace_scalars_list[[area_idx]],
+            eta_hat_list[[area_idx]],
+            tau2_tracker[area_idx, 1 + em_idx],
+            beta_tracker[, 1 + em_idx],
+            TESSERAData_obj$X_list[[area_idx]],
+            TESSERAData_obj$W_list[[area_idx]],
+            TESSERAData_obj$D_list[[area_idx]],
+            eig_val_list[[area_idx]],
+            gamma_tracker[area_idx, 1 + em_idx],
+            Z_precomp = Z_mat_list[[area_idx]]
+          )
+        } else if ("Leroux" == model_type) {
+          gamma_out <- M_step_gamma_Leroux(
+            trace_scalars_list[[area_idx]],
+            eta_hat_list[[area_idx]],
+            tau2_tracker[area_idx, 1 + em_idx],
+            beta_tracker[, 1 + em_idx],
+            TESSERAData_obj$X_list[[area_idx]],
+            TESSERAData_obj$W_list[[area_idx]],
+            TESSERAData_obj$D_list[[area_idx]],
+            eig_val_list[[area_idx]],
+            gamma_tracker[area_idx, 1 + em_idx],
+            DWI_precomp = DWI_dgC_list[[area_idx]]
+          )
+        }
         
         gamma_val <- gamma_out$gamma_hat
         
@@ -720,7 +778,8 @@ TESSERA_lattice <- function(TESSERAData_obj,
       beta_tracker[, em_idx + 1],
       TESSERAData_obj$X_list[[area_idx]],
       z_list[[area_idx]],
-      TESSERAData_obj$library_size_list[[area_idx]]
+      TESSERAData_obj$library_size_list[[area_idx]],
+      term1_precomp = etahat_term1_list[[area_idx]]
     )
     
     tau2_neghessian[area_idx] <- neg_hessian_tau2(
@@ -776,7 +835,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
   rownames(beta_neghessian) <- colnames(TESSERAData_obj$X_list[[1]])
   colnames(beta_neghessian) <- colnames(TESSERAData_obj$X_list[[1]])
   
-  rownames(fit_tracker) <- Reduce(c, lapply(TESSERAData_obj$counts_list, colnames))
+  rownames(fit_tracker) <- unlist(lapply(TESSERAData_obj$counts_list, colnames), use.names = FALSE)
   rownames(eta_tracker) <- rownames(fit_tracker)
   rownames(theta_tracker) <- rownames(fit_tracker)
   
@@ -792,7 +851,7 @@ TESSERA_lattice <- function(TESSERAData_obj,
       gamma_hat = gamma_tracker[, (em_idx + 1)],
       tau2_hat = tau2_tracker[, (em_idx + 1)],
       predictions = fit_tracker[, em_idx],
-      residuals = Reduce(c, z_list) - fit_tracker[, em_idx],
+      residuals = unlist(z_list, use.names = FALSE) - fit_tracker[, em_idx],
       eta_hat = eta_tracker[, em_idx],
       theta_hat = theta_tracker[, em_idx],
       phi_hat = eta_tracker[, em_idx] - do.call(rbind, TESSERAData_obj$X_list) %*% beta_tracker[, (em_idx + 1)],

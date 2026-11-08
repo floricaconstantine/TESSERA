@@ -15,7 +15,8 @@ M_step_gamma_Leroux(
   W,
   D,
   eig_vals,
-  gamma_current = NULL
+  gamma_current = NULL,
+  DWI_precomp = NULL
 )
 }
 \arguments{
@@ -37,6 +38,8 @@ M_step_gamma_Leroux(
 
 \item{gamma_current}{Previous value of gamma.
 Only needed for failure modes.}
+
+\item{DWI_precomp}{Optional precomputed D - W - I matrix.}
 }
 \value{
 Maximum likelihood estimate of correlation parameter gamma.

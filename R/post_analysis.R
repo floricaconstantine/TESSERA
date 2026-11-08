@@ -103,47 +103,19 @@ summarize_TESSERA <- function(TESSERAData_obj, TESSERAOutput_obj) {
       is.null(TESSERAData_obj$coords_list[[s_idx]][, 1]) ||
       is.null(TESSERAData_obj$coords_list[[s_idx]][, 2])
     )) {
+      c1_vec <- TESSERAData_obj$coords_list[[s_idx]][, 1]
+      c2_vec <- TESSERAData_obj$coords_list[[s_idx]][, 2]
+      moran_consts <- precomp_moran(c1_vec, c2_vec)
+      
       MI_vec <- c(
-        calc_moran(
-          counts,
-          TESSERAData_obj$coords_list[[s_idx]][, 1],
-          TESSERAData_obj$coords_list[[s_idx]][, 2]
-        )[1],
-        calc_moran(
-          preds,
-          TESSERAData_obj$coords_list[[s_idx]][, 1],
-          TESSERAData_obj$coords_list[[s_idx]][, 2]
-        )[1],
-        calc_moran(
-          resids,
-          TESSERAData_obj$coords_list[[s_idx]][, 1],
-          TESSERAData_obj$coords_list[[s_idx]][, 2]
-        )[1],
-        calc_moran(
-          phis,
-          TESSERAData_obj$coords_list[[s_idx]][, 1],
-          TESSERAData_obj$coords_list[[s_idx]][, 2]
-        )[1],
-        calc_moran(
-          etas,
-          TESSERAData_obj$coords_list[[s_idx]][, 1],
-          TESSERAData_obj$coords_list[[s_idx]][, 2]
-        )[1],
-        calc_moran(
-          Xbs,
-          TESSERAData_obj$coords_list[[s_idx]][, 1],
-          TESSERAData_obj$coords_list[[s_idx]][, 2]
-        )[1],
-        calc_moran(
-          thetas,
-          TESSERAData_obj$coords_list[[s_idx]][, 1],
-          TESSERAData_obj$coords_list[[s_idx]][, 2]
-        )[1],
-        calc_moran(
-          library_sizes,
-          TESSERAData_obj$coords_list[[s_idx]][, 1],
-          TESSERAData_obj$coords_list[[s_idx]][, 2]
-        )[1]
+        calc_moran_precomp(counts, c1_vec, c2_vec, moran_consts)[1],
+        calc_moran_precomp(preds, c1_vec, c2_vec, moran_consts)[1],
+        calc_moran_precomp(resids, c1_vec, c2_vec, moran_consts)[1],
+        calc_moran_precomp(phis, c1_vec, c2_vec, moran_consts)[1],
+        calc_moran_precomp(etas, c1_vec, c2_vec, moran_consts)[1],
+        calc_moran_precomp(Xbs, c1_vec, c2_vec, moran_consts)[1],
+        calc_moran_precomp(thetas, c1_vec, c2_vec, moran_consts)[1],
+        calc_moran_precomp(library_sizes, c1_vec, c2_vec, moran_consts)[1]
       )
     }
     
@@ -443,7 +415,7 @@ calc_Wald_pvalue_from_fdrtool <- function(wald_stats, params) {
 #' @returns Vector of c(scale, shift).
 #'
 #' @importFrom optimx optimx
-#' @importFrom stats dchisq pchisq quantile median var
+#' @importFrom stats dchisq pchisq quantile median var nlminb
 #' @export
 #'
 #' @examples
@@ -458,30 +430,35 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, wald_thresh) {
     return(c(scaling = NA, shift = NA))
   }
   
-  # --- SPEEDUP ---
   # Pre-clean the vector once rather than on every objective evaluation.
   # We use a copy so the MoM initialization remains mathematically identical.
   wald_stats_clean <- wald_stats
   wald_stats_clean[wald_stats_clean <= 0] <- 1e-8
+  n_clean <- length(wald_stats_clean)
   
-  # Truncated Negative Log-Likelihood (Objective Function)
-  # Signature kept exactly the same to preserve optimx KKT behavior
-  trunc_nll <- function(params, x, thresh) {
+  # Truncated Negative Log-Likelihood (Closure over wald_stats_clean and wald_thresh)
+  # Taking only 'params' avoids passing extra '...' arguments through optimx/numDeriv.
+  trunc_nll <- function(params) {
     scale <- params[1]
     ncp   <- params[2]
     
-    # x is now already cleaned before being passed in
-    dens <- stats::dchisq(x / scale,
-                          df = 1,
-                          ncp = ncp,
-                          log = TRUE) - log(scale)
+    if (is.na(scale) || is.na(ncp) || scale <= 0 || ncp < 0) {
+      return(1e10)
+    }
     
-    log_F_thresh <- stats::pchisq(thresh / scale,
+    dens <- stats::dchisq(
+      wald_stats_clean / scale,
+      df = 1,
+      ncp = ncp,
+      log = TRUE
+    ) - log(scale)
+    
+    log_F_thresh <- stats::pchisq(wald_thresh / scale,
                                   df = 1,
                                   ncp = ncp,
                                   log.p = TRUE)
     
-    val <- -(sum(dens) - length(x) * log_F_thresh)
+    val <- -(sum(dens) - n_clean * log_F_thresh)
     
     return(if (is.finite(val))
       val
@@ -498,7 +475,7 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, wald_thresh) {
   mom_shift   <- (sqrt(2.0) * term) / (2.0 * max(1e-5, mom_scaling))
   
   # Define Bounds and Starting Values
-  upper_scale <- stats::quantile(wald_stats, 0.9) * (3.0 / 2.7)
+  upper_scale <- as.numeric(stats::quantile(wald_stats, 0.9, names = FALSE)) * (3.0 / 2.7)
   upper_ncp   <- min(10, stats::median(wald_stats))
   
   lower_bounds <- c(0.01, 0)
@@ -509,7 +486,7 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, wald_thresh) {
     shift   = pmin(pmax(mom_shift, lower_bounds[2]), upper_bounds[2])
   )
   
-  # Optimization via optimx (bobyqa)
+  # Optimization via optimx (bobyqa), skipping unused post-hoc KKT checks
   fit_result <- tryCatch({
     optimx::optimx(
       par     = start_params,
@@ -517,24 +494,50 @@ fit_scaled_noncentral_chi2 <- function(wald_stats, wald_thresh) {
       lower   = lower_bounds,
       upper   = upper_bounds,
       method  = "bobyqa",
-      x       = wald_stats_clean,
-      # Pass the pre-cleaned data
-      thresh  = wald_thresh,
-      control = list(dowarn = FALSE)
+      control = list(dowarn = FALSE, kkt = FALSE)
     )
   }, error = function(e) {
-    warning("optimx (bobyqa) failed: ", e$message)
-    return(NULL)
+    NULL
   })
   
-  if (is.null(fit_result))
-    return(c(scaling = NA, shift = NA))
+  res <- c(scaling = NA_real_, shift = NA_real_)
+  if (!is.null(fit_result)) {
+    if (all(c("scaling", "shift") %in% colnames(fit_result))) {
+      res <- c(
+        scaling = as.numeric(fit_result$scaling[1]),
+        shift   = as.numeric(fit_result$shift[1])
+      )
+    } else if (ncol(fit_result) >= 2) {
+      res <- c(scaling = as.numeric(fit_result[[1]][1]),
+               shift   = as.numeric(fit_result[[2]][1]))
+    }
+  }
   
-  # Extract results
-  res <- c(scaling = fit_result$scaling[1], shift = fit_result$shift[1])
+  # Fallback to base R box-constrained nlminb if optimx/bobyqa returned NA
+  if (any(!is.finite(res))) {
+    nl_fit <- tryCatch({
+      stats::nlminb(
+        start     = start_params,
+        objective = trunc_nll,
+        lower     = lower_bounds,
+        upper     = upper_bounds
+      )
+    }, error = function(e) {
+      warning("Optimization failed: ", e$message)
+      NULL
+    })
+    if (!is.null(nl_fit) &&
+        length(nl_fit$par) == 2 && all(is.finite(nl_fit$par))) {
+      res <- c(scaling = as.numeric(nl_fit$par[1]),
+               shift   = as.numeric(nl_fit$par[2]))
+    } else {
+      return(c(scaling = NA, shift = NA))
+    }
+  }
   
   return(res)
 }
+
 
 
 #' Given Wald statistics, compute p-values.

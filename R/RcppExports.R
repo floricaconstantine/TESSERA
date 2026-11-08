@@ -10,7 +10,7 @@
 #' @param x2 Second x-coordinate.
 #' @param y2 Second y-coordinate.
 #'
-#' @returns Euclidean distance between (x1, y1) and (x2, y2).
+#' @returns Inverse Euclidean distance between (x1, y1) and (x2, y2).
 distanceCalculate <- function(x1, y1, x2, y2) {
     .Call('_TESSERA_distanceCalculate', PACKAGE = 'TESSERA', x1, y1, x2, y2)
 }
@@ -45,5 +45,109 @@ normalize <- function(x) {
 #' calc_moran(rpois(1000, 1), runif(1000), runif(1000))
 calc_moran <- function(x, c1, c2) {
     .Call('_TESSERA_calc_moran', PACKAGE = 'TESSERA', x, c1, c2)
+}
+
+#' Precompute coordinate-dependent spatial constants for Moran's I.
+#'
+#' Since W, S1, S2, and EI depend solely on the spatial coordinates (c1, c2)
+#' and not on the residual vector x, precomputing them once per area avoids
+#' redundant work across EM iterations while preserving exact output.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param c1 x-coordinates.
+#' @param c2 y-coordinates.
+#'
+#' @returns NumericVector of length 4: c(W, S1, S2, ei).
+#'
+#' @export
+precomp_moran <- function(c1, c2) {
+    .Call('_TESSERA_precomp_moran', PACKAGE = 'TESSERA', c1, c2)
+}
+
+#' Fast computation of Moran's I using precomputed coordinate constants.
+#'
+#' Returns the exact same c(I, ei, sd) vector as calc_moran, using the
+#' precomputed W, S1, S2, and ei from precomp_moran.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param x Measurements (e.g., residuals).
+#' @param c1 x-coordinates.
+#' @param c2 y-coordinates.
+#' @param moran_consts NumericVector of length 4 from precomp_moran: c(W, S1, S2, ei).
+#'
+#' @returns NumericVector of length 3: c(I, ei, sd).
+#'
+#' @export
+calc_moran_precomp <- function(x, c1, c2, moran_consts) {
+    .Call('_TESSERA_calc_moran_precomp', PACKAGE = 'TESSERA', x, c1, c2, moran_consts)
+}
+
+#' Precompute Static Euclidean Distance Matrices for Neighbors in C++.
+#'
+#' Replaces the R loop of as.matrix(stats::dist(...)) calls in TESSERA_spNNGP.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @note Applies to a single area.
+#'
+#' @param coords NumericMatrix of (x, y) coordinates (N x 2).
+#' @param sp_dist NumericMatrix output of sparse_dist (2*nngp_k x (N - 1)).
+#' @param nngp_k Integer number of nearest neighbors.
+#'
+#' @returns A List of length ncol(sp_dist), where each element is the
+#'   symmetric Euclidean distance matrix among the valid neighbors of spot idx.
+#'
+build_nb_dist_cpp <- function(coords, sp_dist, nngp_k) {
+    .Call('_TESSERA_build_nb_dist_cpp', PACKAGE = 'TESSERA', coords, sp_dist, nngp_k)
+}
+
+#' Compute Sparse NNGP Precision Factors (A triplets and Dinv) in C++.
+#'
+#' Performs the per-location covariance kernel evaluations and linear
+#' system solves (LU decomposition with partial pivoting, matching base::solve)
+#' for nngp_prec_mat.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @note Applies to a single area.
+#'
+#' @param sp_dist NumericMatrix output of sparse_dist.
+#' @param nb_dist List of precomputed Euclidean distance matrices for neighbors.
+#' @param cov_type String for covariance model type ("Exp", "Sph", "Gau", "Mat").
+#' @param cov_params NumericVector of covariance parameters in gstat convention:
+#'   c(nugget, sill, range, \[smoothness\]).
+#'
+#' @returns A List containing:
+#' \itemize{
+#'   \item \strong{A_row}: 1-based row indices for sparse matrix A.
+#'   \item \strong{A_col}: 1-based column indices for sparse matrix A.
+#'   \item \strong{A_val}: Non-zero values for sparse matrix A.
+#'   \item \strong{Dinv}: Vector of diagonal precision values D^\{-1\}.
+#' }
+#'
+nngp_prec_triplets_cpp <- function(sp_dist, nb_dist, cov_type, cov_params) {
+    .Call('_TESSERA_nngp_prec_triplets_cpp', PACKAGE = 'TESSERA', sp_dist, nb_dist, cov_type, cov_params)
+}
+
+#' Fast Trace of Product of Two Sparse CSC Matrices Tr(Q * Vhat).
+#'
+#' Computes sum(Q_sparse@x * Vhat\[idx_Q\], na.rm = TRUE) in O(nnz(Q) + nnz(V))
+#' time without allocating a 2-column index matrix or invoking S4 subsetting.
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @param Q_i 0-based row indices (@i slot) of dgCMatrix Q.
+#' @param Q_p Column pointers (@p slot) of dgCMatrix Q.
+#' @param Q_x Non-zero values (@x slot) of dgCMatrix Q.
+#' @param V_i 0-based row indices (@i slot) of dgCMatrix Vhat.
+#' @param V_p Column pointers (@p slot) of dgCMatrix Vhat.
+#' @param V_x Non-zero values (@x slot) of dgCMatrix Vhat.
+#'
+#' @returns Scalar trace value sum_\{i,j\} Q_\{i,j\} V_\{i,j\}.
+#'
+fast_trace_quad_cpp <- function(Q_i, Q_p, Q_x, V_i, V_p, V_x) {
+    .Call('_TESSERA_fast_trace_quad_cpp', PACKAGE = 'TESSERA', Q_i, Q_p, Q_x, V_i, V_p, V_x)
 }
 

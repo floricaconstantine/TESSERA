@@ -6,6 +6,7 @@ export(calc_Wald_pvalue_from_fdrtool)
 export(calc_Wald_pvalue_from_threshold)
 export(calc_Wald_statistics)
 export(calc_moran)
+export(calc_moran_precomp)
 export(calc_scaled_noncentral_chi2_pvalues)
 export(fit_empirical_null_fdrtool)
 export(fit_scaled_noncentral_chi2)
@@ -13,6 +14,7 @@ export(generate_data_one_area)
 export(generate_data_one_area_spNNGP)
 export(moran_I_nb)
 export(plot_neighbor_distances)
+export(precomp_moran)
 export(prep_data)
 export(prep_synth_data)
 export(sample_Poisson_lattice)
@@ -78,6 +80,7 @@ importFrom(stats,
   dpois,
   median,
   model.matrix,
+  nlminb,
   pchisq,
   pnorm,
   poisson,

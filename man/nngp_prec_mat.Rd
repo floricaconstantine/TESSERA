@@ -2,8 +2,7 @@
 % Please edit documentation in R/models.R
 \name{nngp_prec_mat}
 \alias{nngp_prec_mat}
-\title{Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix.
-(Documentation truncated for brevity)}
+\title{Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix.}
 \usage{
 nngp_prec_mat(sp_dist, nb_dist, cov_type, cov_params)
 }
@@ -14,7 +13,7 @@ nngp_prec_mat(sp_dist, nb_dist, cov_type, cov_params)
 
 \item{cov_type}{String for covariance model type.}
 
-\item{cov_params}{Covariance/kernel parameters. Assuming gstat convenctions,
+\item{cov_params}{Covariance/kernel parameters. Assuming gstat conventions,
 nugget (non-spatial), sill (spatial/scale), range, order (Matern).}
 }
 \value{
@@ -22,5 +21,10 @@ A list with a sparse precision matrix Q, eigenvalues Dinv, and factor A.
 }
 \description{
 Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix.
-(Documentation truncated for brevity)
+}
+\note{
+Applies to a single area.
+}
+\author{
+Florica J Constantine, florica AT berkeley.edu
 }

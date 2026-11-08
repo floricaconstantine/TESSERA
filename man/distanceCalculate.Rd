@@ -16,7 +16,7 @@ distanceCalculate(x1, y1, x2, y2)
 \item{y2}{Second y-coordinate.}
 }
 \value{
-Euclidean distance between (x1, y1) and (x2, y2).
+Inverse Euclidean distance between (x1, y1) and (x2, y2).
 }
 \description{
 Helper function for Moran's I.

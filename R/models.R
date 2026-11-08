@@ -300,11 +300,17 @@ expected_loglike <- function(Vhat,
   term3 <- (-0.5 / tau2) * term3
   
   # Trace[Q V]
-  # Use sparse extraction to prevent t(Vhat) from creating a dense matrix
-  # Old: Q_sparse <- methods::as(Q, "dgCMatrix")
+  # Convert both Q and Vhat to general CSC (dgCMatrix) and compute the trace
+  # in C++ via a linear two-pointer scan over their CSC slots
   Q_sparse <- methods::as(methods::as(Q, "generalMatrix"), "CsparseMatrix")
-  idx_Q <- cbind(Q_sparse@i + 1L, rep(1:ncol(Q_sparse), diff(Q_sparse@p)))
-  term4 <- (-0.5 / tau2) * sum(Q_sparse@x * Vhat[idx_Q], na.rm = TRUE)
+  V_sparse <- methods::as(methods::as(Vhat, "generalMatrix"), "CsparseMatrix")
+  tr_QV <- fast_trace_quad_cpp(Q_sparse@i,
+                               Q_sparse@p,
+                               Q_sparse@x,
+                               V_sparse@i,
+                               V_sparse@p,
+                               V_sparse@x)
+  term4 <- (-0.5 / tau2) * tr_QV
   
   # (1/2) log det Q
   if ("CAR" == model_type) {
@@ -415,84 +421,35 @@ kernel_sph <- function(d, sigma2, rho) {
 }
 
 #' Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix.
-#' (Documentation truncated for brevity)
+#'
+#' @author Florica J Constantine, florica AT berkeley.edu
+#'
+#' @note Applies to a single area.
 #'
 #' @param sp_dist Output of sparse_dist_LT function.
 #' @param nb_dist Precomputed list of Euclidean distance matrices for neighbors.
 #' @param cov_type String for covariance model type.
-#' @param cov_params Covariance/kernel parameters. Assuming gstat convenctions,
+#' @param cov_params Covariance/kernel parameters. Assuming gstat conventions,
 #'  nugget (non-spatial), sill (spatial/scale), range, order (Matern).
 #'
 #' @returns A list with a sparse precision matrix Q, eigenvalues Dinv, and factor A.
+#'
+#' @import Matrix
 nngp_prec_mat <- function(sp_dist, nb_dist, cov_type, cov_params) {
-  nngp_k <- nrow(sp_dist) / 2
   n_cols <- ncol(sp_dist)
   
-  # Pre-allocate lists
-  A_col <- vector("list", n_cols)
-  A_row <- vector("list", n_cols)
-  A_val <- vector("list", n_cols)
-  Dinv_val <- rep(0, n_cols + 1)
+  # Compute triplet vectors (A_row, A_col, A_val) and Dinv in C++ via LAPACK dgesv
+  cpp_out <- nngp_prec_triplets_cpp(sp_dist, nb_dist, cov_type, cov_params)
   
-  # Loop over samples
-  for (idx in 1:n_cols) {
-    keep_idx <- which(!is.na(sp_dist[(1 + nngp_k):(2 * nngp_k), idx]))
-    n_keep <- length(keep_idx)
-    
-    if (0 == n_keep) {
-      next
-    }
-    
-    cov_nb <- sp_dist[keep_idx, idx]
-    
-    # Pull precomputed static Euclidean distance matrix
-    cov_nb_mat <- nb_dist[[idx]]
-    
-    # Call spatial covariance functions
-    if ("Mat" == cov_type) {
-      cov_nb <- kernel_matern(cov_nb, cov_params[2], cov_params[3], cov_params[4])
-      cov_nb_mat <- kernel_matern(cov_nb_mat, cov_params[2], cov_params[3], cov_params[4])
-    } else if ("Exp" == cov_type) {
-      cov_nb <- kernel_exp(cov_nb, cov_params[2], cov_params[3])
-      cov_nb_mat <- kernel_exp(cov_nb_mat, cov_params[2], cov_params[3])
-    } else if ("Gau" == cov_type) {
-      cov_nb <- kernel_gauss(cov_nb, cov_params[2], cov_params[3])
-      cov_nb_mat <- kernel_gauss(cov_nb_mat, cov_params[2], cov_params[3])
-    } else if ("Sph" == cov_type) {
-      cov_nb <- kernel_sph(cov_nb, cov_params[2], cov_params[3])
-      cov_nb_mat <- kernel_sph(cov_nb_mat, cov_params[2], cov_params[3])
-    } else {
-      stop("Invalid or unimplemented covariance structure.")
-    }
-    
-    # Add nugget
-    # diag(cov_nb_mat) <- diag(cov_nb_mat) + cov_params[1]
-    # Fast primitive diagonal addition (Zero-allocation, no GC overhead)
-    diag_indices <- 1L + (0L:(n_keep - 1L)) * (n_keep + 1L)
-    cov_nb_mat[diag_indices] <- cov_nb_mat[diag_indices] + cov_params[1]
-    
-    # Base R solve
-    vector_term <- solve(cov_nb_mat, cov_nb)
-    
-    A_row[[idx]] <- rep(idx + 1, n_keep)
-    A_col[[idx]] <- sp_dist[nngp_k + keep_idx, idx]
-    A_val[[idx]] <- as.vector(vector_term)
-    Dinv_val[idx] <- 1.0 / (cov_params[1] + cov_params[2] - sum(cov_nb * vector_term))
-  }
-  
-  Dinv_val[length(Dinv_val)] <- 1.0 / (cov_params[1] + cov_params[2])
-  
-  A_col <- unlist(A_col)
-  A_row <- unlist(A_row)
-  A_val <- unlist(A_val)
   A_mat <- Matrix::sparseMatrix(
-    i = A_row,
-    j = A_col,
-    x = A_val,
+    i = cpp_out$A_row,
+    j = cpp_out$A_col,
+    x = cpp_out$A_val,
     dims = 1 + c(n_cols, n_cols),
     triangular = TRUE
   )
   
+  Dinv_val <- cpp_out$Dinv
   id_mat <- Matrix::Diagonal(dim(A_mat)[1], 1)
   I_minus_A <- id_mat - A_mat
   Q <- Matrix::crossprod(I_minus_A, Matrix::Diagonal(length(Dinv_val), Dinv_val) %*% I_minus_A)

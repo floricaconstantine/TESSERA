@@ -1,8 +1,8 @@
 ## Wrapper functions to fit model.
 # Dependencies in file: Matrix.
 # Dependencies: Functions from utils.R, models.R, E_step.R, M_step.R.
-# Dependences from functions in other files not listed: pracma, gstat.
-# Rcpp dependencies: calc_moran.cpp.
+# Dependences from functions in other files not listed: pracma, gstat, BRISC.
+# Rcpp dependencies: calc_moran.cpp, nngp_prec_mat.cpp.
 
 
 #' Fit Multi-Sample Poisson Spatial GLMM via spNNGP
@@ -126,7 +126,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
   n_areas <- length(z_list)
   
   # ==========================================
-  # --- NEW: Spatial Coordinate Sorting Block ---
+  # --- Spatial Coordinate Sorting Block ---
   perm_list <- list()
   rev_perm_list <- list()
   
@@ -171,25 +171,26 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
   }
   
   # ==========================================
-  # --- NEW: Precompute Static Neighbor Distance Matrices ---
-  nb_dist_list <- list()
+  # --- Precompute Static Structures Outside the EM Loop ---
+  # 1. Static Neighbor Distance Matrices (in C++)
+  # 2. Moran's I Coordinate Constants (W, S1, S2, ei)
+  # 3. E-step etahat static term1: (z + 0.5)*log((z + 0.5)/N) - 0.5
+  nb_dist_list <- vector("list", n_areas)
+  moran_precomp_list <- vector("list", n_areas)
+  etahat_term1_list <- vector("list", n_areas)
+  
   for (area_idx in 1:n_areas) {
-    n_cols <- ncol(sp_dist_list[[area_idx]])
-    area_nb_dists <- vector("list", n_cols)
+    coords_area <- as.matrix(TESSERAData_obj$coords_list[[area_idx]])
     
-    for (idx in 1:n_cols) {
-      keep_idx <- which(!is.na(sp_dist_list[[area_idx]][(1 + nngp_k):(2 * nngp_k), idx]))
-      if (length(keep_idx) > 1) {
-        area_nb_dists[[idx]] <- as.matrix(stats::dist(
-          TESSERAData_obj$coords_list[[area_idx]][sp_dist_list[[area_idx]][nngp_k + keep_idx, idx], , drop = FALSE],
-          diag = TRUE,
-          upper = TRUE
-        ))
-      } else {
-        area_nb_dists[[idx]] <- matrix(0.0, 1, 1)
-      }
-    }
-    nb_dist_list[[area_idx]] <- area_nb_dists
+    # Fast C++ neighbor distance matrix precomputation
+    nb_dist_list[[area_idx]] <- build_nb_dist_cpp(coords_area, sp_dist_list[[area_idx]], nngp_k)
+    
+    # Precompute coordinate-only spatial constants for Moran's I
+    moran_precomp_list[[area_idx]] <- precomp_moran(coords_area[, 1], coords_area[, 2])
+    
+    # Precompute static term1 for E_step_etahat
+    t1_tmp <- z_list[[area_idx]] + 0.5
+    etahat_term1_list[[area_idx]] <- t1_tmp * log(t1_tmp / TESSERAData_obj$library_size_list[[area_idx]]) - 0.5
   }
   # ---------------------------------------------
   # ==========================================
@@ -230,14 +231,13 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     message("Random initialization for beta.", "\n")
   } else if (is.character(beta_init) && ("glm" == beta_init)) {
     # Reasonable initialization: a basic GLM
+    # Stack into a single vector/matrix efficiently
+    z_vec <- unlist(z_list, use.names = FALSE)
+    lib_vec <- unlist(TESSERAData_obj$library_size_list, use.names = FALSE)
+    X_mat <- do.call(rbind, TESSERAData_obj$X_list)
     
-    # Stack into a single vector/matrix
-    z_vec <- Reduce(c, z_list)
-    lib_vec <- Reduce(c, TESSERAData_obj$library_size_list)
-    X_mat <- Reduce(rbind, TESSERAData_obj$X_list)
     # Fit GLM
     beta_tmp <- as.vector(stats::coef(
-      # stats::glm(z_vec / lib_vec ~ 0 + X_mat, family = stats::poisson())
       stats::glm(
         z_vec ~ 0 + X_mat,
         family = stats::poisson(),
@@ -345,12 +345,9 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     }
     
     # Run E-Step: Get covariance and mean of eta
-    # Notice: Vhat_list <- list() is completely gone
     eta_hat_list <- list()
     
     for (area_idx in 1:n_areas) {
-      # Compute Vhat for the CURRENT area only
-      # Vhat_current <- E_step_Vhat(Q_hat_list[[area_idx]], 1.0, z_list[[area_idx]])
       Vinv <- (Q_hat_list[[area_idx]] / 1.0) + Matrix::Diagonal(dim(Q_hat_list[[area_idx]])[1], 0.5 + z_list[[area_idx]])
       
       # Compute and store permutation pattern for later
@@ -361,7 +358,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
       # Compute Vhat for the CURRENT area only
       Vhat_current <- E_step_Vhat(Vinv, V_chol_perm_list[[area_idx]]$P)
       
-      # Get the mean
+      # Get the mean (using precomputed term1)
       eta_hat_list[[area_idx]] <- E_step_etahat(
         Vinv,
         Q_hat_list[[area_idx]],
@@ -369,7 +366,8 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
         beta_tracker[, em_idx],
         TESSERAData_obj$X_list[[area_idx]],
         z_list[[area_idx]],
-        TESSERAData_obj$library_size_list[[area_idx]]
+        TESSERAData_obj$library_size_list[[area_idx]],
+        term1_precomp = etahat_term1_list[[area_idx]]
       )
       
       # Get a few more things out of the E-step: theta and predictions
@@ -385,11 +383,12 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
       R2_tracker[area_idx, em_idx] <- stats::cor(z_hat, z_list[[area_idx]])^2
       MSE_tracker[area_idx, em_idx] <- mean(abs(z_hat - z_list[[area_idx]])^2)
       
-      # Observed, expected, sd
-      resid_moran[area_idx, em_idx, ] <- calc_moran(
+      # Observed, expected, sd (using precomputed coordinate constants)
+      resid_moran[area_idx, em_idx, ] <- calc_moran_precomp(
         z_hat - z_list[[area_idx]],
         TESSERAData_obj$coords_list[[area_idx]][, 1],
-        TESSERAData_obj$coords_list[[area_idx]][, 2]
+        TESSERAData_obj$coords_list[[area_idx]][, 2],
+        moran_precomp_list[[area_idx]]
       )
       
       # Data log likelihood
@@ -424,7 +423,6 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
       
       # DESTROY the sparse Vhat to prevent Memory Overflow
       rm(Vhat_current)
-      # gc()
     }
     
     # Run (C)M-Step: Optimize
@@ -461,10 +459,9 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
           stop("Invalid cov_fit_method: 'BRISC' or 'variogram'")
         }
         
-        
         cov_param_tracker[area_idx, 1 + em_idx, 1:length(param_est)] <- param_est
         
-        # Update precision matrix Q and associated quantities
+        # Update precision matrix Q and associated quantities (via C++)
         param_est <- nngp_prec_mat(sp_dist_list[[area_idx]],
                                    nb_dist_list[[area_idx]],
                                    cov_type,
@@ -508,13 +505,6 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
     }
     
     # Early stopping:
-    #    NULL: Don't stop early.
-    #    "abs_loglike": Difference in absolute data log likelihood, |old - new|.
-    #    "rel_loglike": Relative difference in data log likelihood, |old - new|/|old|.
-    #      Data log likelihood taken across alll areas.
-    #    "abs_beta_norm": Absolute L2 norm of difference in beta, ||old - new||_2.
-    #    "rel_beta_norm": Relative L2 norm of difference in beta,
-    #      ||old - new||_2 / ||old||_2.
     if ((em_min_iters < em_idx) & !is.null(em_stopping)) {
       ll_old <- sum(data_log_like_tracker[, em_idx - 1], na.rm = TRUE)
       ll_new <- sum(data_log_like_tracker[, em_idx], na.rm = TRUE)
@@ -556,7 +546,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
   beta_neghessian <- neg_hessian_beta(Q_hat_list, rep(1, n_areas), TESSERAData_obj$X_list) # tau^2 is 1
   
   # ==========================================
-  # --- NEW: Reverse Permutation Block ---
+  # --- Reverse Permutation Block ---
   # Un-sort the trackers and input data so output matches the original counts_list
   for (area_idx in 1:n_areas) {
     # Get the row indices for this specific area in the flat trackers
@@ -602,7 +592,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
   rownames(beta_neghessian) <- colnames(TESSERAData_obj$X_list[[1]])
   colnames(beta_neghessian) <- colnames(TESSERAData_obj$X_list[[1]])
   
-  rownames(fit_tracker) <- Reduce(c, lapply(TESSERAData_obj$counts_list, colnames))
+  rownames(fit_tracker) <- unlist(lapply(TESSERAData_obj$counts_list, colnames), use.names = FALSE)
   rownames(eta_tracker) <- rownames(fit_tracker)
   rownames(theta_tracker) <- rownames(fit_tracker)
   
@@ -614,10 +604,10 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
       
       # Fitted values and residuals, fitted Poisson parameters, estimated random effects
       predictions = fit_tracker[, em_idx],
-      residuals = Reduce(c, z_list) - fit_tracker[, em_idx],
+      residuals = unlist(z_list, use.names = FALSE) - fit_tracker[, em_idx],
       eta_hat = eta_tracker[, em_idx],
       theta_hat = theta_tracker[, em_idx],
-      phi_hat = eta_tracker[, em_idx] - Reduce(rbind, TESSERAData_obj$X_list) %*% beta_tracker[, (em_idx + 1)],
+      phi_hat = eta_tracker[, em_idx] - do.call(rbind, TESSERAData_obj$X_list) %*% beta_tracker[, (em_idx + 1)],
       
       # Full paths of coefficients, spatial parameters
       cov_param_tracker = cov_param_tracker[, 1:(em_idx + 1), ],
@@ -661,6 +651,7 @@ TESSERA_spNNGP <- function(TESSERAData_obj,
   out$performanceSummary <- summarize_TESSERA(TESSERAData_obj, out)
   return(out)
 }
+
 
 
 #' Check inputs for the TESSERA_spNNGP method.

@@ -84,21 +84,30 @@ E_step_Vhat <- function(Vinv, P = NULL) {
 #' @param X Covariate matrix.
 #' @param z Observed counts.
 #' @param N Library size or expected counts.
+#' @param term1_precomp Optional precomputed vector (z + 0.5)*log((z + 0.5)/N) - 0.5.
 #'
 #' @returns Estimated mean of eta.
 #'
 #' @importFrom Matrix Diagonal
 #' @importFrom Matrix solve
-E_step_etahat <- function(Vinv, Q, tau2, beta_hat, X, z, N) {
+E_step_etahat <- function(Vinv,
+                          Q,
+                          tau2,
+                          beta_hat,
+                          X,
+                          z,
+                          N,
+                          term1_precomp = NULL) {
   # (z_i + 1/2) log[(z_i + 1/2) / N_i] - (1/2)
-  term1 <- z + 0.5
-  term1 <- term1 * log(term1 / N) - 0.5
+  if (is.null(term1_precomp)) {
+    term1 <- z + 0.5
+    term1 <- term1 * log(term1 / N) - 0.5
+  } else {
+    term1 <- term1_precomp
+  }
   
   # (Q / tau^2) X beta
   term2 <- (Q %*% (X %*% beta_hat)) / tau2
-  
-  # Reconstruct the sparse precision matrix V^{-1}
-  # Vinv <- (Q / tau2) + Matrix::Diagonal(dim(Q)[1], 0.5 + z)
   
   # Solve the sparse linear system V^{-1} eta_hat = (term1 + term2)
   eta_hat <- as.numeric(Matrix::solve(Vinv, (term1 + term2)))

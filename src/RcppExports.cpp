@@ -48,11 +48,85 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// precomp_moran
+NumericVector precomp_moran(NumericVector c1, NumericVector c2);
+RcppExport SEXP _TESSERA_precomp_moran(SEXP c1SEXP, SEXP c2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type c1(c1SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type c2(c2SEXP);
+    rcpp_result_gen = Rcpp::wrap(precomp_moran(c1, c2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// calc_moran_precomp
+NumericVector calc_moran_precomp(NumericVector x, NumericVector c1, NumericVector c2, NumericVector moran_consts);
+RcppExport SEXP _TESSERA_calc_moran_precomp(SEXP xSEXP, SEXP c1SEXP, SEXP c2SEXP, SEXP moran_constsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type c1(c1SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type c2(c2SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type moran_consts(moran_constsSEXP);
+    rcpp_result_gen = Rcpp::wrap(calc_moran_precomp(x, c1, c2, moran_consts));
+    return rcpp_result_gen;
+END_RCPP
+}
+// build_nb_dist_cpp
+List build_nb_dist_cpp(NumericMatrix coords, NumericMatrix sp_dist, int nngp_k);
+RcppExport SEXP _TESSERA_build_nb_dist_cpp(SEXP coordsSEXP, SEXP sp_distSEXP, SEXP nngp_kSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type sp_dist(sp_distSEXP);
+    Rcpp::traits::input_parameter< int >::type nngp_k(nngp_kSEXP);
+    rcpp_result_gen = Rcpp::wrap(build_nb_dist_cpp(coords, sp_dist, nngp_k));
+    return rcpp_result_gen;
+END_RCPP
+}
+// nngp_prec_triplets_cpp
+List nngp_prec_triplets_cpp(NumericMatrix sp_dist, List nb_dist, std::string cov_type, NumericVector cov_params);
+RcppExport SEXP _TESSERA_nngp_prec_triplets_cpp(SEXP sp_distSEXP, SEXP nb_distSEXP, SEXP cov_typeSEXP, SEXP cov_paramsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type sp_dist(sp_distSEXP);
+    Rcpp::traits::input_parameter< List >::type nb_dist(nb_distSEXP);
+    Rcpp::traits::input_parameter< std::string >::type cov_type(cov_typeSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type cov_params(cov_paramsSEXP);
+    rcpp_result_gen = Rcpp::wrap(nngp_prec_triplets_cpp(sp_dist, nb_dist, cov_type, cov_params));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fast_trace_quad_cpp
+double fast_trace_quad_cpp(const IntegerVector& Q_i, const IntegerVector& Q_p, const NumericVector& Q_x, const IntegerVector& V_i, const IntegerVector& V_p, const NumericVector& V_x);
+RcppExport SEXP _TESSERA_fast_trace_quad_cpp(SEXP Q_iSEXP, SEXP Q_pSEXP, SEXP Q_xSEXP, SEXP V_iSEXP, SEXP V_pSEXP, SEXP V_xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const IntegerVector& >::type Q_i(Q_iSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type Q_p(Q_pSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type Q_x(Q_xSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type V_i(V_iSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type V_p(V_pSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type V_x(V_xSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_trace_quad_cpp(Q_i, Q_p, Q_x, V_i, V_p, V_x));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_TESSERA_distanceCalculate", (DL_FUNC) &_TESSERA_distanceCalculate, 4},
     {"_TESSERA_normalize", (DL_FUNC) &_TESSERA_normalize, 1},
     {"_TESSERA_calc_moran", (DL_FUNC) &_TESSERA_calc_moran, 3},
+    {"_TESSERA_precomp_moran", (DL_FUNC) &_TESSERA_precomp_moran, 2},
+    {"_TESSERA_calc_moran_precomp", (DL_FUNC) &_TESSERA_calc_moran_precomp, 4},
+    {"_TESSERA_build_nb_dist_cpp", (DL_FUNC) &_TESSERA_build_nb_dist_cpp, 3},
+    {"_TESSERA_nngp_prec_triplets_cpp", (DL_FUNC) &_TESSERA_nngp_prec_triplets_cpp, 4},
+    {"_TESSERA_fast_trace_quad_cpp", (DL_FUNC) &_TESSERA_fast_trace_quad_cpp, 6},
     {NULL, NULL, 0}
 };
 
