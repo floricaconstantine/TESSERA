@@ -7,7 +7,15 @@ GAUSSIAN PROCESS MODEL.
 ## Usage
 
 ``` r
-M_step_BRISC(eta_hat, beta_hat, X, coords, cov_type = "Exp", k = 15)
+M_step_BRISC(
+  eta_hat,
+  beta_hat,
+  X,
+  coords,
+  cov_type = "Exp",
+  k = 15,
+  prev_params = NULL
+)
 ```
 
 ## Arguments
@@ -36,6 +44,12 @@ M_step_BRISC(eta_hat, beta_hat, X, coords, cov_type = "Exp", k = 15)
 - k:
 
   Number of neighbors.
+
+- prev_params:
+
+  Optional numeric vector of previous covariance parameters in gstat
+  convention: c(nugget, sill, range, \[smoothness\]). Used to warm-start
+  BRISC optimization across EM/CM iterations.
 
 ## Value
 

@@ -14,7 +14,8 @@ BRISC_wrapper(
   cov_type = "Exp",
   transform_z = TRUE,
   z_offset = 0.5,
-  verbose = FALSE
+  verbose = FALSE,
+  prev_params = NULL
 )
 ```
 
@@ -56,6 +57,12 @@ BRISC_wrapper(
 - verbose:
 
   Whether to print output as BRISC runs.
+
+- prev_params:
+
+  Optional numeric vector of previous covariance parameters in gstat
+  convention: c(nugget, sill, range, \[smoothness\]). When supplied,
+  maps to BRISC's (sigma.sq, tau.sq, phi, nu) starting values.
 
 ## Value
 

@@ -1,7 +1,7 @@
-# M-step optimization for beta (covariate coefficients). Part of the M-Step in the EM algorithm.
+# Maximize the expected likelihood in beta, holding other variables constant. Part of the M-Step in the EM algorithm.
 
-M-step optimization for beta (covariate coefficients). Part of the
-M-Step in the EM algorithm.
+Maximize the expected likelihood in beta, holding other variables
+constant. Part of the M-Step in the EM algorithm.
 
 ## Usage
 
@@ -11,13 +11,15 @@ M_step_beta(
   Q_list,
   tau2_list,
   X_list,
-  model_type = "spNNGP",
+  model_type = "Leroux",
   gamma_list = NULL,
   XtDX_list = NULL,
   XtWX_list = NULL,
   XtWZX_list = NULL,
   XtX_list = NULL,
-  XtDWIX_list = NULL
+  XtDWIX_list = NULL,
+  XtQX_list = NULL,
+  XtQeta_list = NULL
 )
 ```
 
@@ -25,51 +27,69 @@ M_step_beta(
 
 - eta_list:
 
-  List of estimated means of eta.
+  List of estimated means of eta across all areas.
 
 - Q_list:
 
-  List of unscaled precision matrices.
+  List of unscaled precision matrices across all areas.
 
 - tau2_list:
 
-  List of precision/covariance matrix scalings.
+  Vector of precision matrix scaling parameters tau^2 across all areas.
 
 - X_list:
 
-  List of covariate matrices.
+  List of covariate matrices across all areas.
 
 - model_type:
 
-  "CAR", "SAR", "Leroux", or "spNNGP".
+  Character string specifying "CAR", "SAR", "Leroux", or "spNNGP".
 
 - gamma_list:
 
-  List of current gamma estimates (required for lattice).
+  Vector of current spatial correlation parameters gamma across all
+  areas.
 
 - XtDX_list:
 
-  Precomputed X^T D X (required for CAR/SAR).
+  Optional list of precomputed X^T D X matrices (CAR/SAR).
 
 - XtWX_list:
 
-  Precomputed X^T W X (required for CAR/SAR).
+  Optional list of precomputed X^T W X matrices (CAR/SAR).
 
 - XtWZX_list:
 
-  Precomputed X^T W Z X (required for SAR).
+  Optional list of precomputed X^T W Z X matrices (SAR).
 
 - XtX_list:
 
-  Precomputed X^T X (required for Leroux).
+  Optional list of precomputed X^T X matrices (Leroux).
 
 - XtDWIX_list:
 
-  Precomputed X^T (D - W - I) X (required for Leroux).
+  Optional list of precomputed X^T (D - W - I) X matrices (Leroux).
+
+- XtQX_list:
+
+  Optional list of precomputed X^T Q X matrices (spNNGP inner CM steps).
+
+- XtQeta_list:
+
+  Optional list of precomputed X^T Q eta vectors (spNNGP inner CM
+  steps).
 
 ## Value
 
-Estimated beta vector.
+Maximum likelihood estimate of covariate effects beta.
+
+## Note
+
+Applies across all areas.
+
+Requires the Matrix library.
+
+Requires the pracma library.
 
 ## Author
 

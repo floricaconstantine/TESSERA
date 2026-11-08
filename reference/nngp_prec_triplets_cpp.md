@@ -1,8 +1,9 @@
 # Compute Sparse NNGP Precision Factors (A triplets and Dinv) in C++.
 
-Performs the per-location covariance kernel evaluations and linear
-system solves (LU decomposition with partial pivoting, matching
-base::solve) for nngp_prec_mat.
+Performs the per-location covariance kernel evaluations (exploiting
+symmetry of the neighbor distance matrix to halve Bessel/exponential
+calls) and linear system solves (LU decomposition with partial pivoting,
+matching base::solve) for nngp_prec_mat.
 
 ## Usage
 

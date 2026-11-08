@@ -44,7 +44,7 @@ Follows Clayton and Kaldor (1987) for the Poisson-Gaussian model.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">E_step_Vhat</span><span class="op">(</span><span class="va">Vinv</span>, P <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">E_step_Vhat</span><span class="op">(</span><span class="va">Vinv</span>, P <span class="op">=</span> <span class="cn">NULL</span>, cholQp <span class="op">=</span> <span class="cn">NULL</span>, return_dgC <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -57,6 +57,17 @@ Follows Clayton and Kaldor (1987) for the Poisson-Gaussian model.</p>
 
 <dt id="arg-p">P<a class="anchor" aria-label="anchor" href="#arg-p"></a></dt>
 <dd><p>Cholesky Permutation (precomputed).</p></dd>
+
+
+<dt id="arg-cholqp">cholQp<a class="anchor" aria-label="anchor" href="#arg-cholqp"></a></dt>
+<dd><p>Optional precomputed lower-triangular Cholesky factor of
+<code>t(P) %*% Vinv %*% P</code> from <code><a href="https://rdrr.io/pkg/sparseinv/man/cholPermute.html" class="external-link">sparseinv::cholPermute</a></code>.</p></dd>
+
+
+<dt id="arg-return-dgc">return_dgC<a class="anchor" aria-label="anchor" href="#arg-return-dgc"></a></dt>
+<dd><p>Logical: If <code>TRUE</code>, returns the sparse inverse subset
+directly as a <code>dgCMatrix</code> without coercing to <code>symmetricMatrix</code>.
+Defaults to <code>FALSE</code> for backward compatibility.</p></dd>
 
 </dl></div>
     <div class="section level2">

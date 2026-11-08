@@ -7,7 +7,17 @@ Poisson-Gaussian model.
 ## Usage
 
 ``` r
-E_step_etahat(Vinv, Q, tau2, beta_hat, X, z, N, term1_precomp = NULL)
+E_step_etahat(
+  Vinv,
+  Q,
+  tau2,
+  beta_hat,
+  X,
+  z,
+  N,
+  term1_precomp = NULL,
+  chol_perm = NULL
+)
 ```
 
 ## Arguments
@@ -43,6 +53,13 @@ E_step_etahat(Vinv, Q, tau2, beta_hat, X, z, N, term1_precomp = NULL)
 - term1_precomp:
 
   Optional precomputed vector (z + 0.5)\*log((z + 0.5)/N) - 0.5.
+
+- chol_perm:
+
+  Optional list containing `Qpermchol` (lower-triangular Cholesky
+  factor L) and `P` (permutation matrix) from
+  `sparseinv::cholPermute(Vinv)` to solve via triangular substitution
+  without re-factorizing `Vinv`.
 
 ## Value
 

@@ -38,7 +38,15 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">nngp_prec_mat</span><span class="op">(</span><span class="va">sp_dist</span>, <span class="va">nb_dist</span>, <span class="va">cov_type</span>, <span class="va">cov_params</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">nngp_prec_mat</span><span class="op">(</span></span>
+<span>  <span class="va">sp_dist</span>,</span>
+<span>  <span class="va">nb_dist</span>,</span>
+<span>  <span class="va">cov_type</span>,</span>
+<span>  <span class="va">cov_params</span>,</span>
+<span>  build_Q <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  X <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  eta <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -61,10 +69,26 @@
 <dd><p>Covariance/kernel parameters. Assuming gstat conventions,
 nugget (non-spatial), sill (spatial/scale), range, order (Matern).</p></dd>
 
+
+<dt id="arg-build-q">build_Q<a class="anchor" aria-label="anchor" href="#arg-build-q"></a></dt>
+<dd><p>Logical: If <code>TRUE</code> (default), constructs the sparse
+precision matrix <code>Q = (I - A)^T D^{-1} (I - A)</code> and sparse factor <code>A</code>.
+If <code>FALSE</code>, skips building <code>Q</code> and <code>A</code> and instead computes
+<code>XtQeta</code> and <code>XtQX</code> directly in C++ from <code>X</code> and <code>eta</code>.</p></dd>
+
+
+<dt id="arg-x">X<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
+<dd><p>Optional covariate matrix (N x p) used when <code>build_Q = FALSE</code>.</p></dd>
+
+
+<dt id="arg-eta">eta<a class="anchor" aria-label="anchor" href="#arg-eta"></a></dt>
+<dd><p>Optional random effect vector (length N) used when <code>build_Q = FALSE</code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list with a sparse precision matrix Q, eigenvalues Dinv, and factor A.</p>
+    <p>A list with a sparse precision matrix Q, eigenvalues Dinv, and factor A
+(plus <code>XtQeta</code> and <code>XtQX</code> when <code>build_Q = FALSE</code>).</p>
     </div>
     <div class="section level2">
     <h2 id="note">Note<a class="anchor" aria-label="anchor" href="#note"></a></h2>

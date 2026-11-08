@@ -1,11 +1,11 @@
-# Compute the unscaled precision matrix in a CAR model.
+# Compute unscaled precision matrix for CAR model.
 
-Compute the unscaled precision matrix in a CAR model.
+Compute unscaled precision matrix for CAR model.
 
 ## Usage
 
 ``` r
-Q_matrix_CAR(W, D, gamma_val, precomp = NULL)
+Q_matrix_CAR(W, D, gamma_hat, precomp = NULL)
 ```
 
 ## Arguments
@@ -18,17 +18,17 @@ Q_matrix_CAR(W, D, gamma_val, precomp = NULL)
 
   Degree matrix (diagonal, values are row-sums of W).
 
-- gamma_val:
+- gamma_hat:
 
-  Correlation parameter.
+  Spatial correlation parameter.
 
 - precomp:
 
-  Optional precomputed matrices (unused for CAR).
+  Optional precomputed list from `prep_Q_lattice_cpp`.
 
 ## Value
 
-Unscaled precision matrix.
+Unscaled precision matrix Q.
 
 ## Note
 

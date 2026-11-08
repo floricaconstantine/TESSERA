@@ -7,7 +7,7 @@ Poisson-Gaussian model.
 ## Usage
 
 ``` r
-E_step_Vhat(Vinv, P = NULL)
+E_step_Vhat(Vinv, P = NULL, cholQp = NULL, return_dgC = FALSE)
 ```
 
 ## Arguments
@@ -19,6 +19,18 @@ E_step_Vhat(Vinv, P = NULL)
 - P:
 
   Cholesky Permutation (precomputed).
+
+- cholQp:
+
+  Optional precomputed lower-triangular Cholesky factor of
+  `t(P) %*% Vinv %*% P` from
+  [`sparseinv::cholPermute`](https://rdrr.io/pkg/sparseinv/man/cholPermute.html).
+
+- return_dgC:
+
+  Logical: If `TRUE`, returns the sparse inverse subset directly as a
+  `dgCMatrix` without coercing to `symmetricMatrix`. Defaults to `FALSE`
+  for backward compatibility.
 
 ## Value
 

@@ -1,11 +1,11 @@
-# Compute the unscaled precision matrix in a Leroux model.
+# Compute unscaled precision matrix for Leroux model.
 
-Compute the unscaled precision matrix in a Leroux model.
+Compute unscaled precision matrix for Leroux model.
 
 ## Usage
 
 ``` r
-Q_matrix_Leroux(W, D, gamma_val, precomp = NULL)
+Q_matrix_Leroux(W, D, gamma_hat, precomp = NULL)
 ```
 
 ## Arguments
@@ -18,17 +18,18 @@ Q_matrix_Leroux(W, D, gamma_val, precomp = NULL)
 
   Degree matrix (diagonal, values are row-sums of W).
 
-- gamma_val:
+- gamma_hat:
 
-  Correlation parameter.
+  Spatial correlation parameter.
 
 - precomp:
 
-  Precomputed list containing D_minus_W and id_mat.
+  Optional precomputed list from `prep_Q_lattice_cpp` or list containing
+  `id_mat` and `D_minus_W`.
 
 ## Value
 
-Unscaled precision matrix.
+Unscaled precision matrix Q.
 
 ## Note
 

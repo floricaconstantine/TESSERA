@@ -87,7 +87,7 @@
           <code><a href="M_step_beta.html">M_step_beta()</a></code>
 
         </dt>
-        <dd>M-step optimization for beta (covariate coefficients). Part of the M-Step in the EM algorithm.</dd>
+        <dd>Maximize the expected likelihood in beta, holding other variables constant. Part of the M-Step in the EM algorithm.</dd>
 
         <dt>
 
@@ -129,21 +129,21 @@
           <code><a href="Q_matrix_CAR.html">Q_matrix_CAR()</a></code>
 
         </dt>
-        <dd>Compute the unscaled precision matrix in a CAR model.</dd>
+        <dd>Compute unscaled precision matrix for CAR model.</dd>
 
         <dt>
 
           <code><a href="Q_matrix_Leroux.html">Q_matrix_Leroux()</a></code>
 
         </dt>
-        <dd>Compute the unscaled precision matrix in a Leroux model.</dd>
+        <dd>Compute unscaled precision matrix for Leroux model.</dd>
 
         <dt>
 
           <code><a href="Q_matrix_SAR.html">Q_matrix_SAR()</a></code>
 
         </dt>
-        <dd>Compute the unscaled precision matrix in a SAR model.</dd>
+        <dd>Compute unscaled precision matrix for SAR model.</dd>
 
         <dt>
 
@@ -172,6 +172,13 @@
 
         </dt>
         <dd>Fit Multi-Sample Poisson Spatial GLMM via spNNGP</dd>
+
+        <dt>
+
+          <code><a href="build_Vinv_cpp.html">build_Vinv_cpp()</a></code>
+
+        </dt>
+        <dd>Fast C++ Construction of E-Step Precision Matrix Vinv = Q / tau2 + diag(diag_add).</dd>
 
         <dt>
 
@@ -217,6 +224,13 @@
 
         <dt>
 
+          <code><a href="calc_moran_batch_cpp.html">calc_moran_batch_cpp()</a></code>
+
+        </dt>
+        <dd>Batch Computation of Moran's I Across Multiple Vectors on Shared Coordinates.</dd>
+
+        <dt>
+
           <code><a href="calc_moran_precomp.html">calc_moran_precomp()</a></code>
 
         </dt>
@@ -249,6 +263,13 @@
 
         </dt>
         <dd>Helper function for Moran's I.</dd>
+
+        <dt>
+
+          <code><a href="eval_Q_lattice_cpp.html">eval_Q_lattice_cpp()</a></code>
+
+        </dt>
+        <dd>Fast C++ Evaluation of Lattice Precision Matrix Q from Pre-aligned CSC Vectors.</dd>
 
         <dt>
 
@@ -399,6 +420,13 @@
 
         <dt>
 
+          <code><a href="nngp_beta_terms_cpp.html">nngp_beta_terms_cpp()</a></code>
+
+        </dt>
+        <dd>Compute X^T Q eta and X^T Q X Directly from NNGP Factors (A, Dinv) Without Forming Q.</dd>
+
+        <dt>
+
           <code><a href="nngp_prec_mat.html">nngp_prec_mat()</a></code>
 
         </dt>
@@ -438,6 +466,13 @@
 
         </dt>
         <dd>Precompute coordinate-dependent spatial constants for Moran's I.</dd>
+
+        <dt>
+
+          <code><a href="prep_Q_lattice_cpp.html">prep_Q_lattice_cpp()</a></code>
+
+        </dt>
+        <dd>Pre-align Static Sparse Matrices onto a Shared CSC Template for Lattice Q Updates.</dd>
 
         <dt>
 
@@ -486,14 +521,28 @@
           <code><a href="sparse_dist.html">sparse_dist()</a></code>
 
         </dt>
-        <dd>Get k nearest neighbors/distances given coordinates. Taken from: https://stackoverflow.com/questions/5560218/computing-sparse-pairwise-distance-matrix-in-r</dd>
+        <dd>Get k nearest neighbors/distances given coordinates.</dd>
 
         <dt>
 
           <code><a href="sparse_dist_LT.html">sparse_dist_LT()</a></code>
 
         </dt>
-        <dd>Get k nearest neighbors/distances given coordinates. Modified from: https://stackoverflow.com/questions/5560218/computing-sparse-pairwise-distance-matrix-in-r</dd>
+        <dd>Get k nearest neighbors/distances given coordinates.</dd>
+
+        <dt>
+
+          <code><a href="sparse_dist_LT_cpp.html">sparse_dist_LT_cpp()</a></code>
+
+        </dt>
+        <dd>Fast C++ Lower-Triangular Nearest Neighbor Distance Matrix.</dd>
+
+        <dt>
+
+          <code><a href="sparse_dist_cpp.html">sparse_dist_cpp()</a></code>
+
+        </dt>
+        <dd>Fast C++ Upper-Triangular Nearest Neighbor Distance Matrix.</dd>
 
         <dt>
 

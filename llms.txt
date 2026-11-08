@@ -120,8 +120,8 @@ You can also use the following BibTeX entry:
   eta - X beta. Part of the M-Step in the EM algorithm. ONLY APPLIES TO
   THE GAUSSIAN PROCESS MODEL.
 - [`M_step_beta()`](https://floricaconstantine.github.io/TESSERA/reference/M_step_beta.md)
-  : M-step optimization for beta (covariate coefficients). Part of the
-  M-Step in the EM algorithm.
+  : Maximize the expected likelihood in beta, holding other variables
+  constant. Part of the M-Step in the EM algorithm.
 - [`M_step_gamma_CAR()`](https://floricaconstantine.github.io/TESSERA/reference/M_step_gamma_CAR.md)
   : Maximize the expected likelihood in gamma, holding other variables
   constant. Part of the M-Step in the EM algorithm. ONLY APPLIES TO THE
@@ -144,11 +144,11 @@ You can also use the following BibTeX entry:
   parameters, which is quadratic time. ONLY APPLIES TO THE GAUSSIAN
   PROCESS MODEL.
 - [`Q_matrix_CAR()`](https://floricaconstantine.github.io/TESSERA/reference/Q_matrix_CAR.md)
-  : Compute the unscaled precision matrix in a CAR model.
+  : Compute unscaled precision matrix for CAR model.
 - [`Q_matrix_Leroux()`](https://floricaconstantine.github.io/TESSERA/reference/Q_matrix_Leroux.md)
-  : Compute the unscaled precision matrix in a Leroux model.
+  : Compute unscaled precision matrix for Leroux model.
 - [`Q_matrix_SAR()`](https://floricaconstantine.github.io/TESSERA/reference/Q_matrix_SAR.md)
-  : Compute the unscaled precision matrix in a SAR model.
+  : Compute unscaled precision matrix for SAR model.
 - [`TESSERAData`](https://floricaconstantine.github.io/TESSERA/reference/TESSERAData.md)
   [`TESSERAData-class`](https://floricaconstantine.github.io/TESSERA/reference/TESSERAData.md)
   : The TESSERAData Class
@@ -159,6 +159,9 @@ You can also use the following BibTeX entry:
   : Fit Multi-Sample Poisson Spatial GLMM via ECM Algorithm
 - [`TESSERA_spNNGP()`](https://floricaconstantine.github.io/TESSERA/reference/TESSERA_spNNGP.md)
   : Fit Multi-Sample Poisson Spatial GLMM via spNNGP
+- [`build_Vinv_cpp()`](https://floricaconstantine.github.io/TESSERA/reference/build_Vinv_cpp.md)
+  : Fast C++ Construction of E-Step Precision Matrix Vinv = Q / tau2 +
+  diag(diag_add).
 - [`build_nb_dist_cpp()`](https://floricaconstantine.github.io/TESSERA/reference/build_nb_dist_cpp.md)
   : Precompute Static Euclidean Distance Matrices for Neighbors in C++.
 - [`calc_Wald_pvalue_from_fdrtool()`](https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_pvalue_from_fdrtool.md)
@@ -173,6 +176,9 @@ You can also use the following BibTeX entry:
   compute Wald T-statistics.
 - [`calc_moran()`](https://floricaconstantine.github.io/TESSERA/reference/calc_moran.md)
   : Fast computation of Moran's I.
+- [`calc_moran_batch_cpp()`](https://floricaconstantine.github.io/TESSERA/reference/calc_moran_batch_cpp.md)
+  : Batch Computation of Moran's I Across Multiple Vectors on Shared
+  Coordinates.
 - [`calc_moran_precomp()`](https://floricaconstantine.github.io/TESSERA/reference/calc_moran_precomp.md)
   : Fast computation of Moran's I using precomputed coordinate
   constants.
@@ -186,6 +192,9 @@ You can also use the following BibTeX entry:
   object has everything needed to run without error.
 - [`distanceCalculate()`](https://floricaconstantine.github.io/TESSERA/reference/distanceCalculate.md)
   : Helper function for Moran's I.
+- [`eval_Q_lattice_cpp()`](https://floricaconstantine.github.io/TESSERA/reference/eval_Q_lattice_cpp.md)
+  : Fast C++ Evaluation of Lattice Precision Matrix Q from Pre-aligned
+  CSC Vectors.
 - [`example_TESSERA_out_Leroux.rds`](https://floricaconstantine.github.io/TESSERA/reference/example_TESSERA_out_Leroux.rds.md)
   : Fitted TESSERA Leroux Model Object
 - [`example_prepData.rds`](https://floricaconstantine.github.io/TESSERA/reference/example_prepData.rds.md)
@@ -231,6 +240,9 @@ You can also use the following BibTeX entry:
   MODEL.
 - [`neg_hessian_tau2()`](https://floricaconstantine.github.io/TESSERA/reference/neg_hessian_tau2.md)
   : Compute the Negative Hessian for tau^2.
+- [`nngp_beta_terms_cpp()`](https://floricaconstantine.github.io/TESSERA/reference/nngp_beta_terms_cpp.md)
+  : Compute X^T Q eta and X^T Q X Directly from NNGP Factors (A, Dinv)
+  Without Forming Q.
 - [`nngp_prec_mat()`](https://floricaconstantine.github.io/TESSERA/reference/nngp_prec_mat.md)
   : Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix.
 - [`nngp_prec_triplets_cpp()`](https://floricaconstantine.github.io/TESSERA/reference/nngp_prec_triplets_cpp.md)
@@ -244,6 +256,9 @@ You can also use the following BibTeX entry:
   : Compute the log likelihood of a set of Poisson variables.
 - [`precomp_moran()`](https://floricaconstantine.github.io/TESSERA/reference/precomp_moran.md)
   : Precompute coordinate-dependent spatial constants for Moran's I.
+- [`prep_Q_lattice_cpp()`](https://floricaconstantine.github.io/TESSERA/reference/prep_Q_lattice_cpp.md)
+  : Pre-align Static Sparse Matrices onto a Shared CSC Template for
+  Lattice Q Updates.
 - [`prep_data()`](https://floricaconstantine.github.io/TESSERA/reference/prep_data.md)
   : Prepare data for the TESSERA method.
 - [`prep_synth_data()`](https://floricaconstantine.github.io/TESSERA/reference/prep_synth_data.md)
@@ -257,11 +272,13 @@ You can also use the following BibTeX entry:
 - [`select_Wald_threshold_old()`](https://floricaconstantine.github.io/TESSERA/reference/select_Wald_threshold_old.md)
   : Optimal threshold selection for empirical null estimation
 - [`sparse_dist()`](https://floricaconstantine.github.io/TESSERA/reference/sparse_dist.md)
-  : Get k nearest neighbors/distances given coordinates. Taken from:
-  https://stackoverflow.com/questions/5560218/computing-sparse-pairwise-distance-matrix-in-r
+  : Get k nearest neighbors/distances given coordinates.
 - [`sparse_dist_LT()`](https://floricaconstantine.github.io/TESSERA/reference/sparse_dist_LT.md)
-  : Get k nearest neighbors/distances given coordinates. Modified from:
-  https://stackoverflow.com/questions/5560218/computing-sparse-pairwise-distance-matrix-in-r
+  : Get k nearest neighbors/distances given coordinates.
+- [`sparse_dist_LT_cpp()`](https://floricaconstantine.github.io/TESSERA/reference/sparse_dist_LT_cpp.md)
+  : Fast C++ Lower-Triangular Nearest Neighbor Distance Matrix.
+- [`sparse_dist_cpp()`](https://floricaconstantine.github.io/TESSERA/reference/sparse_dist_cpp.md)
+  : Fast C++ Upper-Triangular Nearest Neighbor Distance Matrix.
 - [`summarize_TESSERA()`](https://floricaconstantine.github.io/TESSERA/reference/summarize_TESSERA.md)
   : Summarizes the results of the TESSERA algorithms for a single gene.
 - [`tessera_example_data`](https://floricaconstantine.github.io/TESSERA/reference/tessera_example_data.md)

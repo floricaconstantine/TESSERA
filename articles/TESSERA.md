@@ -1690,7 +1690,7 @@ devtools::session_info()
     >  nloptr                 2.2.1       [90m2025-03-17 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  numDeriv                [1m [35m2016.8-1.1 [39m [22m  [90m2019-06-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  optimx                  [1m [35m2025-4.9   [39m [22m  [90m2025-04-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  otel                   0.2.0       [90m2025-08-29 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  otel                   0.3.0       [90m2026-11-07 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  pbapply                1.7-5       [90m2026-09-01 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  pillar                 1.11.1      [90m2025-09-17 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  pkgbuild               1.4.8       [90m2025-05-26 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m

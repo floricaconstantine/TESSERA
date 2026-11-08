@@ -1,7 +1,8 @@
 # Fast computation of Moran's I using precomputed coordinate constants.
 
 Returns the exact same c(I, ei, sd) vector as calc_moran, using the
-precomputed W, S1, S2, and ei from precomp_moran.
+precomputed W, S1, S2, and ei from precomp_moran and an upper-triangular
+pass over pairs (i \< j).
 
 ## Usage
 

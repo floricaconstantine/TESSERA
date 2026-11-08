@@ -1,11 +1,11 @@
-# Compute the unscaled precision matrix in a SAR model.
+# Compute unscaled precision matrix for SAR model.
 
-Compute the unscaled precision matrix in a SAR model.
+Compute unscaled precision matrix for SAR model.
 
 ## Usage
 
 ``` r
-Q_matrix_SAR(W, D, gamma_val, precomp = NULL)
+Q_matrix_SAR(W, D, gamma_hat, precomp = NULL)
 ```
 
 ## Arguments
@@ -18,17 +18,18 @@ Q_matrix_SAR(W, D, gamma_val, precomp = NULL)
 
   Degree matrix (diagonal, values are row-sums of W).
 
-- gamma_val:
+- gamma_hat:
 
-  Correlation parameter.
+  Spatial correlation parameter.
 
 - precomp:
 
-  Precomputed W D^{-1} W matrix.
+  Optional precomputed list from `prep_Q_lattice_cpp` or precomputed
+  matrix `W %*% D^{-1} %*% W`.
 
 ## Value
 
-Unscaled precision matrix.
+Unscaled precision matrix Q.
 
 ## Note
 
