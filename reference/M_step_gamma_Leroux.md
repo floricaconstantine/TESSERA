@@ -16,7 +16,8 @@ M_step_gamma_Leroux(
   W,
   D,
   eig_vals,
-  gamma_current = NULL
+  gamma_current = NULL,
+  DWI_precomp = NULL
 )
 ```
 
@@ -57,6 +58,10 @@ M_step_gamma_Leroux(
 - gamma_current:
 
   Previous value of gamma. Only needed for failure modes.
+
+- DWI_precomp:
+
+  Optional precomputed D - W - I matrix.
 
 ## Value
 

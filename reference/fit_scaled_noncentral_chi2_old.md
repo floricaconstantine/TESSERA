@@ -28,6 +28,6 @@ Vector of c(scale, shift).
 
 ``` r
 fit_scaled_noncentral_chi2(5 * stats::rchisq(1000, 1, ncp=10), 20)
-#> scaling   shift 
-#>      NA      NA 
+#>  scaling    shift 
+#> 2.136496 8.873759 
 ```

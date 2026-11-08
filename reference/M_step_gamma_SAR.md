@@ -16,7 +16,8 @@ M_step_gamma_SAR(
   W,
   D,
   eig_vals,
-  gamma_current = NULL
+  gamma_current = NULL,
+  Z_precomp = NULL
 )
 ```
 
@@ -57,6 +58,10 @@ M_step_gamma_SAR(
 - gamma_current:
 
   Previous value of gamma. Only needed for failure modes.
+
+- Z_precomp:
+
+  Optional precomputed Z = D^{-1} W matrix.
 
 ## Value
 

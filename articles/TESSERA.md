@@ -1616,15 +1616,15 @@ devtools::session_info()
 
     >  [1m [36m─ Session info ─────────────────────────────────────────────────────────────── [39m [22m
     >   [3m [90msetting  [39m [23m  [3m [90mvalue [39m [23m
-    >  version  R version 4.6.1 (2026-06-24)
-    >  os       Ubuntu 24.04.5 LTS
+    >  version  R version 4.6.2 (2026-10-29)
+    >  os       Ubuntu 26.04.1 LTS
     >  system   x86_64, linux-gnu
     >  ui       X11
     >  language en
     >  collate  C.UTF-8
     >  ctype    C.UTF-8
     >  tz       UTC
-    >  date     2026-09-20
+    >  date     2026-11-08
     >  pandoc   3.8.3 @ /opt/hostedtoolcache/pandoc/3.8.3/x64/ (via rmarkdown)
     >  quarto   NA
     > 
@@ -1644,8 +1644,8 @@ devtools::session_info()
     >  bslib                  0.12.0      [90m2026-08-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  cachem                 1.1.0       [90m2024-05-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  cli                    3.6.6       [90m2026-04-09 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  colorspace             2.1-3       [90m2026-07-12 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  curl                   8.0.0       [90m2026-08-25 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  colorspace             2.1-4       [90m2026-10-08 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  curl                   8.1.0       [90m2026-10-14 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  DBI                    1.3.0       [90m2026-02-25 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  dbplyr               * 2.6.0       [90m2026-06-17 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  DelayedArray           0.38.2      [90m2026-05-26 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
@@ -1678,12 +1678,12 @@ devtools::session_info()
     >  jsonlite               2.0.0       [90m2025-03-27 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  knitr                  1.52        [90m2026-09-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  labeling               0.4.3       [90m2023-08-29 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  lattice                0.22-9      [90m2026-02-09 [39m  [90m[3] [39m  [90mCRAN (R 4.6.1) [39m
+    >  lattice                0.23-1      [90m2026-08-12 [39m  [90m[3] [39m  [90mCRAN (R 4.6.2) [39m
     >  lifecycle              1.0.5       [90m2026-01-08 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  magick                 2.9.1       [90m2026-02-28 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  magrittr               2.0.5       [90m2026-04-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  MASS                 * 7.3-65      [90m2025-02-28 [39m  [90m[3] [39m  [90mCRAN (R 4.6.1) [39m
-    >  Matrix               * 1.7-5       [90m2026-03-21 [39m  [90m[3] [39m  [90mCRAN (R 4.6.1) [39m
+    >  MASS                 * 7.3-66      [90m2026-07-15 [39m  [90m[3] [39m  [90mCRAN (R 4.6.2) [39m
+    >  Matrix               * 1.7-6       [90m2026-07-25 [39m  [90m[3] [39m  [90mCRAN (R 4.6.2) [39m
     >  MatrixGenerics       * 1.24.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  matrixStats          * 1.5.0       [90m2025-01-07 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  memoise                2.0.1       [90m2021-11-26 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1698,7 +1698,7 @@ devtools::session_info()
     >  pkgdown                2.2.1       [90m2026-07-07 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  pkgload                1.5.3       [90m2026-06-15 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  plyr                   1.8.9       [90m2023-10-02 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  Polychrome             1.6.1       [90m2026-07-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  Polychrome             1.6.2       [90m2026-09-24 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  polyclip               1.10-7      [90m2024-07-23 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  pracma                 2.4.6       [90m2025-10-22 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  purrr                  1.2.2       [90m2026-04-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1715,7 +1715,7 @@ devtools::session_info()
     >  rlang                  1.3.0       [90m2026-07-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  rmarkdown              2.32        [90m2026-09-01 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  RSQLite                3.53.3      [90m2026-06-30 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  S4Arrays               1.12.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  S4Arrays               1.12.1      [90m2026-09-22 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  S4Vectors            * 0.50.3      [90m2026-09-16 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  S7                     0.2.2       [90m2026-04-22 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  sass                   0.4.10      [90m2025-04-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1724,38 +1724,38 @@ devtools::session_info()
     >  Seqinfo              * 1.2.0       [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  sessioninfo            1.2.4       [90m2026-06-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  SingleCellExperiment * 1.34.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
-    >  sp                     2.2-3       [90m2026-07-19 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  sp                     2.2-4       [90m2026-10-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  spacetime              1.3-4       [90m2026-08-24 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  spam                   2.11-4      [90m2026-05-29 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  SparseArray            1.12.2      [90m2026-05-01 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
+    >  SparseArray            1.12.3      [90m2026-09-22 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  sparseinv              0.1.4       [90m2026-07-20 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  sparseMatrixStats      1.24.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  SpatialExperiment    * 1.22.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  spatstat.data          3.1-9       [90m2025-10-18 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  spatstat.geom          3.8-3       [90m2026-09-18 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  spatstat.univar        3.2-0       [90m2026-05-18 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  spatstat.utils         3.2-5       [90m2026-09-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  spatstat.utils         3.2-6       [90m2026-11-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  stringi                1.8.9       [90m2026-08-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  stringr                1.6.0       [90m2025-11-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  SummarizedExperiment * 1.42.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  systemfonts            1.3.2       [90m2026-03-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  TESSERA              * 0.99.1      [90m2026-09-20 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
+    >  TESSERA              * 0.99.1      [90m2026-11-08 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
     >  textshaping            1.0.5       [90m2026-03-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  tibble                 3.3.1       [90m2026-01-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  tidyselect             1.2.1       [90m2024-03-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  usethis                3.2.2       [90m2026-09-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  vctrs                  0.7.3       [90m2026-04-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  withr                  3.0.3       [90m2026-06-19 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  xfun                   0.61        [90m2026-09-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  xfun                   0.62        [90m2026-10-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  xts                    0.14.3      [90m2026-09-08 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  XVector                0.52.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  yaml                   2.3.12      [90m2025-12-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  zigg                   0.0.2       [90m2025-02-07 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  zoo                    1.9-0       [90m2026-07-31 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
+    >  zoo                    1.9-1       [90m2026-09-25 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     > 
     >  [90m [1] /home/runner/work/_temp/Library [39m
-    >  [90m [2] /opt/R/4.6.1/lib/R/site-library [39m
-    >  [90m [3] /opt/R/4.6.1/lib/R/library [39m
+    >  [90m [2] /opt/R/4.6.2/lib/R/site-library [39m
+    >  [90m [3] /opt/R/4.6.2/lib/R/library [39m
     >   [41m [37m* [39m [49m ── Packages attached to the search path.
     > 
     >  [1m [36m────────────────────────────────────────────────────────────────────────────── [39m [22m

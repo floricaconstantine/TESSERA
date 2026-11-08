@@ -1,7 +1,6 @@
-# Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix. (Documentation truncated for brevity)
+# Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix.
 
 Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix.
-(Documentation truncated for brevity)
 
 ## Usage
 
@@ -25,9 +24,17 @@ nngp_prec_mat(sp_dist, nb_dist, cov_type, cov_params)
 
 - cov_params:
 
-  Covariance/kernel parameters. Assuming gstat convenctions, nugget
+  Covariance/kernel parameters. Assuming gstat conventions, nugget
   (non-spatial), sill (spatial/scale), range, order (Matern).
 
 ## Value
 
 A list with a sparse precision matrix Q, eigenvalues Dinv, and factor A.
+
+## Note
+
+Applies to a single area.
+
+## Author
+
+Florica J Constantine, florica AT berkeley.edu

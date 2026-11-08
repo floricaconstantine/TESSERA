@@ -28,7 +28,7 @@ distanceCalculate(x1, y1, x2, y2)
 
 ## Value
 
-Euclidean distance between (x1, y1) and (x2, y2).
+Inverse Euclidean distance between (x1, y1) and (x2, y2).
 
 ## Author
 

@@ -65,6 +65,8 @@
   : Fit Multi-Sample Poisson Spatial GLMM via ECM Algorithm
 - [`TESSERA_spNNGP()`](https://floricaconstantine.github.io/TESSERA/reference/TESSERA_spNNGP.md)
   : Fit Multi-Sample Poisson Spatial GLMM via spNNGP
+- [`build_nb_dist_cpp()`](https://floricaconstantine.github.io/TESSERA/reference/build_nb_dist_cpp.md)
+  : Precompute Static Euclidean Distance Matrices for Neighbors in C++.
 - [`calc_Wald_pvalue_from_fdrtool()`](https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_pvalue_from_fdrtool.md)
   : Given Wald statistics, compute p-values.
 - [`calc_Wald_pvalue_from_threshold()`](https://floricaconstantine.github.io/TESSERA/reference/calc_Wald_pvalue_from_threshold.md)
@@ -77,6 +79,9 @@
   compute Wald T-statistics.
 - [`calc_moran()`](https://floricaconstantine.github.io/TESSERA/reference/calc_moran.md)
   : Fast computation of Moran's I.
+- [`calc_moran_precomp()`](https://floricaconstantine.github.io/TESSERA/reference/calc_moran_precomp.md)
+  : Fast computation of Moran's I using precomputed coordinate
+  constants.
 - [`calc_scaled_noncentral_chi2_pvalues()`](https://floricaconstantine.github.io/TESSERA/reference/calc_scaled_noncentral_chi2_pvalues.md)
   : Given Wald statistics, compute p-values.
 - [`check_inputs_TESSERA()`](https://floricaconstantine.github.io/TESSERA/reference/check_inputs_TESSERA.md)
@@ -95,6 +100,8 @@
   : Raw Synthetic Spatial Data
 - [`expected_loglike()`](https://floricaconstantine.github.io/TESSERA/reference/expected_loglike.md)
   : Compute the expected log likelihood.
+- [`fast_trace_quad_cpp()`](https://floricaconstantine.github.io/TESSERA/reference/fast_trace_quad_cpp.md)
+  : Fast Trace of Product of Two Sparse CSC Matrices Tr(Q \* Vhat).
 - [`fit_empirical_null_fdrtool()`](https://floricaconstantine.github.io/TESSERA/reference/fit_empirical_null_fdrtool.md)
   : Wrapper for Empirical null estimation and p-value computation
 - [`fit_scaled_noncentral_chi2()`](https://floricaconstantine.github.io/TESSERA/reference/fit_scaled_noncentral_chi2.md)
@@ -132,7 +139,8 @@
   : Compute the Negative Hessian for tau^2.
 - [`nngp_prec_mat()`](https://floricaconstantine.github.io/TESSERA/reference/nngp_prec_mat.md)
   : Form a sparse Nearest-Neighbor Gaussian Process Precision Matrix.
-  (Documentation truncated for brevity)
+- [`nngp_prec_triplets_cpp()`](https://floricaconstantine.github.io/TESSERA/reference/nngp_prec_triplets_cpp.md)
+  : Compute Sparse NNGP Precision Factors (A triplets and Dinv) in C++.
 - [`normalize()`](https://floricaconstantine.github.io/TESSERA/reference/normalize.md)
   : Helper function for Moran's I: Center a vector.
 - [`plot_neighbor_distances()`](https://floricaconstantine.github.io/TESSERA/reference/plot_neighbor_distances.md)
@@ -140,6 +148,8 @@
   adjacency matrices.
 - [`poisson_loglike()`](https://floricaconstantine.github.io/TESSERA/reference/poisson_loglike.md)
   : Compute the log likelihood of a set of Poisson variables.
+- [`precomp_moran()`](https://floricaconstantine.github.io/TESSERA/reference/precomp_moran.md)
+  : Precompute coordinate-dependent spatial constants for Moran's I.
 - [`prep_data()`](https://floricaconstantine.github.io/TESSERA/reference/prep_data.md)
   : Prepare data for the TESSERA method.
 - [`prep_synth_data()`](https://floricaconstantine.github.io/TESSERA/reference/prep_synth_data.md)

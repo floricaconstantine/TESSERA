@@ -7,7 +7,7 @@ Poisson-Gaussian model.
 ## Usage
 
 ``` r
-E_step_etahat(Vinv, Q, tau2, beta_hat, X, z, N)
+E_step_etahat(Vinv, Q, tau2, beta_hat, X, z, N, term1_precomp = NULL)
 ```
 
 ## Arguments
@@ -39,6 +39,10 @@ E_step_etahat(Vinv, Q, tau2, beta_hat, X, z, N)
 - N:
 
   Library size or expected counts.
+
+- term1_precomp:
+
+  Optional precomputed vector (z + 0.5)\*log((z + 0.5)/N) - 0.5.
 
 ## Value
 
