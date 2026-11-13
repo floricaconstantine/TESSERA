@@ -2,7 +2,7 @@
 # Create various lists containing, respectively,
 # coordinate matrices, covariate matrices, count matrices, library sizes, etc.
 # with a list element for each sample
-# Dependencies in file: Matrix, dplyr, spatstat, reshape2, Rfast, ggplot2, spatstat.geom.
+# Dependencies in file: Matrix, dplyr, spatstat, reshape2, ggplot2, spatstat.geom.
 # Optional dependencies in file: SpatialExperiment, SingleCellExperiment, SummarizedExperiment.
 
 
@@ -58,7 +58,6 @@
 #' @importFrom spatstat.geom nnwhich nndist
 #' @importFrom stats model.matrix
 #' @importFrom reshape2 melt
-#' @importFrom Rfast colVars
 #' @importFrom methods selectMethod setMethod setGeneric
 #'
 #' @export
@@ -399,7 +398,7 @@ methods::setMethod(
           
           # Extract the diagonal of D (a vector)
           d_diag <- Matrix::diag(D_list[[idx]])
-          # Compute D^{-1/2} 
+          # Compute D^{-1/2}
           # We use Diagonal() from Matrix to create a sparse diagonal matrix
           d_inv_sqrt <- Matrix::Diagonal(x = 1 / sqrt(d_diag))
           # Form the symmetric matrix S = D^{-1/2} W D^{-1/2}
@@ -536,9 +535,14 @@ plot_neighbor_distances <- function(meta_data,
   })
   names(coords_list) <- unique(meta_data[, sample_col])
   
+  ## Precompute k nearest neighbor distances once per sample
+  nndist_list <- lapply(coords_list, function(x) {
+    spatstat.geom::nndist(x, k = 1:k_search)
+  })
+  
   ## k nearest neighbor distances for each cell
-  nb_dist <- dplyr::bind_rows(lapply(1:length(coords_list), function (x) {
-    tmp <- spatstat.geom::nndist(coords_list[[x]], k = 1:k_search)
+  nb_dist <- dplyr::bind_rows(lapply(seq_along(nndist_list), function(x) {
+    tmp <- nndist_list[[x]]
     rownames(tmp) <- rownames(coords_list[[x]])
     tmp <- cbind(rep(names(coords_list)[x], nrow(tmp)), tmp)
     colnames(tmp)[1] <- "sample"
@@ -546,16 +550,16 @@ plot_neighbor_distances <- function(meta_data,
   }))
   
   ## Mean / Standard deviation of k-nearest neighbor distances
-  mean_nb_dist <- as.matrix(dplyr::bind_rows(lapply(coords_list, function (x) {
-    colMeans(spatstat.geom::nndist(x, k = 1:k_search))
-  })))
+  mean_nb_dist <- do.call(rbind, lapply(nndist_list, colMeans))
   rownames(mean_nb_dist) <- names(coords_list)
   
-  std_nb_dist <- sqrt(t(as.matrix(dplyr::bind_cols(
-    lapply(coords_list, function (x) {
-      as.matrix(Rfast::colVars(spatstat.geom::nndist(x, k = 1:k_search)))
-    })
-  ))))
+  std_nb_dist <- do.call(rbind, lapply(nndist_list, function(d) {
+    n <- nrow(d)
+    sqrt(colMeans((d - rep(
+      colMeans(d), each = n
+    ))^2) * (n / (n - 1)))
+  }))
+  colnames(std_nb_dist) <- NULL
   rownames(std_nb_dist) <- names(coords_list)
   
   ## Make a plot to visualize mean Euclidean distance of cells to kth neighbor for each sample
@@ -566,8 +570,18 @@ plot_neighbor_distances <- function(meta_data,
   plot_data$k_nghbr <- gsub("dist.", "", plot_data$k_nghbr)
   plot_data$k_nghbr <- factor(plot_data$k_nghbr, levels = 1:k_search)
   p <- ggplot2::ggplot(data = plot_data, ggplot2::aes(x = .data$k_nghbr, y = .data$distance))
-  p <- p + ggplot2::geom_jitter(color="black", alpha = 0.5, size = 1.5, width = 0.2)
-  p <- p + ggplot2::geom_boxplot(outlier.shape = NA, alpha = 0.6, fill = "gray95", color = "black")
+  p <- p + ggplot2::geom_jitter(
+    color = "black",
+    alpha = 0.5,
+    size = 1.5,
+    width = 0.2
+  )
+  p <- p + ggplot2::geom_boxplot(
+    outlier.shape = NA,
+    alpha = 0.6,
+    fill = "gray95",
+    color = "black"
+  )
   p <- p + ggplot2::labs(x = "kth neighbor", y = "Mean Euclidean distance")
   p <- p + ggplot2::theme_bw()
   p <- p + ggplot2::theme(text = ggplot2::element_text(size = 20))

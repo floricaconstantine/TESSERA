@@ -41,7 +41,6 @@ importFrom(Rcpp,
   evalCpp,
   sourceCpp
 )
-importFrom(Rfast,colVars)
 importFrom(dplyr,bind_rows)
 importFrom(fdrtool,fdrtool)
 importFrom(gstat,

@@ -29,7 +29,6 @@ Imports:
   dplyr, 
   tibble,
   reshape2,
-  Rfast,
   ggplot2,
   BRISC, 
   fdrtool
