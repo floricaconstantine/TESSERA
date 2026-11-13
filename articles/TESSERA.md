@@ -1624,7 +1624,7 @@ devtools::session_info()
     >  collate  C.UTF-8
     >  ctype    C.UTF-8
     >  tz       UTC
-    >  date     2026-11-08
+    >  date     2026-11-13
     >  pandoc   3.8.3 @ /opt/hostedtoolcache/pandoc/3.8.3/x64/ (via rmarkdown)
     >  quarto   NA
     > 
@@ -1707,10 +1707,8 @@ devtools::session_info()
     >  RANN                   2.6.3       [90m2026-08-24 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  RColorBrewer           1.1-3       [90m2022-04-03 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  Rcpp                   1.1.2       [90m2026-07-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  RcppParallel           6.2.1       [90m2026-08-27 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  rdist                  0.0.6       [90m2026-09-17 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  reshape2             * 1.4.5       [90m2025-11-12 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  Rfast                  2.1.5.2     [90m2025-10-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  rjson                  0.2.23      [90m2024-09-16 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  rlang                  1.3.0       [90m2026-07-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  rmarkdown              2.32        [90m2026-09-01 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1739,7 +1737,7 @@ devtools::session_info()
     >  stringr                1.6.0       [90m2025-11-04 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  SummarizedExperiment * 1.42.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  systemfonts            1.3.2       [90m2026-03-05 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  TESSERA              * 0.99.1      [90m2026-11-08 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
+    >  TESSERA              * 0.99.1      [90m2026-11-13 [39m  [90m[1] [39m  [1m [35mlocal [39m [22m
     >  textshaping            1.0.5       [90m2026-03-06 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  tibble                 3.3.1       [90m2026-01-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  tidyselect             1.2.1       [90m2024-03-11 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
@@ -1750,7 +1748,6 @@ devtools::session_info()
     >  xts                    0.14.3      [90m2026-09-08 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  XVector                0.52.0      [90m2026-04-28 [39m  [90m[1] [39m  [1m [35mBioconduc~ [39m [22m
     >  yaml                   2.3.12      [90m2025-12-10 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
-    >  zigg                   0.0.2       [90m2025-02-07 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     >  zoo                    1.9-1       [90m2026-09-25 [39m  [90m[1] [39m  [1m [35mRSPM [39m [22m
     > 
     >  [90m [1] /home/runner/work/_temp/Library [39m
